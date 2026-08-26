@@ -1,0 +1,19 @@
+# Arquivos gerados pelo script
+*.csv
+*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Streamlit e Playwright
+.streamlit/
+playwright-log.txt
+
+# OS
+.DS_Store
+Thumbs.db
