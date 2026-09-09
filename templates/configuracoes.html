@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% set active_page = "configuracoes" %}
+{% block header_title %}Configurações do Robô{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    {% if success %}
+    <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-xl flex items-center shadow-sm">
+        <i class="fa-solid fa-check-circle mr-3 text-emerald-500 text-xl"></i>
+        <span class="font-medium">Configurações salvas com sucesso! O robô usará esses dados na próxima busca.</span>
+    </div>
+    {% endif %}
+
+    <div class="glass-card rounded-2xl shadow-sm overflow-hidden bg-white">
+        <div class="p-8 border-b border-slate-100">
+            <h3 class="text-xl font-bold text-slate-800 flex items-center">
+                <i class="fa-solid fa-user-tie text-blue-500 mr-3"></i> Perfil do Vendedor (Copywriting)
+            </h3>
+            <p class="text-slate-500 text-sm mt-1">Esses dados serão injetados automaticamente nos gatilhos das mensagens de WhatsApp.</p>
+        </div>
+        
+        <form method="POST" action="/configuracoes" class="p-8 space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Seu Nome / Vendedor</label>
+                    <input type="text" name="vendedor_nome" value="{{ config.get('vendedor_nome', '') }}" placeholder="Ex: Pedro" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Nome da sua Agência</label>
+                    <input type="text" name="agencia_nome" value="{{ config.get('agencia_nome', '') }}" placeholder="Ex: Agência Elevate" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                </div>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 flex items-center mb-4">
+                    <i class="fa-solid fa-microchip text-indigo-500 mr-3"></i> Comportamento do Crawler (Motor)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Velocidade de Extração</label>
+                        <select name="velocidade" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer">
+                            <option value="lento" {% if config.get('velocidade') == 'lento' %}selected{% endif %}>🐢 Lento (Muito Seguro, anti-ban)</option>
+                            <option value="normal" {% if config.get('velocidade') == 'normal' %}selected{% endif %}>🚶‍♂️ Normal (Recomendado)</option>
+                            <option value="rapido" {% if config.get('velocidade') == 'rapido' %}selected{% endif %}>🚀 Rápido (Agressivo)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex flex-col justify-center">
+                        <label class="block text-sm font-bold text-slate-700 mb-3">Ocultar Navegador (Headless)</label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="headless" value="True" class="sr-only peer" {% if config.get('headless', True) %}checked{% endif %}>
+                            <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span class="ml-3 text-sm font-medium text-slate-600">Rodar Invisível (Mais rápido)</span>
+                        </label>
+                        <p class="text-xs text-slate-400 mt-2">Desmarque se quiser ver o robô mexendo no Google Chrome.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6">
+                <button type="submit" class="w-full bg-[#1F1F1F] hover:bg-black text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar Configurações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

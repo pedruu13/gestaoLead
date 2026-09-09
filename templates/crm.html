@@ -1,0 +1,187 @@
+{% extends "layout.html" %}
+{% set active_page = "crm" %}
+{% block header_title %}Meu CRM (Base de Leads){% endblock %}
+
+{% block content %}
+<div class="glass-card rounded-xl shadow-sm overflow-hidden flex flex-col">
+    <!-- Header -->
+    <div class="p-6 border-b border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h3 class="text-lg font-bold text-slate-800">Pipeline de Vendas</h3>
+            <p class="text-sm text-slate-500">Gerencie seus leads e gere dossiês de auditoria.</p>
+        </div>
+        
+        <!-- Filtros em Tempo Real -->
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i class="fa-solid fa-search text-slate-400 text-sm"></i>
+                </div>
+                <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 p-2" placeholder="Buscar empresa...">
+            </div>
+            
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i class="fa-solid fa-filter text-slate-400 text-sm"></i>
+                </div>
+                <select id="filter_nicho" onchange="filterTable()" class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8">
+                    <option value="">Todos os Nichos</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </div>
+            </div>
+
+            <button onclick="limparCRM()" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap">
+                <i class="fa-solid fa-trash-can mr-1"></i> Limpar Base
+            </button>
+
+            <a href="/export/csv" class="bg-[#1F1F1F] hover:bg-black text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap">
+                <i class="fa-solid fa-download mr-1"></i> Baixar CSV
+            </a>
+        </div>
+    </div>
+    
+    <!-- Table -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Lead</th>
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Nicho</th>
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200 text-center">Nota</th>
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Contato</th>
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Status CRM</th>
+                    <th class="px-6 py-4 font-semibold border-b border-slate-200 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+                {% for lead in leads %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800">{{ lead.nome }}</div>
+                        <div class="text-xs text-slate-500">{{ lead.bairro }}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ lead.nicho }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="font-bold {% if lead.nota >= '4.5' %}text-green-600{% else %}text-amber-500{% endif %}">
+                            {{ lead.nota }} <i class="fa-solid fa-star text-xs"></i>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if lead.whatsapp_link %}
+                        <a href="{{ lead.whatsapp_link }}" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center gap-1">
+                            <i class="fa-brands fa-whatsapp text-lg"></i> Iniciar
+                        </a>
+                        {% else %}
+                        <span class="text-slate-400 text-sm">Sem Whats</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <select onchange="updateStatus('{{ lead.place_id }}', this.value)" class="text-sm border-slate-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-slate-700 bg-slate-50">
+                            <option value="Novo" {% if lead.status == 'Novo' %}selected{% endif %}>Novo</option>
+                            <option value="Contato Feito" {% if lead.status == 'Contato Feito' %}selected{% endif %}>Contato Feito</option>
+                            <option value="Em Negociação" {% if lead.status == 'Em Negociação' %}selected{% endif %}>Em Negociação</option>
+                            <option value="Fechado" {% if lead.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                            <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
+                        </select>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="/dossie/{{ lead.place_id }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> Dossiê
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+                        <i class="fa-solid fa-inbox text-4xl mb-3 text-slate-300 block"></i>
+                        Nenhum lead encontrado no banco de dados.<br>
+                        Vá para o <strong>Motor de Busca</strong> e inicie uma extração.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function updateStatus(placeId, newStatus) {
+        try {
+            const res = await fetch('/api/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ place_id: placeId, status: newStatus })
+            });
+        } catch(e) {
+            console.error(e);
+            alert("Erro ao atualizar status.");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        let select = document.getElementById('filter_nicho');
+        let trs = document.querySelectorAll('tbody tr');
+        let niches = new Set();
+        
+        trs.forEach(tr => {
+            if(tr.children.length > 1) { // se não for a mensagem de vazio
+                let nichoRaw = tr.children[1].innerText.trim();
+                if(nichoRaw) niches.add(nichoRaw);
+            }
+        });
+        
+        niches.forEach(nicho => {
+            let opt = document.createElement('option');
+            opt.value = nicho.toLowerCase();
+            opt.innerHTML = nicho;
+            select.appendChild(opt);
+        });
+    });
+
+    function filterTable() {
+        let nFilter = document.getElementById('filter_nicho').value.toLowerCase();
+        let nameFilter = document.getElementById('filter_nome').value.toLowerCase();
+        let trs = document.querySelectorAll('tbody tr');
+        
+        trs.forEach(tr => {
+            if(tr.children.length > 1) { 
+                let name = tr.children[0].innerText.toLowerCase();
+                let nicho = tr.children[1].innerText.toLowerCase();
+                
+                let matchNicho = (nFilter === "" || nicho === nFilter);
+                let matchNome = name.includes(nameFilter);
+                
+                if (matchNome && matchNicho) {
+                    tr.style.display = '';
+                } else {
+                    tr.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    async function limparCRM() {
+        if(confirm("⚠️ Tem certeza que deseja DELETAR TODOS os leads da sua base? Essa ação não pode ser desfeita!")) {
+            try {
+                const res = await fetch('/api/limpar_crm', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    window.location.reload();
+                } else {
+                    alert("Erro ao limpar a base: " + data.error);
+                }
+            } catch(e) {
+                alert("Erro de conexão ao tentar limpar.");
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% set active_page = "estatisticas" %}
+{% block header_title %}Dashboard de Estatísticas{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between transition-transform hover:-translate-y-1">
+        <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Prospectado</span>
+            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><i class="fa-solid fa-users"></i></div>
+        </div>
+        <span class="text-4xl font-black text-[#1F1F1F]">{{ total }}</span>
+    </div>
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between transition-transform hover:-translate-y-1">
+        <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Leads c/ WhatsApp</span>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500"><i class="fa-brands fa-whatsapp"></i></div>
+        </div>
+        <span class="text-4xl font-black text-emerald-600">{{ whats }}</span>
+    </div>
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between transition-transform hover:-translate-y-1">
+        <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Em Negociação</span>
+            <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-500"><i class="fa-solid fa-handshake"></i></div>
+        </div>
+        <span class="text-4xl font-black text-amber-500">{{ em_negociacao }}</span>
+    </div>
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between transition-transform hover:-translate-y-1">
+        <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Vendas Fechadas</span>
+            <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-trophy"></i></div>
+        </div>
+        <span class="text-4xl font-black text-indigo-600">{{ fechados }}</span>
+    </div>
+</div>
+
+<!-- Charts Area -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Doughnut Chart: Nichos -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center">
+            <i class="fa-solid fa-chart-pie text-blue-500 mr-2"></i> Distribuição por Nicho
+        </h3>
+        <div class="relative h-64 w-full flex justify-center">
+            <canvas id="chartNicho"></canvas>
+        </div>
+    </div>
+    
+    <!-- Bar Chart: Funil -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center">
+            <i class="fa-solid fa-filter text-amber-500 mr-2"></i> Funil de Vendas
+        </h3>
+        <div class="relative h-64 w-full">
+            <canvas id="chartFunil"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const leadsData = {{ leads | tojson | safe }};
+    
+    // Processamento de dados
+    const nichoCounts = {};
+    const statusCounts = {'Novo': 0, 'Contato Feito': 0, 'Em Negociação': 0, 'Fechado': 0, 'Descartado': 0};
+    
+    leadsData.forEach(lead => {
+        // Nichos
+        let n = lead.nicho || 'Outros';
+        n = n.charAt(0).toUpperCase() + n.slice(1);
+        nichoCounts[n] = (nichoCounts[n] || 0) + 1;
+        
+        // Status
+        let s = lead.status || 'Novo';
+        if(statusCounts[s] !== undefined) {
+            statusCounts[s]++;
+        } else {
+            statusCounts['Novo']++;
+        }
+    });
+
+    // Gráfico de Nichos (Doughnut)
+    const ctxNicho = document.getElementById('chartNicho').getContext('2d');
+    new Chart(ctxNicho, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(nichoCounts),
+            datasets: [{
+                data: Object.values(nichoCounts),
+                backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }
+            }
+        }
+    });
+
+    // Gráfico de Funil (Barra Horizontal)
+    const ctxFunil = document.getElementById('chartFunil').getContext('2d');
+    new Chart(ctxFunil, {
+        type: 'bar',
+        data: {
+            labels: ['Novo', 'Contato', 'Em Negociação', 'Fechado', 'Descartado'],
+            datasets: [{
+                label: 'Leads',
+                data: [statusCounts['Novo'], statusCounts['Contato Feito'], statusCounts['Em Negociação'], statusCounts['Fechado'], statusCounts['Descartado']],
+                backgroundColor: ['#E2E8F0', '#60A5FA', '#FBBF24', '#34D399', '#F87171'],
+                borderRadius: 6,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, grid: { display: false } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -78,19 +78,57 @@ def formatar_whatsapp(numeros: str, copy_texto: str = "") -> str:
         url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
-def gerar_copy_inteligente(nome, bairro, nota):
+def gerar_copy_inteligente(nome, bairro, nota, nicho):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
-    copy = f"Olá, encontrei o perfil de {nome_curto} aqui no Google Maps! "
+    nicho_lower = nicho.lower()
+    
+    copy = f"Olá, encontrei o perfil do(a) {nome_curto} no Google Maps. "
     try:
         if float(nota.replace(',', '.')) >= 4.5:
-            copy += f"Parabéns pela excelente avaliação de {nota} estrelas. "
+            copy += f"Parabéns pela excelente avaliação de {nota} estrelas! "
     except: pass
-    copy += f"Vi que vocês são da região de {bairro}, mas notei que a empresa ainda não possui um site profissional próprio. Gostaria de apresentar uma proposta rápida sem compromisso?"
+    
+    # Gatilhos mentais customizados por nicho
+    if "advogad" in nicho_lower or "escritório" in nicho_lower or "direito" in nicho_lower or "contab" in nicho_lower:
+        copy += "No setor jurídico e corporativo, credibilidade é tudo. Notei que vocês ainda não têm um site próprio. Quando potenciais clientes pesquisam e não acham um site oficial, acabam escolhendo a concorrência por parecerem mais 'sólidos'. "
+        copy += "Consigo montar um protótipo de site focado em captar clientes mais qualificados para vocês, sem compromisso. Topa dar uma olhada?"
+        
+    elif "estética" in nicho_lower or "beleza" in nicho_lower or "salão" in nicho_lower or "sobrancelha" in nicho_lower:
+        copy += "No ramo da estética, o visual vende. Sem um site para mostrar sua estrutura, antes/depois e facilitar o agendamento, vocês estão deixando muito dinheiro na mesa. "
+        copy += "Gostaria de ver uma ideia de página premium que eu montei para lotar a agenda de vocês?"
+        
+    elif "odont" in nicho_lower or "clínica" in nicho_lower or "médic" in nicho_lower or "dentist" in nicho_lower or "terap" in nicho_lower:
+        copy += "Muitos pacientes pesquisam no Google antes de agendar uma consulta. Sem um site profissional, a clínica perde muita autoridade e confiança. "
+        copy += "Eu consigo ajudar vocês a lotarem a agenda com uma página de alta conversão. Posso enviar um modelo de como ficaria, sem compromisso?"
+        
+    elif "imob" in nicho_lower or "corretor" in nicho_lower or "arquitet" in nicho_lower:
+        copy += "O mercado imobiliário/construção hoje é 100% visual. Um site próprio de alto padrão ajuda a fugir da dependência dos portais e passar mais autoridade. "
+        copy += "Quer ver como ficaria um site de luxo focado em vendas para o seu negócio?"
+        
+    else:
+        copy += f"Vi que vocês são de {bairro}, mas notei um problema crítico: a empresa não tem um site profissional ativo. Hoje, 80% dos clientes pesquisam online antes de comprar, e depender só do Instagram/Maps passa uma imagem amadora. "
+        copy += "Gostaria de ver uma ideia de site focado exclusivamente em atrair clientes que eu pensei para vocês?"
+        
     return copy
 
 def gerar_prompt_prototipo(nome, nicho):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
-    return f"UI/UX web design of a modern, high-converting landing page for a {nicho} business named '{nome_curto}'. Clean layout, professional typography, hero section with a clear call-to-action button, services overview section, testimonials, WhatsApp floating button. Dribbble style, Behance style, 8k resolution, modern corporate colors."
+    nicho_lower = nicho.lower()
+    
+    base = f"UI/UX web design of a modern, high-converting landing page for a {nicho} business named '{nome_curto}'. "
+    
+    if "advogad" in nicho_lower or "escritório" in nicho_lower or "direito" in nicho_lower or "contab" in nicho_lower:
+        design = "Professional, trustworthy, corporate identity, navy blue and gold accents, elegant serif typography, hero section with a corporate office background, 'Schedule Consultation' CTA. Minimalist, serious, legal/corporate vibes."
+    elif "estética" in nicho_lower or "beleza" in nicho_lower or "salão" in nicho_lower:
+        design = "Luxurious, elegant, premium feel, rose gold and soft beige tones, beautiful skin/spa imagery, 'Book Treatment' CTA, clean sections for before/after gallery. High-end lifestyle aesthetic."
+    elif "odont" in nicho_lower or "clínica" in nicho_lower or "médic" in nicho_lower or "dentist" in nicho_lower:
+        design = "Clean, hygienic, calming teal and white colors, medical clinic atmosphere, friendly doctors imagery, clear 'Book Appointment' CTA, modern healthcare UI, soft lighting, trustworthy."
+    elif "imob" in nicho_lower or "corretor" in nicho_lower or "arquitet" in nicho_lower:
+        design = "Luxury real estate, clean layout, large high-quality property photos, modern architecture, dark mode or sleek white/black theme, 'View Portfolio' CTA, premium lifestyle vibe."
+    else:
+        design = "Clean layout, professional typography, hero section with a clear call-to-action button, services overview section, testimonials, WhatsApp floating button. Modern corporate colors, highly trustworthy."
+        
+    return base + design + " Dribbble style, Behance style, 8k resolution, photorealistic ui."
 
 def extrair_id_unico(href: str) -> str:
     if not href: return str(random.random())
@@ -207,13 +245,52 @@ st.set_page_config(page_title="GestãoLead PRO", page_icon="🚀", layout="wide"
 
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif !important;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    h1 { background: -webkit-linear-gradient(45deg, #4b6cb7, #182848); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; text-align: center; margin-bottom:0;}
-    .subtitle { text-align: center; color: #888; font-size: 1.1rem; margin-bottom: 2rem; margin-top:0;}
-    div.stButton > button:first-child { background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%); color: white; border-radius: 8px; border: none; height: 45px; font-weight: bold; width: 100%; transition: all 0.3s; }
-    div.stButton > button:first-child:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(75, 108, 183, 0.4); }
+    
+    h1 { background: -webkit-linear-gradient(45deg, #60A5FA, #3B82F6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; text-align: center; margin-bottom:0;}
+    .subtitle { text-align: center; color: #9CA3AF; font-size: 1.1rem; margin-bottom: 2rem; margin-top:0; font-weight: 500;}
+    
+    div.stButton > button:first-child { 
+        background: linear-gradient(90deg, #2563EB 0%, #4F46E5 100%) !important; 
+        color: white !important; 
+        border-radius: 8px !important; 
+        border: none !important; 
+        height: 48px !important; 
+        font-weight: 600 !important; 
+        letter-spacing: 0.5px !important;
+        width: 100% !important; 
+        box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39) !important;
+        transition: all 0.3s ease !important; 
+    }
+    div.stButton > button:first-child:hover { 
+        transform: translateY(-2px) !important; 
+        box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.6) !important; 
+    }
+    
+    /* Cards de Métricas Premium */
+    div[data-testid="metric-container"] {
+        background: linear-gradient(145deg, #1F2937 0%, #111827 100%) !important;
+        border: 1px solid #374151 !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
+    }
+    [data-testid="stMetricLabel"] { color: #9CA3AF !important; font-weight: 600 !important; font-size: 14px !important; text-transform: uppercase; letter-spacing: 0.5px; }
+    [data-testid="stMetricValue"] { color: #60A5FA !important; font-weight: 800 !important; font-size: 32px !important; }
+    
+    /* Inputs arredondados estilo SaaS */
+    .stTextArea textarea, .stTextInput input {
+        border-radius: 8px !important;
+        border: 1px solid #374151 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -392,7 +469,7 @@ if menu == "🚀 Motor de Busca (Agência)":
                                 stats["descartados"] += 1
                                 continue
                             
-                            copy_texto = gerar_copy_inteligente(nome, bairro, nota_str) if (ativar_copy and numeros_whats) else ""
+                            copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho) if (ativar_copy and numeros_whats) else ""
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto)
                             
                             dados_profundos = {"emails": "", "instagram": "", "facebook": "", "linkedin": ""}
