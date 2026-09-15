@@ -447,44 +447,92 @@ def extrator_worker(data, config, queue):
                             endereco = end_el.first.get_attribute("aria-label").replace("Endereço: ", "").strip() if end_el.count() > 0 else ""
                             
                             if data.get('strict_bairro') and bairro.split('-')[0].strip().lower() not in endereco.lower(): continue
+                            # Re-locating elements to avoid staleness
+                            lks = page.locator('a[href*="/maps/place/"]')
+                            if i >= lks.count(): break
                             
-                            nota_str, qtd_str = extrair_avaliacoes(page)
+                            link_elem = lks.nth(i)
+                            link_encontrado = link_elem.get_attribute('href')
+                            nome = link_elem.get_attribute('aria-label') or "Sem Nome"
+                            
+                            # IGNORAR GRANDES REDES
+                            nome_check = nome.lower()
+                            if any(rede in nome_check for rede in GRANDES_REDES):
+                                print(f"[WORKER] Ignorando grande rede: {nome}")
+                                continue
+                            
+                            # Scroll and Click
+                            link_elem.scroll_into_view_if_needed()
+                            pausa(0.5, 1.5, config)
+                            link_elem.click()
+                            time.sleep(2)
                             
                             try:
-                                nota_float = float(nota_str.replace(',', '.')) if nota_str else 0.0
-                                qtd_int = int(qtd_str) if qtd_str else 0
-                            except: nota_float, qtd_int = 0.0, 0
-                                
-                            if nota_float < float(data.get('min_nota', 0)): continue
-                            if data.get('req_whatsapp') and not numeros_whats: continue
+                                page.wait_for_selector('h1', timeout=5000)
+                            except:
+                                print("[WORKER] Falha ao carregar detalhes, pulando...")
+                                continue
+                            
+                            nota_str, avaliacoes_str = extrair_avaliacoes(page)
+                            nota_float = float(nota_str.replace(',', '.'))
+                            
+                            telefone = extrair_telefone(page)
+                            numeros_whats = extrair_apenas_numeros(telefone)
+                            
+                            # Filtros e Lógica
+                            if nota_float < float(data.get('min_nota', 0)):
+                                print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa")
+                                continue
+                            if data.get('req_whatsapp') and not numeros_whats:
+                                print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
+                                continue
                             
                             copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config) if (data.get('ai_copy') and numeros_whats) else ""
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto)
                             
                             # Caçador profundo
+                            print(f"[WORKER] Iniciando caçador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado)
                             
                             lead_data = {
-                                "Nome": nome.strip(), "Nicho": nicho, "Bairro": bairro,
-                                "Nota Maps": nota_str, "Qtd Avaliações": qtd_str,
-                                "Telefone": telefone_raw, "WhatsApp Link": whats_link_final,
-                                "E-mail Encontrado": dados_profundos["email"], 
-                                "Instagram": dados_profundos["instagram"], 
-                                "Facebook": dados_profundos["facebook"], 
-                                "LinkedIn": dados_profundos["linkedin"],
-                                "Link Inicial": link_encontrado, "Google Maps": href,
-                                "Prompt Protótipo": gerar_prompt_prototipo(nome.strip(), nicho)
+                                "nome": nome,
+                                "nicho": nicho,
+                                "bairro": bairro,
+                                "nota": nota_float,
+                                "avaliacoes": int(avaliacoes_str),
+                                "telefone": telefone,
+                                "whatsapp_link": whats_link_final,
+                                "email": dados_profundos["email"],
+                                "instagram": dados_profundos["instagram"],
+                                "facebook": dados_profundos["facebook"],
+                                "linkedin": dados_profundos["linkedin"],
+                                "link_inicial": link_encontrado,
+                                "google_maps": link_encontrado,
+                                "prompt_design": gerar_prompt_prototipo(nome, nicho)
                             }
-                            if save_lead_db(lead_data, place_id):
+                            
+                            # Pega um ID único do URL do Maps para não duplicar
+                            place_id = extrair_id_unico(link_encontrado)
+                            
+                            salvo = save_lead_db(lead_data, place_id)
+                            if salvo:
+                                print(f"[WORKER] Salvo com sucesso: {nome}")
                                 stats["novos_db"] += 1
-                        except Exception as e: print("Aviso loop lead:", e)
+                                
+                        except Exception as e:
+                            print(f"[WORKER] Erro no lead {i}: {e}")
+                            
+            print("[WORKER] Fechando navegador.")
             browser.close()
-            queue.put({"success": True, "salvos": stats["novos_db"]})
             
+        print("[WORKER] Finalizado com sucesso.")
+        if queue: queue.put(stats)
     except Exception as e:
-        queue.put({"success": False, "error": str(e)})
+        print(f"[WORKER] ERRO FATAL: {e}")
+        if queue: queue.put({"error": str(e)})
 
 @app.route('/api/search', methods=['POST'])
+@require_login
 def api_search():
     data = request.json
     if not data.get('nichos') or not data.get('bairros'):
@@ -492,13 +540,17 @@ def api_search():
         
     config = load_config()
     
+    # IMPORTANTE: Forçar spawn para não quebrar o Chromium no Linux (Render)
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
+    
     # Roda o scraper num processo 100% isolado em SEGUNDO PLANO
     q = multiprocessing.Queue()
     p = multiprocessing.Process(target=extrator_worker, args=(data, config, q))
     p.start()
     
-    # Não usamos p.join() para evitar Timeout do Servidor!
-    # O processo rodará no fundo e gravará no banco automaticamente.
     return jsonify({"success": True, "salvos": "Vários (em andamento)", "message": "Busca iniciada em segundo plano."})
 
 @app.route('/api/limpar_crm', methods=['POST'])
