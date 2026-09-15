@@ -86,6 +86,7 @@ def formatar_whatsapp(numeros: str, copy_texto: str = "") -> str:
 
 def gerar_copy_inteligente(nome, bairro, nota, nicho, config):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
+    nicho_lower = nicho.lower()
     
     vendedor = config.get("vendedor_nome", "").strip() or "aqui"
     
@@ -106,9 +107,22 @@ def gerar_copy_inteligente(nome, bairro, nota, nicho, config):
     except: 
         copy += "\n\n"
         
-    copy += "Notei que vocês não têm um site oficial cadastrado, apenas as redes sociais. Hoje em dia, muitos clientes pesquisam no Google e acabam escolhendo o concorrente quando não encontram um site que transmita mais autoridade e confiança de imediato.\n\n"
-    copy += "Como trabalho com posicionamento digital, tomei a liberdade de montar um rascunho de um site profissional para vocês, focado em atrair clientes mais qualificados para o WhatsApp.\n\n"
-    copy += "👉 Posso enviar uma imagem aqui de como ficou? É totalmente sem compromisso, apenas para você dar uma olhada."
+    # Adaptação para nichos onde quem responde é recepcionista (saúde, beleza, estética)
+    if "estética" in nicho_lower or "beleza" in nicho_lower or "odont" in nicho_lower or "clínica" in nicho_lower or "médic" in nicho_lower or "dentist" in nicho_lower:
+        copy += f"Sei que esse provavelmente é o número de agendamentos, mas você conseguiria encaminhar essa mensagem para a pessoa responsável pela gestão da clínica, por gentileza?\n\n"
+        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} não tem um site oficial focado em conversão cadastrado lá no Google. Como hoje os pacientes decidem muito pelo visual, tomei a liberdade de montar um rascunho de uma página focada exclusivamente em lotar a agenda de vocês.\n\n"
+        copy += "👉 Posso enviar a imagem aqui de como ficou? Se puder mostrar para a direção, é totalmente sem compromisso."
+    
+    # Advogados e Contadores (Geralmente secretárias ou direto com o profissional)
+    elif "advogad" in nicho_lower or "escritório" in nicho_lower or "contab" in nicho_lower:
+        copy += "Notei que vocês não têm um site oficial cadastrado, apenas as redes sociais. Hoje em dia, clientes mais exigentes pesquisam no Google e acabam escolhendo o concorrente quando não encontram um site que transmita mais segurança e prestígio de imediato.\n\n"
+        copy += "Como trabalho com autoridade digital, tomei a liberdade de montar um rascunho de um site profissional para vocês, focado em atrair clientes de alto padrão para o escritório.\n\n"
+        copy += "👉 Posso enviar uma imagem aqui de como ficou? É totalmente sem compromisso, apenas para vocês darem uma olhada."
+        
+    else:
+        copy += "Notei que vocês não têm um site oficial cadastrado, apenas as redes sociais. Hoje em dia, muitos clientes pesquisam no Google e acabam escolhendo o concorrente quando não encontram um site que transmita mais autoridade e confiança de imediato.\n\n"
+        copy += "Como trabalho com posicionamento digital, tomei a liberdade de montar um rascunho de um site profissional para vocês, focado em atrair clientes mais qualificados para o WhatsApp.\n\n"
+        copy += "👉 Posso enviar uma imagem aqui de como ficou? É totalmente sem compromisso, apenas para vocês darem uma olhada."
         
     return copy
 
