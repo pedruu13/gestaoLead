@@ -1,6 +1,6 @@
 # 🕵️‍♂️ Buscador de Leads PRO
 
-Uma ferramenta completa de extração e qualificação de Leads B2B a partir do Google Maps, construída em Python com interface Web (Streamlit) e automação de navegador (Playwright).
+Uma ferramenta completa de extração e qualificação de Leads B2B a partir do Google Maps, construída em Python com interface Web (Flask) e automação de navegador (Playwright).
 
 O principal objetivo desta ferramenta é identificar negócios locais que **não possuem um site profissional próprio** (ou que usam apenas Linktree/Instagram) para oferecer serviços de Web Design e Desenvolvimento.
 
@@ -8,7 +8,7 @@ O principal objetivo desta ferramenta é identificar negócios locais que **não
 
 ## ✨ Funcionalidades Premium
 
-* 🌐 **Interface Web Amigável**: Painel completo e fácil de usar construído com Streamlit.
+* 🌐 **Interface Web Amigável**: Painel completo e fácil de usar construído com Flask.
 * 🎛️ **Filtros de Qualificação Inteligentes**: Salva apenas leads que atendam aos seus critérios de **Nota Mínima** e **Mínimo de Avaliações** no Google, além de permitir exigir contato via WhatsApp.
 * 🤖 **Gerador de Copy (WhatsApp Automático)**: Cria um link direto para o WhatsApp do lead já com um texto de vendas hiper-personalizado (cruzando Nome, Bairro e Elogio sobre a nota no Google).
 * 🎨 **Gerador de Prompts (UI/UX)**: Gera automaticamente um *prompt* em inglês pronto para você jogar no Midjourney, DALL-E ou v0.dev e criar um protótipo de site para impressionar o cliente!
@@ -40,9 +40,9 @@ python -m playwright install chromium
 
 ### 4. Inicie o Aplicativo
 ```bash
-python -m streamlit run web_leads.py
+py app.py
 ```
-*O seu navegador padrão abrirá automaticamente na página da ferramenta (geralmente `http://localhost:8501`).*
+*Após iniciar o servidor, abra o seu navegador e acesse `http://localhost:5000`.*
 
 ---
 
