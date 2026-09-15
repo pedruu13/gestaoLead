@@ -35,10 +35,18 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="text-slate-800 flex h-screen overflow-hidden">
+<body class="text-slate-800 flex h-screen overflow-hidden bg-white">
+
+    <!-- Overlay p/ Mobile -->
+    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 hidden md:hidden transition-opacity opacity-0"></div>
 
     <!-- Sidebar Estilo IA (Gemini / Moderno) -->
-    <aside id="sidebar" class="w-64 bg-[#F0F4F9] border-r border-transparent flex flex-col h-screen transition-all duration-300 z-10 shrink-0 overflow-hidden">
+    <aside id="sidebar" class="w-64 bg-[#F0F4F9] border-r border-transparent flex flex-col h-screen transition-transform duration-300 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden">
+        
+        <!-- Fechar Mobile -->
+        <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-4 text-slate-500 hover:text-slate-800">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
         <!-- Logo -->
         <div class="p-4 pl-6 flex items-center mt-2 mb-2 w-64">
             <span class="text-xl font-semibold text-[#444746] tracking-tight flex items-center whitespace-nowrap">
@@ -85,13 +93,13 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-white relative">
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-white relative w-full">
         <!-- Headerbar -->
-        <header class="h-16 bg-white flex items-center px-6">
-            <button onclick="toggleSidebar()" class="mr-4 text-[#444746] hover:bg-[#F0F4F9] p-2 rounded-full transition-colors focus:outline-none" title="Ocultar/Mostrar Menu">
+        <header class="h-16 bg-white flex items-center px-4 md:px-6 border-b md:border-transparent">
+            <button onclick="toggleSidebar()" class="mr-3 md:hidden text-[#444746] hover:bg-[#F0F4F9] p-2 rounded-full transition-colors focus:outline-none" title="Ocultar/Mostrar Menu">
                 <i class="fa-solid fa-bars text-lg"></i>
             </button>
-            <h2 class="text-2xl font-semibold text-[#1F1F1F] flex-1">{% block header_title %}{% endblock %}</h2>
+            <h2 class="text-xl md:text-2xl font-semibold text-[#1F1F1F] flex-1">{% block header_title %}{% endblock %}</h2>
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm border border-blue-200">
                     PL
@@ -100,7 +108,7 @@
         </header>
 
         <!-- Content Padding -->
-        <div class="p-8 flex-1 max-w-7xl mx-auto w-full">
+        <div class="p-4 md:p-8 flex-1 max-w-7xl mx-auto w-full overflow-x-hidden">
             {% block content %}{% endblock %}
         </div>
     </main>
@@ -108,12 +116,20 @@
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            if (sidebar.classList.contains('w-64')) {
-                sidebar.classList.remove('w-64');
-                sidebar.classList.add('w-0');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                if(overlay) {
+                    overlay.classList.remove('hidden');
+                    setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+                }
             } else {
-                sidebar.classList.remove('w-0');
-                sidebar.classList.add('w-64');
+                sidebar.classList.add('-translate-x-full');
+                if(overlay) {
+                    overlay.classList.add('opacity-0');
+                    setTimeout(() => overlay.classList.add('hidden'), 300);
+                }
             }
         }
     </script>
