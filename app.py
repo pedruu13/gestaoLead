@@ -532,7 +532,6 @@ def extrator_worker(data, config, queue):
         if queue: queue.put({"error": str(e)})
 
 @app.route('/api/search', methods=['POST'])
-@require_login
 def api_search():
     data = request.json
     if not data.get('nichos') or not data.get('bairros'):
