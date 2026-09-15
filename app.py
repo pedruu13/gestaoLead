@@ -86,48 +86,29 @@ def formatar_whatsapp(numeros: str, copy_texto: str = "") -> str:
 
 def gerar_copy_inteligente(nome, bairro, nota, nicho, config):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
-    nicho_lower = nicho.lower()
     
-    vendedor = config.get("vendedor_nome", "").strip()
-    agencia = config.get("agencia_nome", "").strip()
+    vendedor = config.get("vendedor_nome", "").strip() or "aqui"
     
-    apresentacao = ""
-    if vendedor and agencia:
-        apresentacao = f"Aqui é o {vendedor} da {agencia}. "
-    elif vendedor:
-        apresentacao = f"Aqui é o {vendedor}. "
+    # Textos curtos, diretos e profissionais
+    copy = f"Olá, tudo bem?\n\n"
     
-    # 1. Gancho Personalizado Geográfico
-    copy = f"Oi {nome_curto}, tudo bem? 👋\n\n{apresentacao}Eu estava mapeando algumas empresas de {nicho} na região de {bairro} e o perfil de vocês no Google chamou muito a minha atenção"
+    if vendedor != "aqui":
+        copy += f"Meu nome é {vendedor}. "
+        
+    copy += f"Estava pesquisando no Google Maps na região de {bairro} e encontrei o perfil da {nome_curto}. "
     
     try:
-        if float(nota.replace(',', '.')) >= 4.5:
-            copy += f", principalmente pela excelente reputação de {nota} estrelas!\n\n"
+        nota_float = float(nota.replace(',', '.'))
+        if nota_float >= 4.5:
+            copy += f"Gostei muito de ver a excelente nota de {nota} estrelas que vocês têm!\n\n"
         else:
-            copy += ".\n\n"
+            copy += "\n\n"
     except: 
-        copy += ".\n\n"
+        copy += "\n\n"
         
-    # 2. Dor Hiper-Específica (Agitação) e 3. Objetivo Claro (CTA de micro-comprometimento)
-    if "advogad" in nicho_lower or "escritório" in nicho_lower or "contab" in nicho_lower:
-        copy += "Mas sendo bem direto: o cliente de alto padrão é muito desconfiado. Quando ele pesquisa no Google e não encontra um site institucional oficial do escritório, ele acaba fechando com a concorrência por parecer mais 'sólida'.\n\n"
-        copy += "Eu sou especialista em posicionamento digital e tomei a liberdade de desenhar uma Página de Captura focada em trazer clientes qualificados para vocês.\n\n"
-        copy += "👉 O meu objetivo aqui não é te vender nada hoje. Posso apenas te mandar um print de como ficou para você dar uma olhada?"
-        
-    elif "estética" in nicho_lower or "beleza" in nicho_lower or "odont" in nicho_lower or "clínica" in nicho_lower or "médic" in nicho_lower:
-        copy += "Mas sendo transparente: percebi um gargalo grave no perfil de vocês. Hoje, quem busca tratamentos toma a decisão pelo visual e praticidade. Como vocês não têm um site profissional mostrando a estrutura e um botão de agendamento rápido, muito paciente acaba indo pro concorrente.\n\n"
-        copy += "Tomei a liberdade de montar um rascunho de uma Landing Page focada exclusivamente em lotar a agenda da clínica.\n\n"
-        copy += "👉 Posso te mandar o link aqui no Whats rapidinho só para você avaliar a ideia?"
-        
-    elif "imob" in nicho_lower or "corretor" in nicho_lower or "arquitet" in nicho_lower:
-        copy += "Percebi que vocês estão deixando muito dinheiro na mesa por não terem uma vitrine digital própria de alto luxo. Ficar dependendo de portal de imóvel ou algoritmo do Instagram espanta os clientes mais qualificados.\n\n"
-        copy += "Fiz um rascunho de um site premium com a identidade visual de vocês, focado 100% em conversão.\n\n"
-        copy += "👉 Posso te mandar uma imagem de como ficou? É totalmente sem compromisso, só quero sua opinião."
-        
-    else:
-        copy += f"Mas sendo direto: percebi que vocês estão perdendo de 3 a 5 potenciais clientes por semana para os concorrentes do bairro. Isso porque hoje, 80% das pessoas pesquisam no Google, e como vocês não têm um site oficial que passe confiança, eles pulam para o próximo da lista.\n\n"
-        copy += "Eu construo máquinas de vendas e tomei a liberdade de desenhar um protótipo de site focado em aumentar os lucros de vocês.\n\n"
-        copy += "👉 Posso te enviar o print da tela que eu montei? É 100% de graça dar uma olhada, não vou te cobrar nada por isso."
+    copy += "Notei que vocês não têm um site oficial cadastrado, apenas as redes sociais. Hoje em dia, muitos clientes pesquisam no Google e acabam escolhendo o concorrente quando não encontram um site que transmita mais autoridade e confiança de imediato.\n\n"
+    copy += "Como trabalho com posicionamento digital, tomei a liberdade de montar um rascunho de um site profissional para vocês, focado em atrair clientes mais qualificados para o WhatsApp.\n\n"
+    copy += "👉 Posso enviar uma imagem aqui de como ficou? É totalmente sem compromisso, apenas para você dar uma olhada."
         
     return copy
 
@@ -143,16 +124,51 @@ def extrair_id_unico(href: str) -> str:
     return match.group(1) if match else href.split('?')[0]
 
 def extrair_avaliacoes(page):
+    nota = "0"
+    qtd = "0"
     try:
-        botoes = page.locator('button')
-        for i in range(min(botoes.count(), 30)):
-            aria = botoes.nth(i).get_attribute("aria-label")
-            if aria and "estrelas" in aria and "avaliações" in aria:
+        # Pega todos os elementos com aria-label que pode ter estrelas ou avaliações
+        elementos = page.locator('[aria-label]')
+        for i in range(min(elementos.count(), 100)):
+            aria = elementos.nth(i).get_attribute("aria-label")
+            if not aria: continue
+            
+            # Pega a nota ("4,5 estrelas") - ignora as que falam "5 estrelas, 100 avaliações" (filtros)
+            if "estrelas" in aria and nota == "0" and "avalia" not in aria:
                 match_nota = re.search(r'([\d,.]+)\s*estrelas', aria)
-                match_qtd = re.search(r'([\d,.]+)\s*avaliações', aria)
-                return (match_nota.group(1) if match_nota else "0"), (match_qtd.group(1).replace(".", "") if match_qtd else "0")
-    except: pass
-    return "0", "0"
+                if match_nota: nota = match_nota.group(1)
+            
+            # Pega a quantidade ("1.200 avaliações")
+            if "avalia" in aria and qtd == "0" and "estrelas" not in aria and "resumo" not in aria:
+                match_qtd = re.search(r'([\d,.]+)\s*avalia', aria)
+                if match_qtd: qtd = match_qtd.group(1).replace(".", "")
+                
+            if nota != "0" and qtd != "0":
+                break
+    except Exception as e: print("Aviso interno:", e)
+    return nota, qtd
+
+# --- SEGURANÇA BÁSICA ---
+def check_auth(username, password):
+    # Senha padrão: admin / 123456 (Pode ser mudado via variáveis de ambiente)
+    valid_user = os.environ.get('APP_USER', 'admin')
+    valid_pass = os.environ.get('APP_PASS', '123456')
+    return username == valid_user and password == valid_pass
+
+def authenticate():
+    return Response(
+    'Login necessário para acessar o CRM.\n'
+    'Use "admin" e "123456" se não tiver alterado as credenciais.', 401,
+    {'WWW-Authenticate': 'Basic realm="GestaoLead Login"'})
+
+@app.before_request
+def require_login():
+    # Permite acessar rotas estáticas sem login se houver
+    if request.endpoint == 'static': return
+    
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate()
 
 # --- FLASK ROUTES ---
 @app.route('/')
@@ -232,34 +248,52 @@ def dossie(place_id):
     </head>
     <body class="bg-slate-50 text-slate-800 font-sans p-8">
         <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
-            <h1 class="text-3xl font-bold mb-2 text-slate-900">Relatório de Presença Digital</h1>
-            <h2 class="text-xl text-red-600 font-semibold mb-6">Empresa Auditada: {lead['nome']}</h2>
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2 text-slate-900">Auditoria de Presença Digital</h1>
+                    <h2 class="text-xl text-red-600 font-semibold">Empresa: {lead['nome']}</h2>
+                </div>
+                <div class="text-right">
+                    <span class="inline-block bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide">{lead['nicho']}</span>
+                </div>
+            </div>
             
-            <p class="text-slate-600 mb-8">Análise automática da presença online do negócio (Nicho: <strong>{lead['nicho']}</strong>) na região de <strong>{lead['bairro']}</strong>.</p>
+            <p class="text-slate-600 mb-8 border-b pb-6">Análise detalhada da presença online na região de <strong>{lead['bairro']}</strong>. O objetivo desta auditoria é identificar gargalos onde a empresa está perdendo clientes para a concorrência local.</p>
             
-            <div class="flex gap-6 mb-10">
-                <div class="flex-1 bg-slate-50 border border-slate-200 p-6 rounded-xl text-center border-b-4 border-b-emerald-500">
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl text-center border-b-4 border-b-emerald-500">
                     <span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} ⭐</span>
                     <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span>
                 </div>
-                <div class="flex-1 bg-slate-50 border border-slate-200 p-6 rounded-xl text-center border-b-4 border-b-emerald-500">
+                <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl text-center border-b-4 border-b-emerald-500">
                     <span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span>
                     <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliações</span>
                 </div>
             </div>
 
-            <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-10">
-                <h3 class="text-xl font-bold text-red-700 mb-3">⚠️ Ponto Crítico de Conversão Identificado</h3>
-                <p class="mb-3">Durante a nossa varredura, constatamos que a empresa <strong>não possui um site profissional próprio</strong> ou página de destino otimizada.</p>
-                <p>Isso gera um vazamento invisível de clientes que pesquisam por <em>{lead['nicho']}</em> no Google, encontram a empresa, mas acabam optando por concorrentes que possuem uma vitrine digital mais profissional e confiável.</p>
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">📍 Dados Encontrados Publicamente</h3>
+                <ul class="space-y-3 text-slate-600">
+                    <li><strong>Telefone/WhatsApp:</strong> {lead['telefone'] or 'Não disponível'}</li>
+                    <li><strong>E-mail Público:</strong> {lead['email'] or '<span class="text-red-500 font-bold">Vazamento: Nenhum e-mail de contato encontrado.</span>'}</li>
+                    <li><strong>Instagram:</strong> {f"<a href='{lead['instagram']}' class='text-blue-500 underline' target='_blank'>Acessar Perfil</a>" if lead['instagram'] else '<span class="text-orange-500">Não localizado</span>'}</li>
+                    <li><strong>LinkedIn:</strong> {f"<a href='{lead['linkedin']}' class='text-blue-500 underline' target='_blank'>Acessar Perfil</a>" if lead['linkedin'] else 'Não localizado'}</li>
+                    <li><strong>Link Atual (Google):</strong> {f"<a href='{lead['link_inicial']}' class='text-blue-500 underline' target='_blank'>Visualizar</a>" if lead['link_inicial'] else '<span class="text-red-500 font-bold">Nenhum link cadastrado no Google!</span>'}</li>
+                </ul>
             </div>
 
-        <div class="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl">
+            <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
+                <h3 class="text-xl font-bold text-red-700 mb-3">⚠️ Ponto Crítico de Conversão Identificado</h3>
+                <p class="mb-3">Constatamos que a <strong>{lead['nome']}</strong> atualmente <strong>não possui um site institucional oficial e profissional</strong>.</p>
+                <p>Mesmo possuindo {lead['avaliacoes']} avaliações no Google, isso gera um "vazamento invisível" de clientes. Quando clientes premium pesquisam por <em>{lead['nicho']} em {lead['bairro']}</em>, eles encontram a empresa, mas acabam optando por concorrentes que demonstram mais autoridade através de uma vitrine digital oficial e bem estruturada.</p>
+            </div>
+
+            <div class="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl">
                 <h3 class="text-xl font-bold text-blue-800 mb-3">💡 Recomendação Técnica Imediata</h3>
-                <p>Recomendamos o desenvolvimento de uma <strong>Landing Page de Alta Conversão</strong> focada em capturar esses leads locais e direcioná-los automaticamente para o WhatsApp da equipe comercial.</p>
+                <p>Para maximizar a captação de clientes que já buscam por serviços no Google, recomendamos urgentemente a criação de uma <strong>Página de Alta Conversão (Landing Page)</strong> com a identidade visual da empresa, focada em transmitir confiança e direcionar contatos diretamente para o WhatsApp do time comercial.</p>
             </div>
             
-            <p class="text-center text-xs text-slate-400 mt-12">Relatório gerado via GestãoLead PRO Automation.</p>
+            <p class="text-center text-xs text-slate-400 mt-12">Relatório Confidencial gerado via GestãoLead PRO Automation.</p>
         </div>
     </body>
     </html>
@@ -267,6 +301,51 @@ def dossie(place_id):
     return html
 
 import multiprocessing
+
+def cacar_dados_profundos(context, url):
+    dados = {"email": "", "instagram": "", "facebook": "", "linkedin": ""}
+    if not url: return dados
+    
+    url_lower = url.lower()
+    if "instagram.com" in url_lower:
+        dados["instagram"] = url
+        return dados
+    if "facebook.com" in url_lower:
+        dados["facebook"] = url
+        return dados
+    if "linkedin.com" in url_lower:
+        dados["linkedin"] = url
+        return dados
+        
+    page = None
+    try:
+        page = context.new_page()
+        # Aborta imagens e fontes também na nova página para ir rápido
+        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
+        page.goto(url, timeout=15000, wait_until="domcontentloaded")
+        content = page.content()
+        
+        emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', content)
+        emails = [e for e in emails if not e.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.mp4')) and "sentry" not in e and "example" not in e and "wix" not in e]
+        if emails: dados["email"] = emails[0]
+        
+        ig = re.search(r'https?://(?:www\.)?instagram\.com/[a-zA-Z0-9_.-]+', content)
+        if ig: dados["instagram"] = ig.group(0)
+        
+        fb = re.search(r'https?://(?:www\.)?facebook\.com/[a-zA-Z0-9_.-]+', content)
+        if fb: dados["facebook"] = fb.group(0)
+        
+        li = re.search(r'https?://(?:www\.)?linkedin\.com/(?:company|in)/[a-zA-Z0-9_.-]+', content)
+        if li: dados["linkedin"] = li.group(0)
+        
+    except Exception as e:
+        print(f"Erro no Caçador Profundo para {url}: {e}")
+    finally:
+        if page:
+            try: page.close()
+            except Exception as e: print("Aviso interno:", e)
+            
+    return dados
 
 def extrator_worker(data, config, queue):
     try:
@@ -306,11 +385,11 @@ def extrator_worker(data, config, queue):
                             painel.hover()
                             page.mouse.wheel(0, 4000)
                             time.sleep(random.uniform(1, 2))
-                    except: pass
+                    except Exception as e: print("Aviso interno:", e)
                     
                     try:
                         page.wait_for_selector('a[href*="/maps/place/"]', timeout=10000)
-                    except: pass
+                    except Exception as e: print("Aviso interno:", e)
                     
                     links = page.locator('a[href*="/maps/place/"]')
                     hrefs = []
@@ -323,7 +402,7 @@ def extrator_worker(data, config, queue):
                         try:
                             page.goto(href, timeout=20000)
                             try: page.wait_for_selector("h1", timeout=5000)
-                            except: pass 
+                            except Exception as e: print("Aviso interno:", e) 
                             
                             nome_el = page.locator("h1").first
                             if nome_el.count() > 0:
@@ -368,17 +447,23 @@ def extrator_worker(data, config, queue):
                             copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config) if (data.get('ai_copy') and numeros_whats) else ""
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto)
                             
+                            # Caçador profundo
+                            dados_profundos = cacar_dados_profundos(context, link_encontrado)
+                            
                             lead_data = {
                                 "Nome": nome.strip(), "Nicho": nicho, "Bairro": bairro,
                                 "Nota Maps": nota_str, "Qtd Avaliações": qtd_str,
                                 "Telefone": telefone_raw, "WhatsApp Link": whats_link_final,
-                                "E-mail Encontrado": "", "Instagram": "", "Facebook": "", "LinkedIn": "",
+                                "E-mail Encontrado": dados_profundos["email"], 
+                                "Instagram": dados_profundos["instagram"], 
+                                "Facebook": dados_profundos["facebook"], 
+                                "LinkedIn": dados_profundos["linkedin"],
                                 "Link Inicial": link_encontrado, "Google Maps": href,
                                 "Prompt Protótipo": gerar_prompt_prototipo(nome.strip(), nicho)
                             }
                             if save_lead_db(lead_data, place_id):
                                 stats["novos_db"] += 1
-                        except Exception as e: pass
+                        except Exception as e: print("Aviso loop lead:", e)
             browser.close()
             queue.put({"success": True, "salvos": stats["novos_db"]})
             
@@ -393,17 +478,14 @@ def api_search():
         
     config = load_config()
     
-    # Roda o scraper num processo 100% isolado (blindado contra crash)
+    # Roda o scraper num processo 100% isolado em SEGUNDO PLANO
     q = multiprocessing.Queue()
     p = multiprocessing.Process(target=extrator_worker, args=(data, config, q))
     p.start()
-    p.join()  # Espera o robô terminar
     
-    try:
-        resultado = q.get_nowait()
-        return jsonify(resultado)
-    except:
-        return jsonify({"success": False, "error": "O processo de extração falhou ou foi abortado abruptamente."})
+    # Não usamos p.join() para evitar Timeout do Servidor!
+    # O processo rodará no fundo e gravará no banco automaticamente.
+    return jsonify({"success": True, "salvos": "Vários (em andamento)", "message": "Busca iniciada em segundo plano."})
 
 @app.route('/api/limpar_crm', methods=['POST'])
 def limpar_crm():
@@ -420,4 +502,6 @@ def limpar_crm():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5000, threaded=False, use_reloader=False)
+    # Usando 0.0.0.0 para funcionar em servidores externos (Render, Oracle, etc)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=False, use_reloader=False)
