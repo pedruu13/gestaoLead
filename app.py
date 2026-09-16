@@ -28,19 +28,28 @@ def save_config(data):
 STATUS_FILE = 'search_status.json'
 
 def atualizar_status(dados):
+    import os
     try:
+        dados["pid"] = os.getpid()
         with open(STATUS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(dados, f)
+            json.dump(dados, f, ensure_ascii=False)
     except Exception as e:
-        print(f"[STATUS] Erro ao salvar status: {e}")
+        print(f"Erro ao salvar status: {e}")
 
 def ler_status():
     import os
+    import psutil
     if not os.path.exists(STATUS_FILE):
         return {"rodando": False, "mensagem": "Nenhuma busca realizada ainda.", "leads_salvos": 0}
     try:
         with open(STATUS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Verifica se o processo morreu inesperadamente (OOMKill)
+            if data.get("rodando") and data.get("pid"):
+                if not psutil.pid_exists(data["pid"]):
+                    data["rodando"] = False
+                    data["mensagem"] = "O processo foi interrompido inesperadamente (possível limite de memória do Render)."
+            return data
     except Exception:
         return {"rodando": False, "mensagem": "Status indisponível.", "leads_salvos": 0}
 
