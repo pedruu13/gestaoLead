@@ -25,6 +25,25 @@ def save_config(data):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
+STATUS_FILE = 'search_status.json'
+
+def atualizar_status(dados):
+    try:
+        with open(STATUS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(dados, f)
+    except Exception as e:
+        print(f"[STATUS] Erro ao salvar status: {e}")
+
+def ler_status():
+    import os
+    if not os.path.exists(STATUS_FILE):
+        return {"rodando": False, "mensagem": "Nenhuma busca realizada ainda.", "leads_salvos": 0}
+    try:
+        with open(STATUS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {"rodando": False, "mensagem": "Status indisponível.", "leads_salvos": 0}
+
 # --- DATABASE ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -64,6 +83,27 @@ def save_lead_db(lead, place_id):
         conn.close()
 
 # --- SCRAPER HELPERS ---
+def tratar_consentimento_cookies(page):
+    """Fecha a tela de consentimento de cookies do Google, comum em IPs de datacenter (Render)."""
+    try:
+        import time
+        seletores = [
+            'button:has-text("Aceitar tudo")',
+            'button:has-text("Accept all")',
+            'button:has-text("I agree")',
+            'form[action*="consent"] button',
+        ]
+        for seletor in seletores:
+            botao = page.locator(seletor).first
+            if botao.count() > 0 and botao.is_visible(timeout=2000):
+                botao.click(timeout=3000)
+                print("[WORKER] Tela de consentimento fechada.")
+                time.sleep(1)
+                return True
+    except Exception as e:
+        print(f"[WORKER] Sem tela de consentimento (ou falhou ao fechar): {e}")
+    return False
+
 def pausa(min_s=1.0, max_s=2.5, config=None): 
     if config:
         if config.get("velocidade") == "rapido": min_s, max_s = min_s * 0.5, max_s * 0.5
@@ -367,8 +407,11 @@ def extrator_worker(data, config, queue):
         import random
         import re
         from playwright.sync_api import sync_playwright
+        import urllib.parse
         
         stats = {"novos_db": 0}
+        atualizar_status({"rodando": True, "mensagem": "Abrindo navegador...", "leads_salvos": 0})
+        
         nichos = [n.strip() for n in data['nichos'].split(",") if n.strip()]
         bairros = [b.strip() for b in data['bairros'].split(",") if b.strip()]
         is_headless = config.get("headless", True)
@@ -382,14 +425,25 @@ def extrator_worker(data, config, queue):
             if is_headless:
                 page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
             
+            consent_ok = False
             for bairro in bairros:
                 for nicho in nichos:
-                    termo = f"{nicho} em {bairro}"
-                    url = f"https://www.google.com/maps/search/{termo.replace(' ', '+')}"
+                    busca = f"{nicho} em {bairro}"
+                    atualizar_status({"rodando": True, "mensagem": f"Buscando '{nicho}' em '{bairro}'...", "leads_salvos": stats["novos_db"]})
+                    url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
                     
                     try:
-                        page.goto(url, timeout=60000)
-                        time.sleep(random.uniform(2, 4))
+                        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        if not consent_ok:
+                            tratar_consentimento_cookies(page)
+                            consent_ok = True
+                        time.sleep(3)
+                    except Exception as e:
+                        print(f"[WORKER] Erro ao carregar página: {e}")
+                        continue
+                    
+                    try:
+                        page.wait_for_selector('a[href*="/maps/place/"]', timeout=10000)
                     except Exception as e:
                         continue
                     
@@ -518,18 +572,25 @@ def extrator_worker(data, config, queue):
                             if salvo:
                                 print(f"[WORKER] Salvo com sucesso: {nome}")
                                 stats["novos_db"] += 1
+                                atualizar_status({"rodando": True, "mensagem": f"Lead salvo: {nome}", "leads_salvos": stats["novos_db"]})
                                 
                         except Exception as e:
                             print(f"[WORKER] Erro no lead {i}: {e}")
                             
             print("[WORKER] Fechando navegador.")
+            atualizar_status({"rodando": False, "mensagem": "Busca finalizada.", "leads_salvos": stats["novos_db"]})
             browser.close()
             
         print("[WORKER] Finalizado com sucesso.")
         if queue: queue.put(stats)
     except Exception as e:
         print(f"[WORKER] ERRO FATAL: {e}")
+        atualizar_status({"rodando": False, "mensagem": f"Erro: {e}", "leads_salvos": 0})
         if queue: queue.put({"error": str(e)})
+
+@app.route('/api/status')
+def api_status():
+    return jsonify(ler_status())
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
@@ -538,6 +599,8 @@ def api_search():
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
         
     config = load_config()
+    
+    atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0})
     
     # IMPORTANTE: Forçar spawn para não quebrar o Chromium no Linux (Render)
     try:

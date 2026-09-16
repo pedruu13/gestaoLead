@@ -114,7 +114,7 @@
         
         // Polling loop para simular o log ao vivo (já que HTTP é req/res)
         // Num app real usaríamos Server Sent Events, aqui vamos apenas esperar a requisição terminar.
-        log.innerText = "Aguarde... Varrendo o Google Maps (isso pode levar alguns minutos dependendo da quantidade de bairros).";
+        log.innerText = "Aguarde... Iniciando busca (isso pode levar alguns minutos).";
         
         try {
             const response = await fetch('/api/search', {
@@ -125,15 +125,36 @@
             
             const data = await response.json();
             if(data.success) {
-                log.innerText = `Extração Concluída! ${data.salvos} leads salvos no CRM. Redirecionando...`;
-                setTimeout(() => { window.location.href = '/crm'; }, 2000);
+                // Inicia o polling de status
+                async function verificarStatus() {
+                    try {
+                        const resp = await fetch('/api/status');
+                        const status = await resp.json();
+                        
+                        log.innerText = status.mensagem + (status.leads_salvos > 0 ? ` (${status.leads_salvos} leads salvos)` : "");
+                        
+                        if (status.rodando) {
+                            setTimeout(verificarStatus, 3000);
+                        } else {
+                            log.innerText = `Busca Concluída! ${status.leads_salvos} leads salvos. Redirecionando...`;
+                            setTimeout(() => { window.location.href = '/crm'; }, 2000);
+                        }
+                    } catch (err) {
+                        log.innerText = "Erro ao verificar status. Redirecionando para o CRM...";
+                        setTimeout(() => { window.location.href = '/crm'; }, 3000);
+                    }
+                }
+                
+                // Aguarda um pouquinho pra primeira leitura
+                setTimeout(verificarStatus, 1500);
+                
             } else {
                 log.innerText = "Erro: " + data.error;
                 btn.disabled = false;
                 btn.classList.remove('opacity-50');
             }
         } catch (e) {
-            log.innerText = "Erro de conexão com o servidor local.";
+            log.innerText = "Erro de conexão com o servidor.";
             btn.disabled = false;
             btn.classList.remove('opacity-50');
         }
