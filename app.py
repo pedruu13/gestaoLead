@@ -500,74 +500,45 @@ def extrator_worker(data, config, queue):
                             end_el = page.locator('button[data-item-id="address"]')
                             endereco = end_el.first.get_attribute("aria-label").replace("Endereço: ", "").strip() if end_el.count() > 0 else ""
                             
-                            if data.get('strict_bairro') and bairro.split('-')[0].strip().lower() not in endereco.lower(): continue
-                            # Re-locating elements to avoid staleness
-                            lks = page.locator('a[href*="/maps/place/"]')
-                            if i >= lks.count(): break
-                            
-                            link_elem = lks.nth(i)
-                            link_encontrado = link_elem.get_attribute('href')
-                            nome = link_elem.get_attribute('aria-label') or "Sem Nome"
-                            
-                            # IGNORAR GRANDES REDES
-                            nome_check = nome.lower()
-                            if any(rede in nome_check for rede in GRANDES_REDES):
-                                print(f"[WORKER] Ignorando grande rede: {nome}")
+                            if data.get('strict_bairro') and bairro.split('-')[0].strip().lower() not in endereco.lower():
                                 continue
-                            
-                            # Scroll and Click
-                            link_elem.scroll_into_view_if_needed()
-                            pausa(0.5, 1.5, config)
-                            link_elem.click()
-                            time.sleep(2)
-                            
-                            try:
-                                page.wait_for_selector('h1', timeout=5000)
-                            except:
-                                print("[WORKER] Falha ao carregar detalhes, pulando...")
-                                continue
-                            
+                                
                             nota_str, avaliacoes_str = extrair_avaliacoes(page)
-                            nota_float = float(nota_str.replace(',', '.'))
-                            
-                            telefone = extrair_telefone(page)
-                            numeros_whats = extrair_apenas_numeros(telefone)
-                            
-                            # Filtros e Lógica
+                            try:
+                                nota_float = float(nota_str.replace(',', '.'))
+                            except ValueError:
+                                nota_float = 0.0
+
                             if nota_float < float(data.get('min_nota', 0)):
                                 print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa")
                                 continue
                             if data.get('req_whatsapp') and not numeros_whats:
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
                                 continue
-                            
+
                             copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config) if (data.get('ai_copy') and numeros_whats) else ""
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto)
-                            
-                            # Caçador profundo
+
                             print(f"[WORKER] Iniciando caçador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado)
-                            
+
                             lead_data = {
-                                "nome": nome,
-                                "nicho": nicho,
-                                "bairro": bairro,
-                                "nota": nota_float,
-                                "avaliacoes": int(avaliacoes_str),
-                                "telefone": telefone,
-                                "whatsapp_link": whats_link_final,
-                                "email": dados_profundos["email"],
-                                "instagram": dados_profundos["instagram"],
-                                "facebook": dados_profundos["facebook"],
-                                "linkedin": dados_profundos["linkedin"],
-                                "link_inicial": link_encontrado,
-                                "google_maps": link_encontrado,
-                                "prompt_design": gerar_prompt_prototipo(nome, nicho)
+                                "Nome": nome,
+                                "Nicho": nicho,
+                                "Bairro": bairro,
+                                "Nota Maps": nota_str,
+                                "Qtd Avaliações": avaliacoes_str,
+                                "Telefone": telefone_raw,
+                                "WhatsApp Link": whats_link_final,
+                                "E-mail Encontrado": dados_profundos["email"],
+                                "Instagram": dados_profundos["instagram"],
+                                "Facebook": dados_profundos["facebook"],
+                                "LinkedIn": dados_profundos["linkedin"],
+                                "Link Inicial": link_encontrado,
+                                "Google Maps": href,
+                                "Prompt Protótipo": gerar_prompt_prototipo(nome, nicho),
                             }
-                            
-                            # Pega um ID único do URL do Maps para não duplicar
-                            place_id = extrair_id_unico(link_encontrado)
-                            
+
                             salvo = save_lead_db(lead_data, place_id)
                             if salvo:
                                 print(f"[WORKER] Salvo com sucesso: {nome}")
@@ -575,7 +546,7 @@ def extrator_worker(data, config, queue):
                                 atualizar_status({"rodando": True, "mensagem": f"Lead salvo: {nome}", "leads_salvos": stats["novos_db"]})
                                 
                         except Exception as e:
-                            print(f"[WORKER] Erro no lead {i}: {e}")
+                            print(f"[WORKER] Erro no lead {href}: {e}")
                             
             print("[WORKER] Fechando navegador.")
             atualizar_status({"rodando": False, "mensagem": "Busca finalizada.", "leads_salvos": stats["novos_db"]})
