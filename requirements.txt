@@ -3,3 +3,4 @@ pandas
 playwright
 openpyxl
 Flask
+psutil

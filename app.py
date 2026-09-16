@@ -408,6 +408,12 @@ def extrator_worker(data, config, queue):
         import re
         from playwright.sync_api import sync_playwright
         import urllib.parse
+        import psutil
+        import os
+        
+        process = psutil.Process(os.getpid())
+        mem_inicial = process.memory_info().rss / (1024 * 1024)
+        print(f"[WORKER] Iniciando. Memória RAM uso atual: {mem_inicial:.2f} MB")
         
         stats = {"novos_db": 0}
         atualizar_status({"rodando": True, "mensagem": "Abrindo navegador...", "leads_salvos": 0})
@@ -549,6 +555,10 @@ def extrator_worker(data, config, queue):
                             print(f"[WORKER] Erro no lead {href}: {e}")
                             
             print("[WORKER] Fechando navegador.")
+            
+            mem_final = process.memory_info().rss / (1024 * 1024)
+            print(f"[WORKER] Finalizando. Memória RAM uso final: {mem_final:.2f} MB")
+            
             atualizar_status({"rodando": False, "mensagem": "Busca finalizada.", "leads_salvos": stats["novos_db"]})
             browser.close()
             
