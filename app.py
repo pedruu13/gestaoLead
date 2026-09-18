@@ -464,10 +464,11 @@ def extrator_worker(data, config, queue):
                     
                     try:
                         painel = page.locator('div[role="feed"]').first
-                        for _ in range(3): 
+                        # Vamos rolar a tela mais vezes para o Google carregar bastante coisa
+                        for _ in range(8): 
                             painel.hover()
-                            page.mouse.wheel(0, 4000)
-                            time.sleep(random.uniform(1, 2))
+                            page.mouse.wheel(0, 5000)
+                            time.sleep(random.uniform(1.5, 2.5))
                     except Exception as e: print("Aviso interno:", e)
                     
                     try:
@@ -476,7 +477,8 @@ def extrator_worker(data, config, queue):
                     
                     links = page.locator('a[href*="/maps/place/"]')
                     hrefs = []
-                    for i in range(min(links.count(), 10)):
+                    # Retirado a trava ridícula de 10, agora pega até 50 leads brutos antes dos filtros!
+                    for i in range(min(links.count(), 50)):
                         h = links.nth(i).get_attribute("href")
                         if h and h not in hrefs: hrefs.append(h)
                         
