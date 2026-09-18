@@ -69,7 +69,12 @@
     <!-- Inputs da Busca (Direita) -->
     <div class="lg:col-span-2 space-y-6">
         <div class="glass-card rounded-xl shadow-sm p-6 border-t-4 border-blue-600">
-            <h3 class="text-lg font-bold text-slate-800 mb-5 flex items-center"><i class="fa-solid fa-crosshairs text-blue-600 mr-2"></i> Segmentação do Alvo</h3>
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-crosshairs text-blue-600 mr-2"></i> Segmentação do Alvo</h3>
+                <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="text-sm font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-md transition-colors border border-purple-200 shadow-sm">
+                    <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles mr-1"></i> Sugerir com IA
+                </button>
+            </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
@@ -217,5 +222,34 @@
             btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> TENTAR NOVAMENTE';
         }
     });
+    async function sugerirAlvosIA() {
+        const btn = document.getElementById('btn-ia-sugerir');
+        const icon = document.getElementById('icon-ia-sugerir');
+        const prevText = btn.innerHTML;
+        
+        icon.classList.add('fa-spin', 'fa-spinner');
+        icon.classList.remove('fa-wand-magic-sparkles');
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-wait');
+
+        try {
+            const res = await fetch('/api/sugerir_alvos');
+            const data = await res.json();
+            if (data.nichos && data.cidades) {
+                document.getElementById('nichos').value = data.nichos.join(', ');
+                document.getElementById('bairros').value = data.cidades.join(', ');
+                savePreferences(); // Salva as novas sugestões no localStorage
+            } else {
+                alert("Não foi possível gerar a sugestão. Verifique os logs.");
+            }
+        } catch (e) {
+            alert("Erro de conexão ao sugerir alvos com a IA.");
+        } finally {
+            icon.classList.remove('fa-spin', 'fa-spinner');
+            icon.classList.add('fa-wand-magic-sparkles');
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-wait');
+        }
+    }
 </script>
 {% endblock %}

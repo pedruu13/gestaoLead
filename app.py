@@ -471,6 +471,24 @@ def api_search():
     p.start()
     return jsonify({"success": True, "salvos": "Em andamento", "message": "Busca iniciada em segundo plano."})
 
+@app.route("/api/sugerir_alvos", methods=["GET"])
+def sugerir_alvos():
+    try:
+        prompt = """Atue como um estrategista B2B. Eu preciso de 5 nichos (High Ticket) e 5 regiões/cidades com alta densidade de negócios e PIB alto (misture algumas no Brasil e outras nos EUA).
+        Retorne APENAS um JSON válido e limpo, sem marcações markdown, neste formato exato:
+        {
+            "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
+            "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
+        }"""
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
+        texto = response.text.replace('```json', '').replace('```', '').strip()
+        import json
+        return jsonify(json.loads(texto))
+    except Exception as e:
+        print("[ERRO IA Sugestão]:", e)
+        return jsonify({"erro": str(e)}), 500
+
 @app.route("/api/limpar_crm", methods=["POST"])
 def limpar_crm():
     try:
