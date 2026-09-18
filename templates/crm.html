@@ -93,7 +93,13 @@
                         </select>
                     </td>
                     <td class="px-6 py-4 text-right whitespace-nowrap">
-                        <button onclick="abrirDetalhes('{{ lead.nome | escape }}', '{{ lead.google_maps | escape }}', '{{ lead.prompt_design | escape }}', '{{ lead.instagram | escape }}')" class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors mr-2">
+                        <button 
+                            onclick="abrirDetalhes(this)" 
+                            data-nome="{{ lead.nome }}" 
+                            data-maps="{{ lead.google_maps }}" 
+                            data-prompt="{{ lead.prompt_design }}" 
+                            data-insta="{{ lead.instagram }}" 
+                            class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors mr-2">
                             <i class="fa-solid fa-eye mr-1"></i> Detalhes
                         </button>
                         <a href="/dossie/{{ lead.place_id }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
@@ -242,11 +248,16 @@
     }
 
     // Controle do Modal de Detalhes
-    function abrirDetalhes(nome, mapsUrl, prompt, instaUrl) {
+    function abrirDetalhes(btn) {
+        const nome = btn.getAttribute('data-nome');
+        const mapsUrl = btn.getAttribute('data-maps');
+        const prompt = btn.getAttribute('data-prompt');
+        const instaUrl = btn.getAttribute('data-insta');
+
         document.getElementById('modal_nome').innerText = nome;
         
         let aMaps = document.getElementById('modal_maps');
-        if (mapsUrl && mapsUrl.trim() !== "") {
+        if (mapsUrl && mapsUrl.trim() !== "" && mapsUrl !== "None") {
             aMaps.href = mapsUrl;
             aMaps.style.display = 'flex';
         } else {
