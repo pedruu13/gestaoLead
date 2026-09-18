@@ -9,7 +9,9 @@ import multiprocessing
 import psutil
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response
-# NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
+import google.generativeai as genai
+
+# NOTA: sync_playwright Ã© importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
 
 app = Flask(__name__)
@@ -145,9 +147,30 @@ def formatar_whatsapp(numeros, copy_texto=""):
 
 def gerar_copy_inteligente(nome, bairro, nota, nicho, config, is_intl=False):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
-    nicho_lower = nicho.lower()
     vendedor = config.get("vendedor_nome", "").strip() or "aqui"
+    api_key = config.get("gemini_api_key", "").strip()
     
+    if api_key:
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt_base = config.get('gemini_prompt', 'Escreva uma mensagem de prospecÃ§Ã£o curta e persuasiva para o lead {nome}, do nicho {nicho} em {bairro}. A empresa tem {nota} de avaliaÃ§Ã£o. Eu me chamo {vendedor}. OfereÃ§a a criaÃ§Ã£o de um site focado em conversÃ£o, diga que notou que eles nÃ£o tÃªm site, e pergunte se pode enviar um rascunho sem compromisso. Mantenha no mÃ¡ximo 3 parÃ¡grafos pequenos.')
+            
+            prompt_final = prompt_base.replace('{nome}', nome_curto).replace('{nicho}', nicho).replace('{bairro}', bairro).replace('{nota}', nota).replace('{vendedor}', vendedor)
+            
+            if is_intl:
+                prompt_final += "\n\nIMPORTANT: WRITE THE OUTREACH MESSAGE ENTIRELY IN NATIVE ENGLISH."
+            else:
+                prompt_final += "\n\nIMPORTANTE: ESCREVA A MENSAGEM EM PORTUGUÃŠS DO BRASIL. USE UM TOM CASUAL E PROFISSIONAL PARA WHATSAPP."
+            
+            response = model.generate_content(prompt_final)
+            if response.text:
+                return response.text.strip()
+        except Exception as e:
+            print(f"[WORKER] Erro na API do Gemini: {e}. Usando template de fallback.")
+    
+    # Fallback template
+    nicho_lower = nicho.lower()
     if is_intl:
         copy = "Hello, how are you?\n\n"
         if vendedor != "aqui":
