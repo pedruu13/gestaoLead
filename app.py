@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import time
 import random
@@ -9,7 +9,8 @@ import multiprocessing
 import psutil
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response
-from playwright.sync_api import sync_playwright
+# NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
+# travamento quando o processo filho (spawn) reimporta este módulo.
 
 app = Flask(__name__)
 DB_NAME = "gestao_leads.db"
@@ -312,6 +313,7 @@ def cacar_dados_profundos(context, url):
 
 def extrator_worker(data, config, queue):
     try:
+        from playwright.sync_api import sync_playwright  # Import aqui para spawn funcionar
         process = psutil.Process(os.getpid())
         mem_inicial = process.memory_info().rss / (1024 * 1024)
         print(f"[WORKER] Iniciando. Memoria RAM uso atual: {mem_inicial:.2f} MB")
