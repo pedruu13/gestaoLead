@@ -474,6 +474,7 @@ def api_search():
 @app.route("/api/sugerir_alvos", methods=["GET"])
 def sugerir_alvos():
     try:
+        regiao = request.args.get('regiao', 'br')
         nichos_ht = [
             "Advogado Trabalhista", "Cirurgião Plástico", "Clínica de Estética", "Imobiliária de Alto Padrão",
             "Clínica Odontológica", "Escritório de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
@@ -481,14 +482,20 @@ def sugerir_alvos():
             "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "Móveis Planejados", "Seguros"
         ]
         
-        cidades_ricas = [
-            "Alphaville SP", "Moema São Paulo", "Balneário Camboriú SC", "Miami FL", "Orlando FL", 
-            "Nova Lima MG", "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "Jurerê Internacional SC",
-            "Beverly Hills CA", "Brickell Miami", "Boca Raton FL", "Campinas SP", "Ribeirão Preto SP"
+        cidades_br = [
+            "Alphaville SP", "Moema São Paulo", "Balneário Camboriú SC", "Nova Lima MG", 
+            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "Jurerê Internacional SC",
+            "Campinas SP", "Ribeirão Preto SP", "Jardins São Paulo", "Lago Sul Brasília"
+        ]
+        cidades_intl = [
+            "Miami FL", "Orlando FL", "Beverly Hills CA", "Brickell Miami", "Boca Raton FL",
+            "Manhattan NY", "Kensington London", "Dubai Marina", "Aventura FL", "Sunny Isles Beach FL"
         ]
         
+        cidades_pool = cidades_intl if regiao == 'intl' else cidades_br
+        
         selecionados_nichos = random.sample(nichos_ht, 5)
-        selecionados_cidades = random.sample(cidades_ricas, 5)
+        selecionados_cidades = random.sample(cidades_pool, 5)
         
         return jsonify({
             "nichos": selecionados_nichos,
