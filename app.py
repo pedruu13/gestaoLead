@@ -115,15 +115,27 @@ def pausa(min_s=1.0, max_s=2.5, config=None):
 
 def extrair_apenas_numeros(telefone):
     if not telefone: return ""
+    has_plus = telefone.startswith("+")
     numeros = re.sub(r"\D", "", telefone)
-    if len(numeros) >= 10:
-        if not numeros.startswith("55"): numeros = "55" + numeros
+    
+    if len(numeros) < 10:
+        return ""
+        
+    if has_plus:
         return numeros
-    return ""
+        
+    if len(numeros) == 10 or len(numeros) == 11:
+        return "55" + numeros
+        
+    return numeros
 
 def eh_celular_valido(numeros):
-    if len(numeros) != 13: return False
-    return numeros[4] == "9"
+    if not numeros: return False
+    if numeros.startswith("55") and len(numeros) == 13:
+        return numeros[4] == "9"
+    if not numeros.startswith("55"):
+        return True # Aceita internacionais
+    return False
 
 def formatar_whatsapp(numeros, copy_texto=""):
     if not numeros: return ""
@@ -334,7 +346,7 @@ def extrator_worker(data, config, queue):
             consent_ok = False
             for bairro in bairros:
                 for nicho in nichos:
-                    busca = f"{nicho} em {bairro}"
+                    busca = f"{nicho} {bairro}"
                     print(f"[WORKER] Buscando: {busca}")
                     atualizar_status({"rodando": True, "mensagem": f"Buscando '{nicho}' em '{bairro}'...", "leads_salvos": stats["novos_db"]})
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
@@ -382,8 +394,16 @@ def extrator_worker(data, config, queue):
                             nome = nome_el.inner_text() if nome_el.count() > 0 else page.title().split(" - Google")[0]
                             if not nome or "Google Maps" in nome: continue
                             if data.get("anti_franchise") and any(rede in nome.lower() for rede in GRANDES_REDES): continue
-                            link_el = page.locator("a[data-item-id='authority']")
+                            link_el = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']")
                             link_encontrado = link_el.first.get_attribute("href") if link_el.count() > 0 else ""
+                            if not link_encontrado:
+                                # Fallback robusto via regex de atributo aria-label
+                                fallback = page.locator("a[aria-label*='ebsite'], a[aria-label*='site']").all()
+                                for f in fallback:
+                                    hf = f.get_attribute("href")
+                                    if hf and "google.com" not in hf:
+                                        link_encontrado = hf
+                                        break
                             if data.get("strict_no_socials") and link_encontrado: continue
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
