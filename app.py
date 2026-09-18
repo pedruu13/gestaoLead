@@ -601,8 +601,7 @@ def api_search():
         pass
     
     # Roda o scraper num processo 100% isolado em SEGUNDO PLANO
-    q = multiprocessing.Queue()
-    p = multiprocessing.Process(target=extrator_worker, args=(data, config, q))
+    p = multiprocessing.Process(target=extrator_worker, args=(data, config, None))
     p.start()
     
     return jsonify({"success": True, "salvos": "Vários (em andamento)", "message": "Busca iniciada em segundo plano."})
