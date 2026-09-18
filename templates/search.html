@@ -1,54 +1,65 @@
 {% extends "layout.html" %}
 {% set active_page = "search" %}
-{% block header_title %}Motor de Busca Avançado{% endblock %}
+{% block header_title %}Motor de Prospecção Avançado{% endblock %}
 
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
     <!-- Configurações (Esquerda) -->
     <div class="lg:col-span-1 space-y-6">
-        <div class="glass-card rounded-xl shadow-sm p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i> Configurações</h3>
+        <div class="glass-card rounded-xl shadow-sm p-6 border-t-4 border-slate-700">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-sliders text-slate-600 mr-2"></i> Parâmetros de Filtro</h3>
             
-            <div class="space-y-4">
+            <div class="space-y-5">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nota Mínima (Google)</label>
-                    <input type="number" id="min_nota" value="4.0" step="0.1" min="0" max="5" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nota Mínima (Reputação)</label>
+                    <input type="number" id="min_nota" value="4.0" step="0.1" min="0" max="5" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-slate-500 focus:outline-none transition-shadow" placeholder="Ex: 4.0">
                 </div>
                 
-                <div class="flex items-center">
-                    <input type="checkbox" id="req_whatsapp" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label class="ml-2 text-sm text-slate-700 font-medium">Exigir WhatsApp</label>
+                <div class="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <input type="checkbox" id="req_whatsapp" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer" for="req_whatsapp">Exigir WhatsApp Válido</label>
                 </div>
                 
-                <div class="flex items-center">
-                    <input type="checkbox" id="strict_bairro" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label class="ml-2 text-sm text-slate-700 font-medium">Filtro de Bairro Estrito</label>
+                <div class="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <input type="checkbox" id="strict_bairro" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer" for="strict_bairro">Correspondência Exata de Bairro</label>
                 </div>
                 
-                <div class="pt-4 border-t border-slate-100">
-                    <h4 class="text-sm font-bold text-amber-500 mb-3 flex items-center"><i class="fa-solid fa-crown mr-1"></i> Filtros Premium</h4>
+                <div class="pt-4 border-t border-slate-200">
+                    <h4 class="text-sm font-bold text-indigo-600 mb-3 flex items-center"><i class="fa-solid fa-gem mr-2"></i> Filtros de Inteligência Estratégica</h4>
                     
                     <div class="space-y-3">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="anti_franchise" class="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500">
-                            <label class="ml-2 text-sm text-slate-700 font-medium" title="Ignora redes como OdontoCompany, SmartFit, etc">Anti-Franquias (Ignorar Grandes Redes)</label>
+                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                            <input type="checkbox" id="anti_franchise" class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
+                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="anti_franchise">
+                                <span class="block">Ignorar Redes e Franquias</span>
+                                <span class="text-xs text-slate-500 font-normal mt-0.5">Foca apenas em negócios locais/independentes.</span>
+                            </label>
                         </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="strict_mobile" class="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500">
-                            <label class="ml-2 text-sm text-slate-700 font-medium" title="Ignora telefones fixos. Traz apenas DDD + 9">Apenas Celulares (Móveis)</label>
+                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                            <input type="checkbox" id="strict_mobile" class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
+                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="strict_mobile">
+                                <span class="block">Priorizar Celulares (Móveis)</span>
+                                <span class="text-xs text-slate-500 font-normal mt-0.5">Exclui contatos que são números fixos (DDD).</span>
+                            </label>
                         </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="strict_no_socials" class="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500">
-                            <label class="ml-2 text-sm text-slate-700 font-medium" title="Apenas empresas sem NENHUM link (nem Instagram, nem Linktree)">Ausência Digital Total (Lead Cru)</label>
+                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                            <input type="checkbox" id="strict_no_socials" class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
+                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="strict_no_socials">
+                                <span class="block">Baixa Presença Digital</span>
+                                <span class="text-xs text-slate-500 font-normal mt-0.5">Seleciona empresas sem Instagram/Site (Alto potencial).</span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="pt-4 border-t border-slate-100">
-                    <div class="flex items-center">
-                        <input type="checkbox" id="ai_copy" checked class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label class="ml-2 text-sm text-slate-700 font-medium">Habilitar Copy de IA (WhatsApp)</label>
+                <div class="pt-4 border-t border-slate-200">
+                    <div class="flex items-center p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                        <input type="checkbox" id="ai_copy" checked class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label class="ml-3 text-sm text-blue-900 font-bold cursor-pointer flex-1" for="ai_copy">
+                            Gerar Pitch de Vendas (IA)
+                        </label>
                     </div>
                 </div>
             </div>
@@ -57,22 +68,22 @@
 
     <!-- Inputs da Busca (Direita) -->
     <div class="lg:col-span-2 space-y-6">
-        <div class="glass-card rounded-xl shadow-sm p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-crosshairs text-blue-500 mr-2"></i> Alvos da Prospecção</h3>
+        <div class="glass-card rounded-xl shadow-sm p-6 border-t-4 border-blue-600">
+            <h3 class="text-lg font-bold text-slate-800 mb-5 flex items-center"><i class="fa-solid fa-crosshairs text-blue-600 mr-2"></i> Segmentação do Alvo</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nichos (Separe por vírgula)</label>
-                    <textarea id="nichos" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: advogado, clinica de estetica">advogado, clinica de estetica</textarea>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Segmentos de Atuação <span class="text-xs text-slate-400 font-normal">(Separados por vírgula)</span></label>
+                    <textarea id="nichos" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow text-slate-700" placeholder="Ex: dentista, advogado, clinica de estetica"></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Bairros (Separe por vírgula)</label>
-                    <textarea id="bairros" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: Moema - SP, Centro - RJ">Moema - São Paulo</textarea>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Regiões / Bairros <span class="text-xs text-slate-400 font-normal">(Separados por vírgula)</span></label>
+                    <textarea id="bairros" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow text-slate-700" placeholder="Ex: Moema - São Paulo, Centro - Campinas"></textarea>
                 </div>
             </div>
             
-            <button id="btn_search" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all transform hover:-translate-y-0.5 flex justify-center items-center">
-                <i class="fa-solid fa-play mr-2"></i> INICIAR PROSPECÇÃO
+            <button id="btn_search" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all transform hover:-translate-y-0.5 flex justify-center items-center text-lg">
+                <i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> INICIAR EXTRAÇÃO DE LEADS
             </button>
         </div>
         
@@ -80,10 +91,10 @@
         <div id="status_panel" class="hidden glass-card rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center">
-                    <span class="loader mr-3"></span> Extração em Andamento...
+                    <span class="loader mr-3"></span> Operação em Andamento...
                 </h3>
             </div>
-            <p id="log_text" class="text-sm text-slate-600 bg-slate-100 p-3 rounded-md font-mono">Iniciando motor Playwright...</p>
+            <p id="log_text" class="text-sm text-slate-600 bg-slate-100 p-4 rounded-lg font-mono border border-slate-200">Verificando status dos motores...</p>
         </div>
     </div>
 </div>
@@ -91,30 +102,95 @@
 
 {% block scripts %}
 <script>
-    document.getElementById('btn_search').addEventListener('click', async () => {
-        const btn = document.getElementById('btn_search');
-        const panel = document.getElementById('status_panel');
-        const log = document.getElementById('log_text');
-        
+    const btn = document.getElementById('btn_search');
+    const panel = document.getElementById('status_panel');
+    const log = document.getElementById('log_text');
+    let pollInterval = null;
+
+    // Campos de preferências
+    const inputs = ['nichos', 'bairros', 'min_nota', 'req_whatsapp', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
+
+    // Carregar preferências
+    function loadPreferences() {
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            const saved = localStorage.getItem(`pref_${id}`);
+            if (saved !== null) {
+                if (el.type === 'checkbox') el.checked = saved === 'true';
+                else el.value = saved;
+            }
+        });
+    }
+
+    // Salvar preferências
+    function savePreferences() {
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            const val = el.type === 'checkbox' ? el.checked : el.value;
+            localStorage.setItem(`pref_${id}`, val);
+        });
+    }
+
+    // Função para entrar no modo de carregamento
+    function setRunningState() {
         btn.disabled = true;
-        btn.classList.add('opacity-50');
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> EXTRAINDO...';
         panel.classList.remove('hidden');
+    }
+
+    // Polling de Status
+    async function verificarStatus() {
+        try {
+            const resp = await fetch('/api/status');
+            const status = await resp.json();
+            
+            if (status.rodando) {
+                setRunningState();
+                log.innerHTML = `<strong>Status:</strong> ${status.mensagem}<br><span class="text-blue-600 mt-1 block font-bold">Leads Extraídos: ${status.leads_salvos}</span>`;
+                pollInterval = setTimeout(verificarStatus, 3000);
+            } else {
+                if (pollInterval) { // Se estava rodando e agora parou, finalizamos
+                    log.innerHTML = `<span class="text-green-600 font-bold">✓ Operação Concluída!</span> Total de ${status.leads_salvos} leads capturados. Redirecionando para a Base...`;
+                    setTimeout(() => { window.location.href = '/crm'; }, 2000);
+                } else {
+                    // Não estava rodando e carregou a tela agora
+                    panel.classList.add('hidden');
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> INICIAR EXTRAÇÃO DE LEADS';
+                }
+            }
+        } catch (err) {
+            log.innerText = "Erro ao verificar status (Servidor offline?). Tentando reconectar...";
+            pollInterval = setTimeout(verificarStatus, 5000);
+        }
+    }
+
+    // Ao iniciar a página
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPreferences();
+        // Adiciona eventos para salvar automático
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('change', savePreferences);
+            document.getElementById(id).addEventListener('input', savePreferences);
+        });
         
-        const payload = {
-            nichos: document.getElementById('nichos').value,
-            bairros: document.getElementById('bairros').value,
-            min_nota: document.getElementById('min_nota').value,
-            req_whatsapp: document.getElementById('req_whatsapp').checked,
-            strict_bairro: document.getElementById('strict_bairro').checked,
-            ai_copy: document.getElementById('ai_copy').checked,
-            anti_franchise: document.getElementById('anti_franchise').checked,
-            strict_mobile: document.getElementById('strict_mobile').checked,
-            strict_no_socials: document.getElementById('strict_no_socials').checked
-        };
+        // Checar se já tem algo rodando no backend
+        verificarStatus();
+    });
+
+    // Iniciar Busca
+    btn.addEventListener('click', async () => {
+        savePreferences();
+        setRunningState();
+        log.innerText = "Iniciando infraestrutura do robô... Aguarde (Isso pode levar alguns minutos iniciais)";
         
-        // Polling loop para simular o log ao vivo (já que HTTP é req/res)
-        // Num app real usaríamos Server Sent Events, aqui vamos apenas esperar a requisição terminar.
-        log.innerText = "Aguarde... Iniciando busca (isso pode levar alguns minutos).";
+        const payload = {};
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            payload[id] = el.type === 'checkbox' ? el.checked : el.value;
+        });
         
         try {
             const response = await fetch('/api/search', {
@@ -125,38 +201,20 @@
             
             const data = await response.json();
             if(data.success) {
-                // Inicia o polling de status
-                async function verificarStatus() {
-                    try {
-                        const resp = await fetch('/api/status');
-                        const status = await resp.json();
-                        
-                        log.innerText = status.mensagem + (status.leads_salvos > 0 ? ` (${status.leads_salvos} leads salvos)` : "");
-                        
-                        if (status.rodando) {
-                            setTimeout(verificarStatus, 3000);
-                        } else {
-                            log.innerText = `Busca Concluída! ${status.leads_salvos} leads salvos. Redirecionando...`;
-                            setTimeout(() => { window.location.href = '/crm'; }, 2000);
-                        }
-                    } catch (err) {
-                        log.innerText = "Erro ao verificar status. Redirecionando para o CRM...";
-                        setTimeout(() => { window.location.href = '/crm'; }, 3000);
-                    }
-                }
-                
-                // Aguarda um pouquinho pra primeira leitura
+                // Força primeiro poll
+                if(pollInterval) clearTimeout(pollInterval);
                 setTimeout(verificarStatus, 1500);
-                
             } else {
-                log.innerText = "Erro: " + data.error;
+                log.innerText = "Falha ao iniciar: " + data.error;
                 btn.disabled = false;
-                btn.classList.remove('opacity-50');
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> TENTAR NOVAMENTE';
             }
         } catch (e) {
             log.innerText = "Erro de conexão com o servidor.";
             btn.disabled = false;
-            btn.classList.remove('opacity-50');
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> TENTAR NOVAMENTE';
         }
     });
 </script>
