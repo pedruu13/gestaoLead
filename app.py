@@ -395,10 +395,11 @@ def extrator_worker(data, config, queue):
                         print(f"[WORKER] Timeout inicial a.hfpxzc: {e} | titulo: {page.title()}")
                     try:
                         painel = page.locator("div[role='feed']").first
-                        for _ in range(8):
-                            painel.hover()
-                            page.mouse.wheel(0, 5000)
-                            time.sleep(random.uniform(1.5, 2.5))
+                        if painel.count() > 0:
+                            for _ in range(12):
+                                painel.evaluate("node => node.scrollTop = node.scrollHeight")
+                                time.sleep(random.uniform(1.5, 2.5))
+                                page.keyboard.press("PageDown") # Fallback
                     except Exception as e: print("Aviso interno painel:", e)
                     
                     links = page.locator("a.hfpxzc")
@@ -419,21 +420,27 @@ def extrator_worker(data, config, queue):
                             page.goto(href, wait_until="domcontentloaded", timeout=20000)
                             try: page.wait_for_selector("h1", timeout=5000)
                             except Exception as e: print("Aviso interno:", e)
+                            
+                            time.sleep(2) # Aguarda renderizacao do painel lateral (telefone, site, etc)
+                            
                             nome_el = page.locator("h1").first
                             nome = nome_el.inner_text() if nome_el.count() > 0 else page.title().split(" - Google")[0]
                             if not nome or "Google Maps" in nome: continue
                             if data.get("anti_franchise") and any(rede in nome.lower() for rede in GRANDES_REDES): continue
+                            
                             link_el = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']")
                             link_encontrado = link_el.first.get_attribute("href") if link_el.count() > 0 else ""
                             if not link_encontrado:
-                                # Fallback robusto via regex de atributo aria-label
-                                fallback = page.locator("a[aria-label*='ebsite'], a[aria-label*='site']").all()
+                                # Fallback robusto via regex de atributo aria-label e links externos
+                                fallback = page.locator("a[aria-label*='ebsite'], a[aria-label*='site'], a[href^='http']").all()
                                 for f in fallback:
                                     hf = f.get_attribute("href")
-                                    if hf and "google.com" not in hf:
+                                    if hf and "google.com" not in hf and "facebook.com" not in hf and "instagram.com" not in hf:
                                         link_encontrado = hf
                                         break
-                            if data.get("strict_no_socials") and link_encontrado: continue
+                                        
+                            if data.get("strict_no_socials") and link_encontrado: 
+                                print(f"[WORKER] Ignorando {nome} - Possui site e o filtro de EXCLUIR COM SITE esta ativo."); continue
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
