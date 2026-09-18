@@ -372,7 +372,7 @@ def extrator_worker(data, config, queue):
                         place_id = extrair_id_unico(href)
                         try:
                             atualizar_status({"rodando": True, "mensagem": f"Analisando lead {index+1}/{len(hrefs)}...", "leads_salvos": stats["novos_db"]})
-                            page.goto(href, timeout=20000)
+                            page.goto(href, wait_until="domcontentloaded", timeout=20000)
                             try: page.wait_for_selector("h1", timeout=5000)
                             except Exception as e: print("Aviso interno:", e)
                             nome_el = page.locator("h1").first
