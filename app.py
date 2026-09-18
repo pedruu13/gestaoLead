@@ -348,11 +348,10 @@ def extrator_worker(data, config, queue):
                     except Exception as e:
                         print(f"[WORKER] Erro ao carregar pagina: {e}"); continue
                     try:
-                        page.wait_for_selector("a[href*='/maps/place/']", timeout=10000)
+                        page.wait_for_selector("a.hfpxzc", timeout=10000)
                         print("[WORKER] Resultados encontrados!")
                     except Exception as e:
                         print(f"[WORKER] SEM resultados no Maps: {e} | titulo: {page.title()}")
-
                         continue
                     try:
                         painel = page.locator("div[role='feed']").first
@@ -362,9 +361,9 @@ def extrator_worker(data, config, queue):
                             time.sleep(random.uniform(1.5, 2.5))
                     except Exception as e: print("Aviso interno:", e)
                     try:
-                        page.wait_for_selector("a[href*='/maps/place/']", timeout=10000)
+                        page.wait_for_selector("a.hfpxzc", timeout=10000)
                     except Exception as e: print("Aviso interno:", e)
-                    links = page.locator("a[href*='/maps/place/']")
+                    links = page.locator("a.hfpxzc")
                     hrefs = []
                     for i in range(min(links.count(), 50)):
                         h = links.nth(i).get_attribute("href")
