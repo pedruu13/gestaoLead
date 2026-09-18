@@ -458,9 +458,6 @@ def extrator_worker(data, config, queue):
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado)
                             
-                            if data.get("req_email") and not dados_profundos.get("email"):
-                                print(f"[WORKER] Ignorando {nome} - Sem E-mail (Exigido pelo filtro)"); continue
-                                
                             is_intl = not numeros_whats.startswith("55") if numeros_whats else False
                             copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config, is_intl) if (data.get("ai_copy")) else ""
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
