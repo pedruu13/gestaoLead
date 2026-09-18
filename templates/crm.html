@@ -92,7 +92,10 @@
                             <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
                         </select>
                     </td>
-                    <td class="px-6 py-4 text-right">
+                    <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <button onclick="abrirDetalhes('{{ lead.nome | escape }}', '{{ lead.google_maps | escape }}', '{{ lead.prompt_design | escape }}', '{{ lead.instagram | escape }}')" class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors mr-2">
+                            <i class="fa-solid fa-eye mr-1"></i> Detalhes
+                        </button>
                         <a href="/dossie/{{ lead.place_id }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
                             <i class="fa-solid fa-file-pdf mr-1"></i> Dossiê
                         </a>
@@ -109,6 +112,58 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal de Detalhes -->
+<div id="modal_detalhes" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+            <h3 class="text-xl font-bold text-slate-800" id="modal_nome">Nome da Empresa</h3>
+            <button onclick="fecharDetalhes()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            <!-- Links Vitais -->
+            <div>
+                <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Links da Empresa</h4>
+                <div class="flex flex-col gap-3">
+                    <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700">
+                        <i class="fa-solid fa-map-location-dot text-emerald-500 text-xl w-8 text-center"></i>
+                        <span class="font-medium ml-2">Abrir no Google Maps (Ver Fotos)</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-slate-400 text-sm"></i>
+                    </a>
+                    
+                    <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700 hidden">
+                        <i class="fa-brands fa-instagram text-pink-500 text-xl w-8 text-center"></i>
+                        <span class="font-medium ml-2">Abrir Instagram</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-slate-400 text-sm"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Prompt de IA -->
+            <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                <h4 class="text-sm font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Prompt para Gerar Layout (Midjourney/DALL-E)
+                </h4>
+                <p class="text-xs text-blue-600 mb-3">Copie este texto e cole em uma IA de imagens para gerar um site modelo de alta qualidade para enviar ao cliente.</p>
+                <div class="relative">
+                    <textarea id="modal_prompt" readonly class="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-slate-700 h-24 focus:outline-none"></textarea>
+                    <button onclick="copiarPrompt()" class="absolute bottom-2 right-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
+                        <i class="fa-solid fa-copy mr-1"></i> Copiar
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end">
+            <button onclick="fecharDetalhes()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-6 rounded-lg transition-colors">
+                Fechar
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -184,6 +239,41 @@
                 alert("Erro de conexão ao tentar limpar.");
             }
         }
+    }
+
+    // Controle do Modal de Detalhes
+    function abrirDetalhes(nome, mapsUrl, prompt, instaUrl) {
+        document.getElementById('modal_nome').innerText = nome;
+        
+        let aMaps = document.getElementById('modal_maps');
+        if (mapsUrl && mapsUrl.trim() !== "") {
+            aMaps.href = mapsUrl;
+            aMaps.style.display = 'flex';
+        } else {
+            aMaps.style.display = 'none';
+        }
+
+        let aInsta = document.getElementById('modal_insta');
+        if (instaUrl && instaUrl !== "None" && instaUrl.trim() !== "") {
+            aInsta.href = instaUrl;
+            aInsta.classList.remove('hidden');
+        } else {
+            aInsta.classList.add('hidden');
+        }
+
+        document.getElementById('modal_prompt').value = prompt;
+        document.getElementById('modal_detalhes').classList.remove('hidden');
+    }
+
+    function fecharDetalhes() {
+        document.getElementById('modal_detalhes').classList.add('hidden');
+    }
+
+    function copiarPrompt() {
+        let textarea = document.getElementById('modal_prompt');
+        textarea.select();
+        document.execCommand('copy');
+        alert("Prompt copiado com sucesso! Cole no ChatGPT, Midjourney ou DALL-E.");
     }
 </script>
 {% endblock %}
