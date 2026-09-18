@@ -321,10 +321,12 @@ def extrator_worker(data, config, queue):
         atualizar_status({"rodando": True, "mensagem": "Abrindo navegador...", "leads_salvos": 0})
         nichos = [n.strip() for n in data["nichos"].split(",") if n.strip()]
         bairros = [b.strip() for b in data["bairros"].split(",") if b.strip()]
+        print(f"[WORKER] nichos={nichos}, bairros={bairros}")
         is_headless = config.get("headless", True)
         GRANDES_REDES = ["odontocompany","smart fit","smartfit","mcdonalds","boticario","cacau show","subway","sorridents","amorasaude","bluefit","pague menos","raia","drogasil","localiza","unidas","movida"]
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=is_headless)
+            print("[WORKER] Browser aberto.")
             context = browser.new_context(locale="pt-BR", viewport={"width": 1280, "height": 800})
             page = context.new_page()
             if is_headless:
@@ -333,10 +335,12 @@ def extrator_worker(data, config, queue):
             for bairro in bairros:
                 for nicho in nichos:
                     busca = f"{nicho} em {bairro}"
+                    print(f"[WORKER] Buscando: {busca}")
                     atualizar_status({"rodando": True, "mensagem": f"Buscando '{nicho}' em '{bairro}'...", "leads_salvos": stats["novos_db"]})
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
                     try:
                         page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        print(f"[WORKER] Pagina: {page.title()} | {page.url}")
                         if not consent_ok:
                             tratar_consentimento_cookies(page)
                             consent_ok = True
@@ -345,7 +349,10 @@ def extrator_worker(data, config, queue):
                         print(f"[WORKER] Erro ao carregar pagina: {e}"); continue
                     try:
                         page.wait_for_selector("a[href*='/maps/place/']", timeout=10000)
-                    except Exception:
+                        print("[WORKER] Resultados encontrados!")
+                    except Exception as e:
+                        print(f"[WORKER] SEM resultados no Maps: {e} | titulo: {page.title()}")
+
                         continue
                     try:
                         painel = page.locator("div[role='feed']").first
