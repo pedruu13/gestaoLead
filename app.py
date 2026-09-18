@@ -348,22 +348,25 @@ def extrator_worker(data, config, queue):
                     except Exception as e:
                         print(f"[WORKER] Erro ao carregar pagina: {e}"); continue
                     try:
-                        page.wait_for_selector("a.hfpxzc", state="attached", timeout=10000)
+                        page.wait_for_selector("a.hfpxzc", state="attached", timeout=8000)
                         print("[WORKER] Resultados encontrados!")
                     except Exception as e:
-                        print(f"[WORKER] SEM resultados no Maps: {e} | titulo: {page.title()}")
-                        continue
+                        print(f"[WORKER] Timeout inicial a.hfpxzc: {e} | titulo: {page.title()}")
                     try:
                         painel = page.locator("div[role='feed']").first
                         for _ in range(8):
                             painel.hover()
                             page.mouse.wheel(0, 5000)
                             time.sleep(random.uniform(1.5, 2.5))
-                    except Exception as e: print("Aviso interno:", e)
-                    try:
-                        page.wait_for_selector("a.hfpxzc", state="attached", timeout=10000)
-                    except Exception as e: print("Aviso interno:", e)
+                    except Exception as e: print("Aviso interno painel:", e)
+                    
                     links = page.locator("a.hfpxzc")
+                    if links.count() == 0:
+                        links = page.locator("a[href*='/maps/place/']")
+                        
+                    if links.count() == 0:
+                        print("[WORKER] Definitivamente nenhum lead encontrado.")
+                        continue
                     hrefs = []
                     for i in range(min(links.count(), 50)):
                         h = links.nth(i).get_attribute("href")
