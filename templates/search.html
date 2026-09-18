@@ -20,6 +20,11 @@
                     <input type="checkbox" id="req_whatsapp" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
                     <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer" for="req_whatsapp">Exigir WhatsApp Válido</label>
                 </div>
+
+                <div class="flex items-center p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <input type="checkbox" id="req_email" class="w-5 h-5 text-emerald-700 border-gray-300 rounded focus:ring-emerald-500">
+                    <label class="ml-3 text-sm text-emerald-800 font-medium cursor-pointer" for="req_email">Exigir E-mail <span class="text-xs text-emerald-600 block">(Ideal p/ Internacional)</span></label>
+                </div>
                 
                 <div class="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
                     <input type="checkbox" id="strict_bairro" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
@@ -119,7 +124,7 @@
     let pollInterval = null;
 
     // Campos de preferências
-    const inputs = ['nichos', 'bairros', 'min_nota', 'req_whatsapp', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
+    const inputs = ['nichos', 'bairros', 'min_nota', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
 
     // Carregar preferências
     function loadPreferences() {

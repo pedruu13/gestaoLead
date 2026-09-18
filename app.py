@@ -143,10 +143,39 @@ def formatar_whatsapp(numeros, copy_texto=""):
     if copy_texto: url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
-def gerar_copy_inteligente(nome, bairro, nota, nicho, config):
+def gerar_copy_inteligente(nome, bairro, nota, nicho, config, is_intl=False):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
     nicho_lower = nicho.lower()
     vendedor = config.get("vendedor_nome", "").strip() or "aqui"
+    
+    if is_intl:
+        copy = "Hello, how are you?\n\n"
+        if vendedor != "aqui":
+            copy += f"My name is {vendedor}. "
+        copy += f"I was searching on Google Maps in the {bairro} area and found {nome_curto}'s profile. "
+        try:
+            nota_float = float(nota.replace(",", "."))
+            if nota_float >= 4.5:
+                copy += f"I was really impressed by your excellent {nota}-star rating!\n\n"
+            else:
+                copy += "\n\n"
+        except:
+            copy += "\n\n"
+            
+        if any(x in nicho_lower for x in ["estetica", "beleza", "odont", "clinica", "medic", "dentist", "clinic", "health", "beauty", "spa", "dental"]):
+            copy += "I know this is probably the booking number, but could you kindly forward this message to the clinic manager?\n\n"
+            copy += f"I work with digital positioning and noticed {nome_curto} doesn't have a high-converting official website linked on Google. Since patients make decisions largely based on visuals these days, I took the liberty of creating a draft of a landing page focused exclusively on filling up your calendar.\n\n"
+            copy += "Can I send you a picture of what it looks like? It's completely without obligation."
+        elif any(x in nicho_lower for x in ["advogad", "escritorio", "contab", "law", "attorney", "accountant", "cpa", "legal"]):
+            copy += "Could you please forward this to the managing partner or the marketing department?\n\n"
+            copy += f"I noticed {nome_curto} doesn't have a modern website linked on Google. I created an exclusive, professional landing page layout designed to generate qualified leads and elevate your firm's authority.\n\n"
+            copy += "Can I send a screenshot here? It's completely without obligation."
+        else:
+            copy += "Could you kindly forward this message to the business owner or manager?\n\n"
+            copy += f"I noticed {nome_curto} doesn't have an official, high-converting website linked on your Google profile. I took the liberty of designing a draft for a professional page focused entirely on increasing your sales.\n\n"
+            copy += "May I send a picture of how it looks? It's totally without obligation."
+        return copy
+        
     copy = "Ola, tudo bem?\n\n"
     if vendedor != "aqui":
         copy += f"Meu nome e {vendedor}. "
@@ -164,13 +193,13 @@ def gerar_copy_inteligente(nome, bairro, nota, nicho, config):
         copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site oficial focado em conversao cadastrado la no Google. Como hoje os pacientes decidem muito pelo visual, tomei a liberdade de montar um rascunho de uma pagina focada exclusivamente em lotar a agenda de voces.\n\n"
         copy += "Posso enviar a imagem aqui de como ficou? Se puder mostrar para a direcao, e totalmente sem compromisso."
     elif "advogad" in nicho_lower or "escritorio" in nicho_lower or "contab" in nicho_lower:
-        copy += "Notei que voces nao tem um site oficial cadastrado, apenas as redes sociais. Hoje em dia, clientes mais exigentes pesquisam no Google e acabam escolhendo o concorrente quando nao encontram um site que transmita mais seguranca e prestigio de imediato.\n\n"
-        copy += "Como trabalho com autoridade digital, tomei a liberdade de montar um rascunho de um site profissional para voces, focado em atrair clientes de alto padrao para o escritorio.\n\n"
-        copy += "Posso enviar uma imagem aqui de como ficou? E totalmente sem compromisso, apenas para voces darem uma olhada."
+        copy += f"Voce conseguiria encaminhar essa mensagem para o socio diretor ou responsavel pelo marketing, por gentileza?\n\n"
+        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site atualizado e com alto poder de conversao no Google. Tomei a liberdade de criar um layout exclusivo de uma pagina profissional, focada em gerar leads qualificados e elevar a autoridade do escritorio.\n\n"
+        copy += "Posso enviar um print aqui de como ficou? E totalmente sem compromisso."
     else:
-        copy += "Notei que voces nao tem um site oficial cadastrado, apenas as redes sociais. Hoje em dia, muitos clientes pesquisam no Google e acabam escolhendo o concorrente quando nao encontram um site que transmita mais autoridade e confianca de imediato.\n\n"
-        copy += "Como trabalho com posicionamento digital, tomei a liberdade de montar um rascunho de um site profissional para voces, focado em atrair clientes mais qualificados para o WhatsApp.\n\n"
-        copy += "Posso enviar uma imagem aqui de como ficou? E totalmente sem compromisso, apenas para voces darem uma olhada."
+        copy += f"Voce conseguiria encaminhar essa mensagem para o dono ou responsavel pela empresa, por gentileza?\n\n"
+        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site oficial focado em conversao cadastrado no Google de voces. Tomei a liberdade de montar um rascunho de uma pagina profissional focada exclusivamente em trazer mais vendas.\n\n"
+        copy += "Posso enviar a imagem aqui de como ficou? E totalmente sem compromisso."
     return copy
 
 def gerar_prompt_prototipo(nome, nicho):
@@ -419,10 +448,15 @@ def extrator_worker(data, config, queue):
                                 print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa"); continue
                             if data.get("req_whatsapp") and not numeros_whats:
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp"); continue
-                            copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config) if (data.get("ai_copy") and numeros_whats) else ""
-                            whats_link_final = formatar_whatsapp(numeros_whats, copy_texto)
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado)
+                            
+                            if data.get("req_email") and not dados_profundos.get("email"):
+                                print(f"[WORKER] Ignorando {nome} - Sem E-mail (Exigido pelo filtro)"); continue
+                                
+                            is_intl = not numeros_whats.startswith("55") if numeros_whats else False
+                            copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config, is_intl) if (data.get("ai_copy")) else ""
+                            whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
                             lead_data = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
