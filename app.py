@@ -474,17 +474,26 @@ def api_search():
 @app.route("/api/sugerir_alvos", methods=["GET"])
 def sugerir_alvos():
     try:
-        prompt = """Atue como um estrategista B2B. Eu preciso de 5 nichos (High Ticket) e 5 regiões/cidades com alta densidade de negócios e PIB alto (misture algumas no Brasil e outras nos EUA).
-        Retorne APENAS um JSON válido e limpo, sem marcações markdown, neste formato exato:
-        {
-            "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
-            "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
-        }"""
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        texto = response.text.replace('```json', '').replace('```', '').strip()
-        import json
-        return jsonify(json.loads(texto))
+        nichos_ht = [
+            "Advogado Trabalhista", "Cirurgião Plástico", "Clínica de Estética", "Imobiliária de Alto Padrão",
+            "Clínica Odontológica", "Escritório de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
+            "Construtora", "Clínica Veterinária", "Concessionária de Veículos", "Consultoria Financeira",
+            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "Móveis Planejados", "Seguros"
+        ]
+        
+        cidades_ricas = [
+            "Alphaville SP", "Moema São Paulo", "Balneário Camboriú SC", "Miami FL", "Orlando FL", 
+            "Nova Lima MG", "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "Jurerê Internacional SC",
+            "Beverly Hills CA", "Brickell Miami", "Boca Raton FL", "Campinas SP", "Ribeirão Preto SP"
+        ]
+        
+        selecionados_nichos = random.sample(nichos_ht, 5)
+        selecionados_cidades = random.sample(cidades_ricas, 5)
+        
+        return jsonify({
+            "nichos": selecionados_nichos,
+            "cidades": selecionados_cidades
+        })
     except Exception as e:
         print("[ERRO IA Sugestão]:", e)
         return jsonify({"erro": str(e)}), 500
