@@ -60,7 +60,12 @@ def init_db():
                  (place_id TEXT PRIMARY KEY, nome TEXT, nicho TEXT, bairro TEXT, nota TEXT,
                   avaliacoes TEXT, telefone TEXT, whatsapp_link TEXT, email TEXT,
                   instagram TEXT, facebook TEXT, linkedin TEXT, link_inicial TEXT,
-                  google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+                  google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
+    # Fallback to alter table if columns are missing
+    for col in ["copy_texto", "analise_ia", "estrategia_ia"]:
+        try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} TEXT")
+        except: pass
     conn.commit()
     conn.close()
 
@@ -77,12 +82,12 @@ def save_lead_db(lead, place_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo')""",
-                  (place_id, lead["Nome"], lead["Nicho"], lead["Bairro"], lead["Nota Maps"],
-                   lead["Qtd Avaliacoes"], lead["Telefone"], lead["WhatsApp Link"], lead["E-mail Encontrado"],
-                   lead["Instagram"], lead["Facebook"], lead["LinkedIn"], lead["Link Inicial"],
-                   lead["Google Maps"], lead["Prompt Prototipo"]))
+        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?)""",
+                  (place_id, lead.get("Nome",""), lead.get("Nicho",""), lead.get("Bairro",""), lead.get("Nota Maps",""),
+                   lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
+                   lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
+                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", "")))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -145,85 +150,80 @@ def formatar_whatsapp(numeros, copy_texto=""):
     if copy_texto: url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
-def gerar_copy_inteligente(nome, bairro, nota, nicho, config, is_intl=False):
-    nome_curto = nome.split(" - ")[0].split("|")[0].strip()
+def gerar_copy_inteligente(dados_lead, config, is_intl=False):
+    nome_curto = dados_lead.get("Nome", "").split(" - ")[0].split("|")[0].strip()
     vendedor = config.get("vendedor_nome", "").strip() or "aqui"
     api_key = config.get("gemini_api_key", "").strip()
     
-    if api_key:
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt_base = config.get('gemini_prompt', 'Escreva uma mensagem de prospecÃ§Ã£o curta e persuasiva para o lead {nome}, do nicho {nicho} em {bairro}. A empresa tem {nota} de avaliaÃ§Ã£o. Eu me chamo {vendedor}. OfereÃ§a a criaÃ§Ã£o de um site focado em conversÃ£o, diga que notou que eles nÃ£o tÃªm site, e pergunte se pode enviar um rascunho sem compromisso. Mantenha no mÃ¡ximo 3 parÃ¡grafos pequenos.')
-            
-            prompt_final = prompt_base.replace('{nome}', nome_curto).replace('{nicho}', nicho).replace('{bairro}', bairro).replace('{nota}', nota).replace('{vendedor}', vendedor)
-            
-            if is_intl:
-                prompt_final += "\n\nIMPORTANT: WRITE THE OUTREACH MESSAGE ENTIRELY IN NATIVE ENGLISH."
-            else:
-                prompt_final += "\n\nIMPORTANTE: ESCREVA A MENSAGEM EM PORTUGUÃŠS DO BRASIL. USE UM TOM CASUAL E PROFISSIONAL PARA WHATSAPP."
-            
-            response = model.generate_content(prompt_final)
-            if response.text:
-                return response.text.strip()
-        except Exception as e:
-            print(f"[WORKER] Erro na API do Gemini: {e}. Usando template de fallback.")
-    
-    # Fallback template
-    nicho_lower = nicho.lower()
-    if is_intl:
-        copy = "Hello, how are you?\n\n"
-        if vendedor != "aqui":
-            copy += f"My name is {vendedor}. "
-        copy += f"I was searching on Google Maps in the {bairro} area and found {nome_curto}'s profile. "
-        try:
-            nota_float = float(nota.replace(",", "."))
-            if nota_float >= 4.5:
-                copy += f"I was really impressed by your excellent {nota}-star rating!\n\n"
-            else:
-                copy += "\n\n"
-        except:
-            copy += "\n\n"
-            
-        if any(x in nicho_lower for x in ["estetica", "beleza", "odont", "clinica", "medic", "dentist", "clinic", "health", "beauty", "spa", "dental"]):
-            copy += "I know this is probably the booking number, but could you kindly forward this message to the clinic manager?\n\n"
-            copy += f"I work with digital positioning and noticed {nome_curto} doesn't have a high-converting official website linked on Google. Since patients make decisions largely based on visuals these days, I took the liberty of creating a draft of a landing page focused exclusively on filling up your calendar.\n\n"
-            copy += "Can I send you a picture of what it looks like? It's completely without obligation."
-        elif any(x in nicho_lower for x in ["advogad", "escritorio", "contab", "law", "attorney", "accountant", "cpa", "legal"]):
-            copy += "Could you please forward this to the managing partner or the marketing department?\n\n"
-            copy += f"I noticed {nome_curto} doesn't have a modern website linked on Google. I created an exclusive, professional landing page layout designed to generate qualified leads and elevate your firm's authority.\n\n"
-            copy += "Can I send a screenshot here? It's completely without obligation."
-        else:
-            copy += "Could you kindly forward this message to the business owner or manager?\n\n"
-            copy += f"I noticed {nome_curto} doesn't have an official, high-converting website linked on your Google profile. I took the liberty of designing a draft for a professional page focused entirely on increasing your sales.\n\n"
-            copy += "May I send a picture of how it looks? It's totally without obligation."
-        return copy
+    # Fallback default se não tiver API key
+    if not api_key:
+        return {"analise": "Sem API Key.", "estrategia": "Fallback.", "mensagem": f"Olá, vi a {nome_curto} no Google e achei incrível. Posso te enviar um material sobre o posicionamento de vocês?"}
         
-    copy = "Ola, tudo bem?\n\n"
-    if vendedor != "aqui":
-        copy += f"Meu nome e {vendedor}. "
-    copy += f"Estava pesquisando no Google Maps na regiao de {bairro} e encontrei o perfil da {nome_curto}. "
     try:
-        nota_float = float(nota.replace(",", "."))
-        if nota_float >= 4.5:
-            copy += f"Gostei muito de ver a excelente nota de {nota} estrelas que voces tem!\n\n"
-        else:
-            copy += "\n\n"
-    except:
-        copy += "\n\n"
-    if "estetica" in nicho_lower or "beleza" in nicho_lower or "odont" in nicho_lower or "clinica" in nicho_lower or "medic" in nicho_lower or "dentist" in nicho_lower:
-        copy += f"Sei que esse provavelmente e o numero de agendamentos, mas voce conseguiria encaminhar essa mensagem para a pessoa responsavel pela gestao da clinica, por gentileza?\n\n"
-        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site oficial focado em conversao cadastrado la no Google. Como hoje os pacientes decidem muito pelo visual, tomei a liberdade de montar um rascunho de uma pagina focada exclusivamente em lotar a agenda de voces.\n\n"
-        copy += "Posso enviar a imagem aqui de como ficou? Se puder mostrar para a direcao, e totalmente sem compromisso."
-    elif "advogad" in nicho_lower or "escritorio" in nicho_lower or "contab" in nicho_lower:
-        copy += f"Voce conseguiria encaminhar essa mensagem para o socio diretor ou responsavel pelo marketing, por gentileza?\n\n"
-        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site atualizado e com alto poder de conversao no Google. Tomei a liberdade de criar um layout exclusivo de uma pagina profissional, focada em gerar leads qualificados e elevar a autoridade do escritorio.\n\n"
-        copy += "Posso enviar um print aqui de como ficou? E totalmente sem compromisso."
-    else:
-        copy += f"Voce conseguiria encaminhar essa mensagem para o dono ou responsavel pela empresa, por gentileza?\n\n"
-        copy += f"Eu trabalho com posicionamento digital e notei que a {nome_curto} nao tem um site oficial focado em conversao cadastrado no Google de voces. Tomei a liberdade de montar um rascunho de uma pagina profissional focada exclusivamente em trazer mais vendas.\n\n"
-        copy += "Posso enviar a imagem aqui de como ficou? E totalmente sem compromisso."
-    return copy
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        super_prompt = f"""Você é um especialista em vendas B2B e prospecção altamente persuasivo.
+O objetivo é criar UMA MENSAGEM DE PROSPECÇÃO INICIAL (fria) para o responsável por uma empresa local.
+A mensagem NÃO deve vender diretamente, mas sim criar curiosidade, gerar valor imediato e abrir uma conversa para que o lead responda (ex: "Pode mandar").
+
+### DADOS DO LEAD:
+- Nome: {nome_curto}
+- Segmento: {dados_lead.get("Nicho", "")}
+- Localização: {dados_lead.get("Bairro", "")}
+- Nota no Google: {dados_lead.get("Nota Maps", "")}
+- Avaliações: {dados_lead.get("Qtd Avaliacoes", "")}
+- Possui Site: {"Sim" if dados_lead.get("Link Inicial") else "Não"}
+- Meu Nome (Vendedor): {vendedor}
+
+### DIRETRIZES DE MENSAGEM:
+1. Adapte a lógica comercial ao Segmento. (Ex: Arquitetura = percepção de valor/autoridade; Odontologia = agendamento/confiança; Móveis = orçamento/portfólio, etc).
+2. NUNCA use clichês (Ex: "próximo nível", "potencialize sua presença", "solução personalizada", "alavanque resultados").
+3. Sem excesso de emojis, linguagem formal demais ou exageradamente comercial.
+4. Tamanho: Curto e direto para WhatsApp/Instagram (500 a 900 caracteres).
+5. Se a empresa NÃO tiver site: NÃO fale negativamente ("notei que não tem site"). Diga que analisou a presença online deles e encontrou uma excelente oportunidade para melhorar a captação de clientes.
+6. Se a empresa TIVER site: NÃO finja que não tem. Diga que analisou o posicionamento digital atual deles e criou um rascunho de melhoria/conversão sem compromisso.
+7. CTA (Chamada para ação): Baixa fricção, abrindo conversa. Ex: "Posso te mandar uma imagem para ver como ficou?", "Quer que eu te envie?".
+8. Variação: Escolha automaticamente 1 entre 10 estruturas possíveis (ex: elogio à nota, pergunta direta, observação de mercado, foco no bairro, etc).
+
+### FORMATO DE SAÍDA OBRIGATÓRIO (Use as tags exatamente como abaixo):
+[ANALISE]
+1 parágrafo analisando os dados da empresa.
+[ESTRATEGIA]
+1 parágrafo explicando qual ângulo comercial/estrutura você escolheu usar e por quê.
+[MENSAGEM]
+Escreva aqui apenas a MENSAGEM FINAL que será enviada.
+"""
+        if is_intl:
+            super_prompt += "\n\nIMPORTANT: TRANSLATE AND WRITE THE [MENSAGEM] ENTIRELY IN NATIVE ENGLISH."
+        
+        response = model.generate_content(super_prompt)
+        texto = response.text or ""
+        
+        # Parsando as tags
+        analise = ""
+        estrategia = ""
+        mensagem = ""
+        
+        import re
+        match_a = re.search(r'\[ANALISE\](.*?)\[ESTRATEGIA\]', texto, re.DOTALL)
+        match_e = re.search(r'\[ESTRATEGIA\](.*?)\[MENSAGEM\]', texto, re.DOTALL)
+        match_m = re.search(r'\[MENSAGEM\](.*)', texto, re.DOTALL)
+        
+        if match_a: analise = match_a.group(1).strip()
+        if match_e: estrategia = match_e.group(1).strip()
+        if match_m: mensagem = match_m.group(1).strip()
+        else: mensagem = texto.replace("[MENSAGEM]", "").strip() # fallback de parsing
+        
+        return {
+            "analise": analise,
+            "estrategia": estrategia,
+            "mensagem": mensagem
+        }
+        
+    except Exception as e:
+        print(f"[WORKER] Erro na API do Gemini: {e}")
+        return {"analise": "Erro", "estrategia": "Erro", "mensagem": f"Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?"}
 
 def gerar_prompt_prototipo(nome, nicho):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
@@ -330,6 +330,11 @@ def dossie(place_id):
     linkedin_link = f"<a href='{lead['linkedin']}' class='text-blue-500 underline' target='_blank'>Acessar Perfil</a>" if lead["linkedin"] else "Nao localizado"
     site_link = f"<a href='{lead['link_inicial']}' class='text-blue-500 underline' target='_blank'>Visualizar</a>" if lead["link_inicial"] else "<span class='text-red-500 font-bold'>Nenhum link cadastrado no Google!</span>"
     email_info = lead["email"] or "<span class='text-red-500 font-bold'>Vazamento: Nenhum e-mail de contato encontrado.</span>"
+    
+    analise_ia = lead.get('analise_ia') or 'N/A'
+    estrategia_ia = lead.get('estrategia_ia') or 'N/A'
+    copy_texto = lead.get('copy_texto') or 'N/A'
+    
     html = f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Auditoria Digital - {lead['nome']}</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-50 text-slate-800 font-sans p-8">
     <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
@@ -337,6 +342,23 @@ def dossie(place_id):
     <p class="text-slate-600 mb-8 border-b pb-6">Analise detalhada da presenca online na regiao de <strong>{lead['bairro']}</strong>.</p>
     <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} ⭐</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
     <div class="mb-8"><h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Dados Encontrados Publicamente</h3><ul class="space-y-3 text-slate-600"><li><strong>Telefone/WhatsApp:</strong> {lead['telefone'] or 'Nao disponivel'}</li><li><strong>E-mail Publico:</strong> {email_info}</li><li><strong>Instagram:</strong> {instagram_link}</li><li><strong>LinkedIn:</strong> {linkedin_link}</li><li><strong>Link Atual (Google):</strong> {site_link}</li></ul></div>
+    
+    <div class="mb-8 bg-indigo-50 rounded-xl p-6 border border-indigo-100">
+        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> Inteligência Artificial SDR</h3>
+        <div class="mb-4">
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. Análise do Lead</h4>
+            <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{analise_ia}</p>
+        </div>
+        <div class="mb-4">
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. Estratégia Adotada</h4>
+            <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{estrategia_ia}</p>
+        </div>
+        <div>
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">3. Mensagem Final (Copy)</h4>
+            <div class="text-slate-800 bg-white p-4 rounded-lg border border-indigo-200 shadow-sm whitespace-pre-wrap font-medium">{copy_texto}</div>
+        </div>
+    </div>
+    
     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8"><h3 class="text-xl font-bold text-red-700 mb-3">Ponto Critico de Conversao Identificado</h3><p class="mb-3">Constatamos que a <strong>{lead['nome']}</strong> atualmente <strong>nao possui um site institucional oficial e profissional</strong>.</p><p>Mesmo possuindo {lead['avaliacoes']} avaliacoes no Google, isso gera um vazamento invisivel de clientes.</p></div>
     <div class="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl"><h3 class="text-xl font-bold text-blue-800 mb-3">Recomendacao Tecnica Imediata</h3><p>Criacao de uma <strong>Pagina de Alta Conversao (Landing Page)</strong> focada em transmitir confianca e direcionar contatos para o WhatsApp.</p></div>
     <p class="text-center text-xs text-slate-400 mt-12">Relatorio Confidencial gerado via GestaoLead PRO Automation.</p></div></body></html>"""
@@ -485,8 +507,25 @@ def extrator_worker(data, config, queue):
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado)
                             
+                            dados_raw = {
+                                "Nome": nome, "Nicho": nicho, "Bairro": bairro,
+                                "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
+                                "Telefone": telefone_raw, "E-mail Encontrado": dados_profundos["email"],
+                                "Instagram": dados_profundos["instagram"],
+                                "Link Inicial": link_encontrado
+                            }
+                            
                             is_intl = not numeros_whats.startswith("55") if numeros_whats else False
-                            copy_texto = gerar_copy_inteligente(nome, bairro, nota_str, nicho, config, is_intl) if (data.get("ai_copy")) else ""
+                            copy_texto = ""
+                            analise_ia = ""
+                            estrategia_ia = ""
+                            
+                            if data.get("ai_copy"):
+                                resultado_ia = gerar_copy_inteligente(dados_raw, config, is_intl)
+                                copy_texto = resultado_ia.get("mensagem", "")
+                                analise_ia = resultado_ia.get("analise", "")
+                                estrategia_ia = resultado_ia.get("estrategia", "")
+                                
                             whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
                             lead_data = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -499,6 +538,9 @@ def extrator_worker(data, config, queue):
                                 "Link Inicial": link_encontrado,
                                 "Google Maps": href,
                                 "Prompt Prototipo": gerar_prompt_prototipo(nome, nicho),
+                                "Copy Texto": copy_texto,
+                                "Analise IA": analise_ia,
+                                "Estrategia IA": estrategia_ia
                             }
                             salvo = save_lead_db(lead_data, place_id)
                             if salvo:
