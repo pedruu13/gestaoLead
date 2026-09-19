@@ -444,7 +444,11 @@ def extrator_worker(data, config, queue):
                             try: page.wait_for_selector("h1", timeout=5000)
                             except Exception as e: print("Aviso interno:", e)
                             
-                            time.sleep(2) # Aguarda renderizacao do painel lateral (telefone, site, etc)
+                            time.sleep(2) # Aguarda renderizacao basica
+                            
+                            # Tenta esperar explicitamente pelo elemento do site caso ele demore mais que o h1
+                            try: page.wait_for_selector("a[data-item-id='authority']", timeout=3000)
+                            except: pass
                             
                             nome_el = page.locator("h1").first
                             nome = nome_el.inner_text() if nome_el.count() > 0 else page.title().split(" - Google")[0]
