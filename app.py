@@ -661,6 +661,23 @@ def limpar_crm():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+@app.route("/api/test_gemini", methods=["POST"])
+def test_gemini():
+    data = request.json
+    api_key = data.get("key", "").strip()
+    if not api_key:
+        return jsonify({"success": False, "error": "Chave vazia"})
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content("Diga apenas 'ok'")
+        if response and response.text:
+            return jsonify({"success": True})
+        return jsonify({"success": False, "error": "Sem resposta"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
