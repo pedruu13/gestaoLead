@@ -582,6 +582,42 @@ def api_search():
 def sugerir_alvos():
     try:
         regiao = request.args.get('regiao', 'br')
+        config = load_config()
+        api_key = config.get("gemini_api_key", "").strip()
+        
+        if api_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
+                
+                prompt = f"""Atue como um estrategista de vendas B2B.
+Eu prospecto empresas no Google Maps para vender criação de Sites de Alta Conversão.
+Preciso que você me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
+
+Regras:
+1. Nichos devem ser muito lucrativos (ex: cirurgia plástica, móveis planejados, arquitetura de luxo, energia solar, clínicas especializadas).
+2. As cidades DEVEM SER APENAS {contexto_regiao}. Não misture Brasil com Internacional.
+3. Retorne EXATAMENTE UM JSON válido e mais nada. O formato deve ser:
+{{
+  "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
+  "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
+}}"""
+                response = model.generate_content(prompt)
+                texto = response.text.replace("```json", "").replace("```", "").strip()
+                import json
+                dados_ia = json.loads(texto)
+                return jsonify({
+                    "nichos": dados_ia.get("nichos", [])[:5],
+                    "cidades": dados_ia.get("cidades", [])[:5]
+                })
+            except Exception as e:
+                print(f"[IA] Erro ao gerar sugestões: {e}")
+                # Fallback para o hardcoded se a IA falhar
+        
+        # Fallback Hardcoded
         nichos_ht = [
             "Advogado Trabalhista", "Cirurgião Plástico", "Clínica de Estética", "Imobiliária de Alto Padrão",
             "Clínica Odontológica", "Escritório de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
@@ -600,6 +636,7 @@ def sugerir_alvos():
         ]
         
         cidades_pool = cidades_intl if regiao == 'intl' else cidades_br
+        import random
         
         selecionados_nichos = random.sample(nichos_ht, 5)
         selecionados_cidades = random.sample(cidades_pool, 5)
@@ -627,4 +664,4 @@ def limpar_crm():
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
