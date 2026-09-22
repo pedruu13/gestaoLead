@@ -637,13 +637,11 @@ def api_search():
     if not data.get("nichos") or not data.get("bairros"):
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
     config = load_config()
+    import threading
     atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0})
-    try:
-        multiprocessing.set_start_method("spawn", force=True)
-    except RuntimeError:
-        pass
-    p = multiprocessing.Process(target=extrator_worker, args=(data, config, None))
-    p.start()
+    
+    t = threading.Thread(target=extrator_worker, args=(data, config, None))
+    t.start()
     return jsonify({"success": True, "salvos": "Em andamento", "message": "Busca iniciada em segundo plano."})
 
 @app.route("/api/sugerir_alvos", methods=["GET"])
