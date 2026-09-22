@@ -13,8 +13,24 @@ import google.generativeai as genai
 
 # NOTA: sync_playwright Ã© importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
+import traceback
+from bs4 import BeautifulSoup
+from multiprocessing import Process
+from dotenv import load_dotenv
+
+# Carrega ou cria .env para variáveis de ambiente seguras
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+if not os.path.exists(env_path):
+    import secrets
+    with open(env_path, "w") as f:
+        f.write(f"FLASK_SECRET_KEY={secrets.token_hex(24)}\n")
+        f.write("APP_USER=admin\n")
+        f.write("APP_PASS=123456\n") # Mude a senha no arquivo .env
+load_dotenv(env_path)
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
 
@@ -364,37 +380,73 @@ def dossie(place_id):
     <p class="text-center text-xs text-slate-400 mt-12">Relatorio Confidencial gerado via GestaoLead PRO Automation.</p></div></body></html>"""
     return html
 
-def cacar_dados_profundos(context, url):
-    dados = {"email": "", "instagram": "", "facebook": "", "linkedin": ""}
-    if not url: return dados
-    url_lower = url.lower()
-    if "instagram.com" in url_lower:
-        dados["instagram"] = url; return dados
-    if "facebook.com" in url_lower:
-        dados["facebook"] = url; return dados
-    if "linkedin.com" in url_lower:
-        dados["linkedin"] = url; return dados
-    page = None
+import urllib.request
+import urllib.parse
+
+def buscar_email_web(nome, bairro):
+    busca = f'"{nome}" {bairro} email'
+    url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(busca)
     try:
-        page = context.new_page()
-        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
-        page.goto(url, timeout=15000, wait_until="domcontentloaded")
-        content = page.content()
+        req = urllib.request.Request(
+            url, 
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            content = resp.read().decode("utf-8", "ignore")
         emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", content)
-        emails = [e for e in emails if not e.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4")) and "sentry" not in e and "example" not in e and "wix" not in e]
-        if emails: dados["email"] = emails[0]
-        ig = re.search(r"https?://(?:www\.)?instagram\.com/[a-zA-Z0-9_.-]+", content)
-        if ig: dados["instagram"] = ig.group(0)
-        fb = re.search(r"https?://(?:www\.)?facebook\.com/[a-zA-Z0-9_.-]+", content)
-        if fb: dados["facebook"] = fb.group(0)
-        li = re.search(r"https?://(?:www\.)?linkedin\.com/(?:company|in)/[a-zA-Z0-9_.-]+", content)
-        if li: dados["linkedin"] = li.group(0)
+        emails = [e for e in emails if not e.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4")) and "sentry" not in e and "example" not in e and "wix" not in e and "sitedobem" not in e]
+        return emails[0] if emails else ""
     except Exception as e:
-        print(f"Erro no Cacador Profundo para {url}: {e}")
-    finally:
-        if page:
-            try: page.close()
-            except Exception as e: print("Aviso interno:", e)
+        return ""
+
+def is_social_or_directory(url):
+    if not url: return False
+    url = url.lower()
+    domains = ["facebook.com", "instagram.com", "linkedin.com", "linktr.ee", "wa.me", "api.whatsapp", "yelp.", "tripadvisor.", "yellowpages.", "foursquare."]
+    return any(d in url for d in domains)
+
+def cacar_dados_profundos(context, url, nome="", bairro=""):
+    dados = {"email": "", "instagram": "", "facebook": "", "linkedin": ""}
+    
+    # Se tem URL, tenta extrair da URL
+    if url and not is_social_or_directory(url):
+        try:
+            req_url = url if url.startswith(("http://", "https://")) else "http://" + url
+            req = urllib.request.Request(
+                req_url, 
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept": "text/html"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                content = resp.read(400_000).decode("utf-8", "replace")
+                
+            emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", content)
+            emails = [e for e in emails if not e.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4")) and "sentry" not in e and "example" not in e]
+            if emails: dados["email"] = emails[0]
+            
+            ig = re.search(r"https?://(?:www\.)?instagram\.com/[a-zA-Z0-9_.-]+", content)
+            if ig: dados["instagram"] = ig.group(0)
+            
+            fb = re.search(r"https?://(?:www\.)?facebook\.com/[a-zA-Z0-9_.-]+", content)
+            if fb: dados["facebook"] = fb.group(0)
+            
+            li = re.search(r"https?://(?:www\.)?linkedin\.com/(?:company|in)/[a-zA-Z0-9_.-]+", content)
+            if li: dados["linkedin"] = li.group(0)
+            
+        except Exception as e:
+            print(f"[WORKER] Erro ao buscar HTML de {url}: {e}")
+            pass
+
+    if url:
+        url_lower = url.lower()
+        if "instagram.com" in url_lower: dados["instagram"] = url
+        if "facebook.com" in url_lower: dados["facebook"] = url
+        if "linkedin.com" in url_lower: dados["linkedin"] = url
+
+    # Se ainda nao tem email (ex: empresa sem site), faz busca web profunda!
+    if not dados["email"] and nome:
+        print(f"[WORKER] Sem email no site/sem site para {nome}. Buscando na web...")
+        dados["email"] = buscar_email_web(nome, bairro)
+        
     return dados
 
 def extrator_worker(data, config, queue):
@@ -484,12 +536,14 @@ def extrator_worker(data, config, queue):
                                 fallback = page.locator("a[aria-label*='ebsite'], a[aria-label*='site'], a[href^='http']").all()
                                 for f in fallback:
                                     hf = f.get_attribute("href")
-                                    if hf and "google.com" not in hf and "facebook.com" not in hf and "instagram.com" not in hf:
+                                    if hf and "google.com" not in hf:
                                         link_encontrado = hf
                                         break
                                         
-                            if data.get("strict_no_socials") and link_encontrado: 
-                                print(f"[WORKER] Ignorando {nome} - Possui site e o filtro de EXCLUIR COM SITE esta ativo."); continue
+                            is_real_website = link_encontrado and not is_social_or_directory(link_encontrado)
+                            if data.get("strict_no_socials") and is_real_website: 
+                                print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo."); continue
+
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
@@ -505,7 +559,7 @@ def extrator_worker(data, config, queue):
                             if data.get("req_whatsapp") and not numeros_whats:
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp"); continue
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
-                            dados_profundos = cacar_dados_profundos(context, link_encontrado)
+                            dados_profundos = cacar_dados_profundos(context, link_encontrado, nome=nome, bairro=bairro)
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
