@@ -3,28 +3,28 @@
 {% block header_title %}Meu CRM (Base de Leads){% endblock %}
 
 {% block content %}
-<div class="glass-card rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="glass-card rounded-2xl shadow-sm flex flex-col border-t-4 border-t-indigo-500 overflow-hidden w-full">
     <!-- Header -->
-    <div class="p-6 border-b border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="p-6 border-b border-slate-100 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-            <h3 class="text-lg font-bold text-slate-800">Pipeline de Vendas</h3>
-            <p class="text-sm text-slate-500">Gerencie seus leads e gere dossiês de auditoria.</p>
+            <h3 class="text-xl font-extrabold text-slate-800 tracking-tight">Pipeline de Vendas</h3>
+            <p class="text-sm text-slate-500 mt-1">Gerencie seus leads e entre em contato.</p>
         </div>
         
         <!-- Filtros em Tempo Real -->
-        <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-            <div class="relative w-full md:w-auto">
+        <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+            <div class="relative w-full md:w-48">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <i class="fa-solid fa-search text-slate-400 text-sm"></i>
                 </div>
-                <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 p-2" placeholder="Buscar empresa...">
+                <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 p-2.5 transition-all outline-none" placeholder="Buscar lead...">
             </div>
             
-            <div class="relative w-full md:w-auto">
+            <div class="relative w-full md:w-48">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <i class="fa-solid fa-filter text-slate-400 text-sm"></i>
                 </div>
-                <select id="filter_nicho" onchange="filterTable()" class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8">
+                <select id="filter_nicho" onchange="filterTable()" class="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all">
                     <option value="">Todos os Nichos</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -33,86 +33,81 @@
             </div>
 
             <div class="flex w-full md:w-auto gap-2">
-                <button onclick="limparCRM()" class="flex-1 md:flex-none bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap text-center">
+                <button onclick="limparCRM()" class="flex-1 md:flex-none bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-sm font-bold py-2.5 px-4 rounded-xl shadow-sm transition-colors whitespace-nowrap text-center">
                     <i class="fa-solid fa-trash-can mr-1"></i> Limpar
                 </button>
 
-                <a href="/export/csv" class="flex-1 md:flex-none bg-[#1F1F1F] hover:bg-black text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap text-center">
+                <a href="/export/csv" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold py-2.5 px-4 rounded-xl shadow-sm transition-colors whitespace-nowrap text-center flex items-center justify-center">
                     <i class="fa-solid fa-download mr-1"></i> CSV
                 </a>
             </div>
         </div>
     </div>
     
-    <!-- Table -->
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+    <!-- Table Wrapper with constraints -->
+    <div class="overflow-x-auto w-full max-w-full">
+        <table class="w-full text-left border-collapse min-w-[800px]">
             <thead>
                 <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Lead</th>
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Nicho</th>
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200 text-center">Nota</th>
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Contato</th>
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200">Status CRM</th>
-                    <th class="px-6 py-4 font-semibold border-b border-slate-200 text-right">Ações</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100">Lead</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100">Segmento</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100 text-center">Avaliação</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100">Contato</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100 text-center">Ações</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 bg-white">
                 {% for lead in leads %}
-                <tr class="hover:bg-slate-50 transition-colors">
+                <tr class="hover:bg-indigo-50/30 transition-colors group">
                     <td class="px-6 py-4">
-                        <div class="font-bold text-slate-800">{{ lead.nome }}</div>
-                        <div class="text-xs text-slate-500">{{ lead.bairro }}</div>
+                        <div class="font-bold text-slate-800 text-sm">{{ lead.nome }}</div>
+                        <div class="text-xs text-slate-500 mt-1 truncate max-w-[200px]">{{ lead.bairro }}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             {{ lead.nicho }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-center">
-                        <div class="font-bold {% if lead.nota >= '4.5' %}text-green-600{% else %}text-amber-500{% endif %}">
-                            {{ lead.nota }} <i class="fa-solid fa-star text-xs"></i>
+                        <div class="inline-flex items-center px-2 py-1 rounded font-bold text-xs {% if lead.nota >= '4.5' %}bg-green-50 text-green-700 border-green-200{% else %}bg-amber-50 text-amber-700 border-amber-200{% endif %} border">
+                            {{ lead.nota }} <i class="fa-solid fa-star ml-1 text-[10px]"></i>
                         </div>
                     </td>
                     <td class="px-6 py-4">
                         {% if lead.whatsapp_link %}
-                        <a href="{{ lead.whatsapp_link }}" target="_blank" class="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center gap-1">
-                            <i class="fa-brands fa-whatsapp text-lg"></i> Iniciar
+                        <a href="{{ lead.whatsapp_link }}" target="_blank" class="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1.5 rounded-lg font-bold text-xs flex items-center w-max transition-colors">
+                            <i class="fa-brands fa-whatsapp text-sm mr-1"></i> Abordar
+                        </a>
+                        {% elif lead.email %}
+                        <a href="mailto:{{ lead.email }}" class="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1.5 rounded-lg font-bold text-xs flex items-center w-max transition-colors">
+                            <i class="fa-solid fa-envelope text-sm mr-1"></i> Email
                         </a>
                         {% else %}
-                        <span class="text-slate-400 text-sm">Sem Whats</span>
+                        <span class="text-slate-400 text-xs italic">Sem Contato</span>
                         {% endif %}
                     </td>
-                    <td class="px-6 py-4">
-                        <select onchange="updateStatus('{{ lead.place_id }}', this.value)" class="text-sm border-slate-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 text-slate-700 bg-slate-50">
-                            <option value="Novo" {% if lead.status == 'Novo' %}selected{% endif %}>Novo</option>
-                            <option value="Contato Feito" {% if lead.status == 'Contato Feito' %}selected{% endif %}>Contato Feito</option>
-                            <option value="Em Negociação" {% if lead.status == 'Em Negociação' %}selected{% endif %}>Em Negociação</option>
-                            <option value="Fechado" {% if lead.status == 'Fechado' %}selected{% endif %}>Fechado</option>
-                            <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
-                        </select>
-                    </td>
-                    <td class="px-6 py-4 text-right whitespace-nowrap">
-                        <button 
-                            onclick="abrirDetalhes(this)" 
-                            data-nome="{{ lead.nome }}" 
-                            data-maps="{{ lead.google_maps }}" 
-                            data-prompt="{{ lead.prompt_design }}" 
-                            data-insta="{{ lead.instagram }}" 
-                            class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors mr-2">
-                            <i class="fa-solid fa-eye mr-1"></i> Detalhes
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="abrirDetalhes(this)" 
+                                data-nome="{{ lead.nome }}" 
+                                data-maps="{{ lead.maps_link }}" 
+                                data-insta="{{ lead.instagram }}" 
+                                data-prompt="{{ lead.ai_copy_prompt }}"
+                                class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold py-1.5 px-3 rounded-lg text-xs shadow-sm transition-all hover:border-slate-300">
+                            <i class="fa-solid fa-eye mr-1 text-indigo-500"></i> Detalhes
                         </button>
-                        <a href="/dossie/{{ lead.place_id }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md text-sm font-medium transition-colors">
-                            <i class="fa-solid fa-file-pdf mr-1"></i> Dossiê
-                        </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" class="px-6 py-12 text-center text-slate-500">
-                        <i class="fa-solid fa-inbox text-4xl mb-3 text-slate-300 block"></i>
-                        Nenhum lead encontrado no banco de dados.<br>
-                        Vá para o <strong>Motor de Busca</strong> e inicie uma extração.
+                    <td colspan="5" class="px-6 py-16 text-center text-slate-500 bg-slate-50/50">
+                        <div class="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                            <i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+                        </div>
+                        <h4 class="text-slate-700 font-bold mb-1">Base Vazia</h4>
+                        <p class="text-sm">Nenhum lead encontrado no banco de dados.</p>
+                        <a href="/" class="inline-block mt-4 text-indigo-600 hover:text-indigo-800 font-semibold text-sm hover:underline">
+                            Ir para o buscador <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -122,53 +117,61 @@
 </div>
 
 <!-- Modal de Detalhes -->
-<div id="modal_detalhes" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
-        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-            <h3 class="text-xl font-bold text-slate-800" id="modal_nome">Nome da Empresa</h3>
-            <button onclick="fecharDetalhes()" class="text-slate-400 hover:text-red-500 transition-colors">
-                <i class="fa-solid fa-xmark text-xl"></i>
+<div id="modal_detalhes" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all">
+        <div class="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg md:text-xl font-bold text-slate-800" id="modal_nome">Nome da Empresa</h3>
+            <button onclick="fecharDetalhes()" class="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-red-500 hover:border-red-200 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
         
-        <div class="p-6 space-y-6">
+        <div class="p-5 md:p-6 space-y-6">
             <!-- Links Vitais -->
             <div>
-                <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Links da Empresa</h4>
-                <div class="flex flex-col gap-3">
-                    <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700">
-                        <i class="fa-solid fa-map-location-dot text-emerald-500 text-xl w-8 text-center"></i>
-                        <span class="font-medium ml-2">Abrir no Google Maps (Ver Fotos)</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-slate-400 text-sm"></i>
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Presença Digital Encontrada</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center mr-3 group-hover:bg-emerald-100">
+                            <i class="fa-solid fa-map-location-dot text-lg"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="block font-bold text-sm">Google Maps</span>
+                            <span class="block text-xs text-slate-400">Ver Perfil e Fotos</span>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
                     </a>
                     
-                    <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700 hidden">
-                        <i class="fa-brands fa-instagram text-pink-500 text-xl w-8 text-center"></i>
-                        <span class="font-medium ml-2">Abrir Instagram</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-slate-400 text-sm"></i>
+                    <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm hidden">
+                        <div class="w-10 h-10 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center mr-3 group-hover:bg-pink-100">
+                            <i class="fa-brands fa-instagram text-lg"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="block font-bold text-sm">Instagram</span>
+                            <span class="block text-xs text-slate-400">Ver Perfil Social</span>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
                     </a>
                 </div>
             </div>
 
             <!-- Prompt de IA -->
-            <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
-                <h4 class="text-sm font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Prompt para Gerar Layout (Midjourney/DALL-E)
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 relative">
+                <div class="absolute top-0 right-0 p-3 opacity-10">
+                    <i class="fa-solid fa-robot text-6xl"></i>
+                </div>
+                <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-1 flex items-center relative z-10">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2 text-indigo-500"></i> Pitch de Vendas Personalizado (IA)
                 </h4>
-                <p class="text-xs text-blue-600 mb-3">Copie este texto e cole em uma IA de imagens para gerar um site modelo de alta qualidade para enviar ao cliente.</p>
-                <div class="relative">
-                    <textarea id="modal_prompt" readonly class="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-slate-700 h-24 focus:outline-none"></textarea>
-                    <button onclick="copiarPrompt()" class="absolute bottom-2 right-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow-sm">
-                        <i class="fa-solid fa-copy mr-1"></i> Copiar
+                <p class="text-xs text-indigo-600 mb-4 relative z-10 max-w-md">Mensagem gerada baseada no nicho, localização e nota desta empresa. Copie e envie para abordar!</p>
+                
+                <div class="relative z-10">
+                    <textarea id="modal_prompt" readonly class="w-full bg-white border border-indigo-200 rounded-xl p-4 text-sm text-slate-700 h-32 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm leading-relaxed"></textarea>
+                    <button onclick="copiarPrompt()" class="absolute bottom-3 right-3 gradient-btn text-white px-4 py-2 rounded-lg text-xs font-bold transition-transform shadow-md hover:-translate-y-0.5 flex items-center">
+                        <i class="fa-solid fa-copy mr-2"></i> Copiar
                     </button>
                 </div>
             </div>
-        </div>
-        
-        <div class="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end">
-            <button onclick="fecharDetalhes()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-6 rounded-lg transition-colors">
-                Fechar
-            </button>
         </div>
     </div>
 </div>
@@ -176,26 +179,13 @@
 
 {% block scripts %}
 <script>
-    async function updateStatus(placeId, newStatus) {
-        try {
-            const res = await fetch('/api/update_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ place_id: placeId, status: newStatus })
-            });
-        } catch(e) {
-            console.error(e);
-            alert("Erro ao atualizar status.");
-        }
-    }
-
     document.addEventListener("DOMContentLoaded", () => {
         let select = document.getElementById('filter_nicho');
         let trs = document.querySelectorAll('tbody tr');
         let niches = new Set();
         
         trs.forEach(tr => {
-            if(tr.children.length > 1) { // se não for a mensagem de vazio
+            if(tr.children.length > 1) { // se nǜo for a mensagem de vazio
                 let nichoRaw = tr.children[1].innerText.trim();
                 if(nichoRaw) niches.add(nichoRaw);
             }
@@ -232,7 +222,7 @@
     }
 
     async function limparCRM() {
-        if(confirm("⚠️ Tem certeza que deseja DELETAR TODOS os leads da sua base? Essa ação não pode ser desfeita!")) {
+        if(confirm("⚠ ATENÇÃO! Tem certeza que deseja DELETAR TODOS os leads da sua base? Essa ação não pode ser desfeita!")) {
             try {
                 const res = await fetch('/api/limpar_crm', { method: 'POST' });
                 const data = await res.json();
@@ -284,7 +274,17 @@
         let textarea = document.getElementById('modal_prompt');
         textarea.select();
         document.execCommand('copy');
-        alert("Prompt copiado com sucesso! Cole no ChatGPT, Midjourney ou DALL-E.");
+        
+        // Efeito visual no botǜo
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Copiado!';
+        btn.classList.add('bg-green-600');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('bg-green-600');
+        }, 2000);
     }
 </script>
 {% endblock %}
