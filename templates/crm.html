@@ -22,6 +22,22 @@
             
             <div class="relative w-full md:w-48">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i class="fa-solid fa-list-check text-slate-400 text-sm"></i>
+                </div>
+                <select id="filter_status" onchange="filterTable()" class="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all">
+                    <option value="">Todos os Status</option>
+                    <option value="Novo">Novo</option>
+                    <option value="Em Contato">Em Contato</option>
+                    <option value="Em Negociação">Em Negociação</option>
+                    <option value="Fechado">Fechado</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </div>
+            </div>
+
+            <div class="relative w-full md:w-48">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <i class="fa-solid fa-filter text-slate-400 text-sm"></i>
                 </div>
                 <select id="filter_nicho" onchange="filterTable()" class="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all">
@@ -224,17 +240,21 @@
     function filterTable() {
         let nFilter = document.getElementById('filter_nicho').value.toLowerCase();
         let nameFilter = document.getElementById('filter_nome').value.toLowerCase();
+        let sFilter = document.getElementById('filter_status') ? document.getElementById('filter_status').value.toLowerCase() : '';
         let trs = document.querySelectorAll('tbody tr');
         
         trs.forEach(tr => {
             if(tr.children.length > 1) { 
                 let name = tr.children[0].innerText.toLowerCase();
                 let nicho = tr.children[1].innerText.toLowerCase();
+                let statusSelect = tr.querySelector('.status-select');
+                let status = statusSelect ? statusSelect.value.toLowerCase() : '';
                 
                 let matchNicho = (nFilter === "" || nicho === nFilter);
                 let matchNome = name.includes(nameFilter);
+                let matchStatus = (sFilter === "" || status === sFilter);
                 
-                if (matchNome && matchNicho) {
+                if (matchNome && matchNicho && matchStatus) {
                     tr.style.display = '';
                 } else {
                     tr.style.display = 'none';
