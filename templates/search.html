@@ -1,111 +1,123 @@
 {% extends "layout.html" %}
-{% set active_page = "search" %}
-{% block header_title %}Motor de Prospecção Avançado{% endblock %}
+{% block header_title %}Nova Prospecção{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    
-    <!-- Configurações (Esquerda) -->
-    <div class="lg:col-span-1 space-y-6">
-        <div class="glass-card rounded-xl shadow-sm p-6 border-t-4 border-slate-700">
-            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-sliders text-slate-600 mr-2"></i> Parâmetros de Filtro</h3>
-            
-            <div class="space-y-5">
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nota Mínima (Reputação)</label>
-                    <input type="number" id="min_nota" value="4.0" step="0.1" min="0" max="5" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-slate-500 focus:outline-none transition-shadow" placeholder="Ex: 4.0">
-                </div>
-                
-                <div class="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <input type="checkbox" id="req_whatsapp" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
-                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer" for="req_whatsapp">Exigir WhatsApp Válido</label>
-                </div>
-                
-                <div class="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <input type="checkbox" id="strict_bairro" class="w-5 h-5 text-slate-700 border-gray-300 rounded focus:ring-slate-500">
-                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer" for="strict_bairro">Correspondência Exata de Bairro</label>
-                </div>
-                
-                <div class="pt-4 border-t border-slate-200">
-                    <h4 class="text-sm font-bold text-indigo-600 mb-3 flex items-center"><i class="fa-solid fa-gem mr-2"></i> Filtros de Inteligência Estratégica</h4>
-                    
-                    <div class="space-y-3">
-                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
-                            <input type="checkbox" id="anti_franchise" class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
-                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="anti_franchise">
-                                <span class="block">Ignorar Redes e Franquias</span>
-                                <span class="text-xs text-slate-500 font-normal mt-0.5">Foca apenas em negócios locais/independentes.</span>
-                            </label>
-                        </div>
-                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
-                            <input type="checkbox" id="strict_mobile" class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
-                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="strict_mobile">
-                                <span class="block">Priorizar Celulares (Móveis)</span>
-                                <span class="text-xs text-slate-500 font-normal mt-0.5">Exclui contatos que são números fixos (DDD).</span>
-                            </label>
-                        </div>
-                        <div class="flex items-start p-2 hover:bg-slate-50 rounded-lg transition-colors">
-                            <input type="checkbox" id="strict_no_socials" checked class="w-4 h-4 mt-0.5 text-indigo-500 border-gray-300 rounded focus:ring-indigo-500">
-                            <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer leading-tight" for="strict_no_socials">
-                                <span class="block">Baixa Presença Digital</span>
-                                <span class="text-xs text-slate-500 font-normal mt-0.5">Seleciona empresas sem Instagram/Site (Alto potencial).</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pt-4 border-t border-slate-200">
-                    <div class="flex items-center p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-                        <input type="checkbox" id="ai_copy" checked class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                        <label class="ml-3 text-sm text-blue-900 font-bold cursor-pointer flex-1" for="ai_copy">
-                            Gerar Pitch de Vendas (IA)
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="max-w-4xl mx-auto pb-12">
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Encontrar Novos Leads</h1>
+        <p class="text-slate-500 mt-2">Configure os parâmetros da IA para acionar os motores de busca e encontrar os melhores clientes.</p>
     </div>
 
-    <!-- Inputs da Busca (Direita) -->
-    <div class="lg:col-span-2 space-y-6">
-        <div class="glass-card rounded-xl shadow-sm p-6 border-t-4 border-blue-600">
-            <div class="flex justify-between items-center mb-5">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-crosshairs text-blue-600 mr-2"></i> Segmentação do Alvo</h3>
-                <div class="flex items-center space-x-3">
-                    <select id="regiao_sugestao" class="text-sm border border-purple-200 rounded-md text-purple-700 bg-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-sm">
+    <div class="space-y-6">
+        <!-- Main Form Card -->
+        <div class="glass-card rounded-2xl shadow-sm p-6 md:p-8 border-t-4 border-t-indigo-500">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-4 border-b border-slate-100 gap-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                    <i class="fa-solid fa-crosshairs text-indigo-500 mr-3"></i> Alvos da Prospecção
+                </h3>
+                <div class="flex gap-2 items-center bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                    <select id="regiao_sugestao" class="text-sm bg-transparent border-none text-slate-600 font-medium focus:ring-0 cursor-pointer outline-none">
                         <option value="br">Brasil 🇧🇷</option>
-                        <option value="intl">Internacional 🇺🇸</option>
+                        <option value="intl">Internacional 🌎</option>
                     </select>
-                    <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="text-sm font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-md transition-colors border border-purple-200 shadow-sm">
-                        <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles mr-1"></i> Sugerir com IA
+                    <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="bg-white hover:bg-indigo-50 text-indigo-600 text-xs font-bold py-2 px-3 rounded-lg border border-slate-200 shadow-sm transition-colors flex items-center gap-1">
+                        <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles"></i> Sugerir com IA
                     </button>
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Segmentos de Atuação <span class="text-xs text-slate-400 font-normal">(Separados por vírgula)</span></label>
-                    <textarea id="nichos" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow text-slate-700" placeholder="Ex: dentista, advogado, clinica de estetica"></textarea>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Segmentos / Nichos <span class="text-xs text-slate-400 font-normal ml-1">(separados por vírgula)</span></label>
+                    <div class="relative">
+                        <div class="absolute top-3 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-briefcase text-slate-400"></i>
+                        </div>
+                        <textarea id="nichos" rows="3" class="w-full pl-11 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-700 shadow-sm bg-slate-50 focus:bg-white" placeholder="Ex: Dentista, Advogado, Clínica de Estética"></textarea>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Regiões / Bairros <span class="text-xs text-slate-400 font-normal">(Separados por vírgula)</span></label>
-                    <textarea id="bairros" rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow text-slate-700" placeholder="Ex: Moema - São Paulo, Centro - Campinas"></textarea>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Cidades / Regiões <span class="text-xs text-slate-400 font-normal ml-1">(separados por vírgula)</span></label>
+                    <div class="relative">
+                        <div class="absolute top-3 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-map-location-dot text-slate-400"></i>
+                        </div>
+                        <textarea id="bairros" rows="3" class="w-full pl-11 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-700 shadow-sm bg-slate-50 focus:bg-white" placeholder="Ex: Moema - São Paulo, Miami, Londres"></textarea>
+                    </div>
                 </div>
             </div>
+
+            <div class="flex items-center gap-2 mb-4">
+                <i class="fa-solid fa-sliders text-slate-400"></i>
+                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Filtros de Qualificação</h3>
+            </div>
             
-            <button id="btn_search" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all transform hover:-translate-y-0.5 flex justify-center items-center text-lg">
-                <i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> INICIAR EXTRAÇÃO DE LEADS
+            <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                <div class="flex items-center group">
+                    <input type="checkbox" id="req_whatsapp" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors cursor-pointer">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer group-hover:text-indigo-600 transition-colors" for="req_whatsapp">Exigir WhatsApp Válido</label>
+                </div>
+                <div class="flex items-center group">
+                    <input type="checkbox" id="strict_mobile" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors cursor-pointer">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer group-hover:text-indigo-600 transition-colors" for="strict_mobile">Priorizar Celulares (Móveis)</label>
+                </div>
+                <div class="flex items-center group">
+                    <input type="checkbox" id="strict_bairro" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors cursor-pointer">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer group-hover:text-indigo-600 transition-colors" for="strict_bairro">Correspondência Exata de Bairro</label>
+                </div>
+                <div class="flex items-center group">
+                    <input type="checkbox" id="anti_franchise" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 transition-colors cursor-pointer">
+                    <label class="ml-3 text-sm text-slate-700 font-medium cursor-pointer group-hover:text-indigo-600 transition-colors" for="anti_franchise">Ignorar Grandes Redes e Franquias</label>
+                </div>
+                
+                <!-- Target Filter -->
+                <div class="md:col-span-2 mt-2">
+                    <div class="flex items-center group bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
+                        <input type="checkbox" id="strict_no_socials" checked class="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer">
+                        <label class="ml-3 text-sm text-indigo-900 font-bold cursor-pointer" for="strict_no_socials">
+                            Alvo Padrão: Empresas SEM Site (Baixa Presença Digital)
+                            <span class="block font-normal text-xs text-indigo-700 mt-1 opacity-80">
+                                Ignora se a empresa já tiver um site real (Preserva se tiver apenas Instagram/Facebook).
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="min_nota" value="3.0">
+            </div>
+
+            <!-- AI Pitch Switch -->
+            <div class="flex items-center justify-between p-5 bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center mr-4 text-indigo-600 shadow-inner">
+                        <i class="fa-solid fa-robot text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">Gerar Pitch de Vendas (IA)</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">A Inteligência Artificial vai analisar o lead e escrever uma mensagem focada em conversão.</p>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" id="ai_copy" checked class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+            </div>
+            
+            <button id="btn_search" class="w-full gradient-btn text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-indigo-500/30 transition-all flex justify-center items-center text-lg hover:-translate-y-1">
+                <i class="fa-solid fa-rocket mr-3"></i> INICIAR EXTRAÇÃO DE LEADS
             </button>
         </div>
         
         <!-- Status Panel (Oculto inicialmente) -->
-        <div id="status_panel" class="hidden glass-card rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+        <div id="status_panel" class="hidden glass-card rounded-2xl shadow-lg p-6 md:p-8 border-t-4 border-t-blue-500 transform transition-all">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center">
-                    <span class="loader mr-3"></span> Operação em Andamento...
+                    <span class="loader mr-4"></span> Operação em Andamento...
                 </h3>
             </div>
-            <p id="log_text" class="text-sm text-slate-600 bg-slate-100 p-4 rounded-lg font-mono border border-slate-200">Verificando status dos motores...</p>
+            <div class="bg-slate-900 rounded-xl p-5 overflow-hidden shadow-inner">
+                <p id="log_text" class="text-sm text-green-400 font-mono leading-relaxed">Inicializando motores de busca...</p>
+            </div>
         </div>
     </div>
 </div>
@@ -125,6 +137,7 @@
     function loadPreferences() {
         inputs.forEach(id => {
             const el = document.getElementById(id);
+            if (!el) return;
             const saved = localStorage.getItem(`pref_${id}`);
             if (saved !== null) {
                 if (el.type === 'checkbox') el.checked = saved === 'true';
@@ -137,6 +150,7 @@
     function savePreferences() {
         inputs.forEach(id => {
             const el = document.getElementById(id);
+            if (!el) return;
             const val = el.type === 'checkbox' ? el.checked : el.value;
             localStorage.setItem(`pref_${id}`, val);
         });
@@ -145,7 +159,7 @@
     // Função para entrar no modo de carregamento
     function setRunningState() {
         btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.add('opacity-70', 'cursor-not-allowed');
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> EXTRAINDO...';
         panel.classList.remove('hidden');
     }
@@ -158,22 +172,22 @@
             
             if (status.rodando) {
                 setRunningState();
-                log.innerHTML = `<strong>Status:</strong> ${status.mensagem}<br><span class="text-blue-600 mt-1 block font-bold">Leads Extraídos: ${status.leads_salvos}</span>`;
+                log.innerHTML = `<span class="text-slate-300">Status:</span> ${status.mensagem}<br><br><span class="text-indigo-400 font-bold text-lg">> Leads Extraídos: ${status.leads_salvos}</span><span class="animate-pulse">_</span>`;
                 pollInterval = setTimeout(verificarStatus, 3000);
             } else {
                 if (pollInterval) { // Se estava rodando e agora parou, finalizamos
-                    log.innerHTML = `<span class="text-green-600 font-bold">✓ Operação Concluída!</span> Total de ${status.leads_salvos} leads capturados. Redirecionando para a Base...`;
+                    log.innerHTML = `<span class="text-green-500 font-bold">✓ Operação Concluída!</span><br><br>Total de <span class="text-white">${status.leads_salvos}</span> leads capturados.<br>Redirecionando para a Base...`;
                     setTimeout(() => { window.location.href = '/crm'; }, 2000);
                 } else {
                     // Não estava rodando e carregou a tela agora
                     panel.classList.add('hidden');
                     btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> INICIAR EXTRAÇÃO DE LEADS';
+                    btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                    btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> INICIAR EXTRAÇÃO DE LEADS';
                 }
             }
         } catch (err) {
-            log.innerText = "Erro ao verificar status (Servidor offline?). Tentando reconectar...";
+            log.innerHTML = "<span class='text-red-400'>Erro ao verificar status (Servidor offline?). Tentando reconectar...</span>";
             pollInterval = setTimeout(verificarStatus, 5000);
         }
     }
@@ -183,8 +197,11 @@
         loadPreferences();
         // Adiciona eventos para salvar automático
         inputs.forEach(id => {
-            document.getElementById(id).addEventListener('change', savePreferences);
-            document.getElementById(id).addEventListener('input', savePreferences);
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', savePreferences);
+                el.addEventListener('input', savePreferences);
+            }
         });
         
         // Checar se já tem algo rodando no backend
@@ -195,12 +212,14 @@
     btn.addEventListener('click', async () => {
         savePreferences();
         setRunningState();
-        log.innerText = "Iniciando infraestrutura do robô... Aguarde (Isso pode levar alguns minutos iniciais)";
+        log.innerHTML = "Iniciando infraestrutura do robô...<br><span class='text-slate-400'>Aguarde (Isso pode levar alguns minutos iniciais)</span><span class='animate-pulse'>_</span>";
         
         const payload = {};
         inputs.forEach(id => {
             const el = document.getElementById(id);
-            payload[id] = el.type === 'checkbox' ? el.checked : el.value;
+            if (el) {
+                payload[id] = el.type === 'checkbox' ? el.checked : el.value;
+            }
         });
         
         try {
@@ -216,16 +235,16 @@
                 if(pollInterval) clearTimeout(pollInterval);
                 setTimeout(verificarStatus, 1500);
             } else {
-                log.innerText = "Falha ao iniciar: " + data.error;
+                log.innerHTML = "<span class='text-red-400'>Falha ao iniciar: " + data.error + "</span>";
                 btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> TENTAR NOVAMENTE';
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> TENTAR NOVAMENTE';
             }
         } catch (e) {
-            log.innerText = "Erro de conexão com o servidor.";
+            log.innerHTML = "<span class='text-red-400'>Erro de conexão com o servidor.</span>";
             btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> TENTAR NOVAMENTE';
+            btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> TENTAR NOVAMENTE';
         }
     });
     async function sugerirAlvosIA() {

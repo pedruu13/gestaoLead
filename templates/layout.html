@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GestãoLead PRO</title>
+    <title>GestǜoLead PRO</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -15,93 +15,108 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
                     colors: {
-                        primary: '#3B82F6',
+                        primary: '#4F46E5', // Indigo 600
                         secondary: '#1E293B',
-                        dark: '#0F172A'
+                        dark: '#0F172A',
+                        accent: '#F472B6'
                     }
                 }
             }
         }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
-        .sidebar-link:hover, .sidebar-link.active { background-color: rgba(59, 130, 246, 0.1); color: #3B82F6; border-right: 3px solid #3B82F6; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #E2E8F0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F4F7FA; color: #1E293B; }
+        .sidebar-link { transition: all 0.2s ease-in-out; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(226, 232, 240, 0.8); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+        .gradient-btn { background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%); }
+        .gradient-btn:hover { background: linear-gradient(135deg, #4338CA 0%, #2563EB 100%); transform: translateY(-1px); }
+        .gradient-text { background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-image: linear-gradient(90deg, #4F46E5, #3B82F6); }
         
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
         /* Loading Spinner */
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3B82F6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; }
+        .loader { border: 3px solid #E2E8F0; border-top: 3px solid #4F46E5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="text-slate-800 flex h-screen overflow-hidden bg-white">
+<body class="flex h-screen overflow-hidden antialiased">
 
     <!-- Overlay p/ Mobile -->
-    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 hidden md:hidden transition-opacity opacity-0"></div>
+    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/40 z-40 hidden md:hidden transition-opacity opacity-0 backdrop-blur-sm"></div>
 
-    <!-- Sidebar Estilo IA (Gemini / Moderno) -->
-    <aside id="sidebar" class="w-64 bg-[#F0F4F9] border-r border-transparent flex flex-col h-screen transition-transform duration-300 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden">
+    <!-- Sidebar Estilo SaaS Moderno -->
+    <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col h-screen transition-transform duration-300 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden shadow-sm">
         
         <!-- Fechar Mobile -->
-        <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-4 text-slate-500 hover:text-slate-800">
-            <i class="fa-solid fa-xmark text-xl"></i>
+        <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-4 text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
         </button>
         <!-- Logo -->
-        <div class="p-4 pl-6 flex items-center mt-2 mb-2 w-64">
-            <span class="text-xl font-semibold text-[#444746] tracking-tight flex items-center whitespace-nowrap">
-                <i class="fa-solid fa-bolt text-blue-600 mr-2"></i> GestãoLead
-            </span>
+        <div class="p-6 flex items-center mb-2 w-64 border-b border-slate-50">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 mr-3">
+                <i class="fa-solid fa-bolt text-white text-sm"></i>
+            </div>
+            <span class="text-xl font-bold text-slate-800 tracking-tight">Gestǜo<span class="text-indigo-600">Lead</span></span>
         </div>
         
-        <!-- Botão Principal Estilo "Novo Chat" -->
-        <div class="px-3 mb-6 mt-2 w-64">
-            <a href="/" class="flex items-center gap-3 bg-white hover:bg-slate-50 shadow-sm border border-slate-200 text-[#444746] text-sm font-medium py-3 px-4 rounded-2xl transition-all group whitespace-nowrap">
-                <i class="fa-solid fa-plus text-blue-500 group-hover:rotate-90 transition-transform duration-300"></i>
-                <span>Nova Prospecção</span>
+        <!-- Botǜo Principal Estilo "Novo Chat" -->
+        <div class="px-5 mb-6 mt-4 w-64">
+            <a href="/" class="flex items-center justify-center gap-2 gradient-btn text-white text-sm font-semibold py-3 px-4 rounded-xl shadow-md shadow-indigo-500/20 transition-all group whitespace-nowrap w-full">
+                <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform duration-300"></i>
+                <span>Nova Prospecǜo</span>
             </a>
         </div>
         
-        <!-- Links de Navegação -->
-        <nav class="flex-1 flex flex-col gap-1 px-3 w-64">
+        <!-- Links de Navegaǜo -->
+        <nav class="flex-1 flex flex-col gap-2 px-3 w-64">
             <div class="px-4 py-2 mt-2 mb-1">
-                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gestão</span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gestǜo</span>
             </div>
             
-            <a href="/crm" class="flex items-center gap-3 py-2.5 px-4 rounded-full text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'crm' %}bg-[#D3E3FD] text-[#041E49]{% else %}text-[#444746] hover:bg-[#E1E5EA]{% endif %}">
-                <i class="fa-solid fa-database w-5 text-center"></i> 
+            <a href="/crm" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'crm' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                <i class="fa-solid fa-database w-5 text-center {% if active_page == 'crm' %}text-indigo-600{% else %}text-slate-400{% endif %}"></i> 
                 Base do CRM
             </a>
             
-            <!-- Módulo de Estatísticas do SaaS -->
-            <a href="/estatisticas" class="flex items-center gap-3 py-2.5 px-4 rounded-full text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'estatisticas' %}bg-[#D3E3FD] text-[#041E49]{% else %}text-[#444746] hover:bg-[#E1E5EA]{% endif %}">
-                <i class="fa-solid fa-chart-pie w-5 text-center"></i> 
-                Estatísticas
+            <!-- Mdulo de Estatsticas do SaaS -->
+            <a href="/estatisticas" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'estatisticas' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                <i class="fa-solid fa-chart-pie w-5 text-center {% if active_page == 'estatisticas' %}text-indigo-600{% else %}text-slate-400{% endif %}"></i> 
+                Estatsticas
             </a>
         </nav>
         
-        <!-- Sessão Inferior -->
-        <div class="p-3 mb-2 flex flex-col gap-1 w-64">
-            <a href="/configuracoes" class="flex items-center gap-3 py-2.5 px-4 rounded-full text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'configuracoes' %}bg-[#D3E3FD] text-[#041E49]{% else %}text-[#444746] hover:bg-[#E1E5EA]{% endif %}">
-                <i class="fa-solid fa-gear w-5 text-center"></i>
-                Configurações
+        <!-- Sessǜo Inferior -->
+        <div class="p-4 mb-2 flex flex-col gap-2 w-64 border-t border-slate-100">
+            <a href="/configuracoes" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'configuracoes' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                <i class="fa-solid fa-gear w-5 text-center {% if active_page == 'configuracoes' %}text-indigo-600{% else %}text-slate-400{% endif %}"></i>
+                Configuraes
             </a>
-            <div class="py-2.5 px-4 text-xs text-[#444746] opacity-60 text-center whitespace-nowrap">
-                &copy; 2026 SaaS Edition
+            <div class="py-2 px-4 text-xs text-slate-400 text-center whitespace-nowrap mt-2">
+                GestǜoLead PRO &copy; 2026
             </div>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-white relative w-full">
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-[#F4F7FA] relative w-full">
         <!-- Headerbar -->
-        <header class="h-16 bg-white flex items-center px-4 md:px-6 border-b md:border-transparent">
-            <button onclick="toggleSidebar()" class="mr-3 md:hidden text-[#444746] hover:bg-[#F0F4F9] p-2 rounded-full transition-colors focus:outline-none" title="Ocultar/Mostrar Menu">
-                <i class="fa-solid fa-bars text-lg"></i>
+        <header class="h-16 bg-white/80 backdrop-blur-md flex items-center px-4 md:px-8 border-b border-slate-200/60 sticky top-0 z-30">
+            <button onclick="toggleSidebar()" class="mr-3 md:hidden text-slate-500 hover:bg-slate-100 w-10 h-10 rounded-full flex items-center justify-center transition-colors focus:outline-none">
+                <i class="fa-solid fa-bars"></i>
             </button>
-            <h2 class="text-xl md:text-2xl font-semibold text-[#1F1F1F] flex-1">{% block header_title %}{% endblock %}</h2>
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm border border-blue-200">
+            <h2 class="text-xl font-bold text-slate-800 flex-1">{% block header_title %}{% endblock %}</h2>
+            <div class="flex items-center gap-4">
+                <div class="relative cursor-pointer hover:bg-slate-100 p-2 rounded-full transition-colors">
+                    <i class="fa-regular fa-bell text-slate-500 text-lg"></i>
+                    <span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 flex items-center justify-center font-bold text-sm border border-indigo-200 shadow-sm cursor-pointer hover:shadow-md transition-all">
                     PL
                 </div>
             </div>
