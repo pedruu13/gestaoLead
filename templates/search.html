@@ -259,7 +259,7 @@
         btn.classList.add('opacity-50', 'cursor-wait');
 
         try {
-            const res = await fetch(`/api/sugerir_alvos?regiao=${regiao}`);
+            const res = await fetch(`/api/sugerir_alvo⚠️regiao=${regiao}`);
             const data = await res.json();
             if (data.nichos && data.cidades) {
                 document.getElementById('nichos').value = data.nichos.join(', ');

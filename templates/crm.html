@@ -185,7 +185,7 @@
         let niches = new Set();
         
         trs.forEach(tr => {
-            if(tr.children.length > 1) { // se nǜo for a mensagem de vazio
+            if(tr.children.length > 1) { // se não for a mensagem de vazio
                 let nichoRaw = tr.children[1].innerText.trim();
                 if(nichoRaw) niches.add(nichoRaw);
             }
@@ -275,7 +275,7 @@
         textarea.select();
         document.execCommand('copy');
         
-        // Efeito visual no botǜo
+        // Efeito visual no botão
         const btn = event.currentTarget;
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Copiado!';
