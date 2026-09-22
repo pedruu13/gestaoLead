@@ -99,9 +99,10 @@
                     <td class="px-6 py-4 text-center">
                         <button onclick="abrirDetalhes(this)" 
                                 data-nome="{{ lead.nome }}" 
-                                data-maps="{{ lead.maps_link }}" 
+                                data-maps="https://www.google.com/maps/search/?api=1&query={{ lead.nome | replace(' ', '+') }}&query_place_id={{ lead.place_id }}" 
                                 data-insta="{{ lead.instagram }}" 
-                                data-prompt="{{ lead.ai_copy_prompt }}"
+                                data-prompt="{{ lead.copy_texto }}"
+                                data-dossie="/dossie/{{ lead.place_id }}"
                                 class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold py-1.5 px-3 rounded-lg text-xs shadow-sm transition-all hover:border-slate-300">
                             <i class="fa-solid fa-eye mr-1 text-indigo-500"></i> Detalhes
                         </button>
@@ -140,14 +141,14 @@
             <!-- Links Vitais -->
             <div>
                 <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Presença Digital Encontrada</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm">
                         <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center mr-3 group-hover:bg-emerald-100">
                             <i class="fa-solid fa-map-location-dot text-lg"></i>
                         </div>
                         <div class="flex-1">
                             <span class="block font-bold text-sm">Google Maps</span>
-                            <span class="block text-xs text-slate-400">Ver Perfil e Fotos</span>
+                            <span class="block text-xs text-slate-400">Ver Loja/Fotos</span>
                         </div>
                         <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
                     </a>
@@ -158,9 +159,20 @@
                         </div>
                         <div class="flex-1">
                             <span class="block font-bold text-sm">Instagram</span>
-                            <span class="block text-xs text-slate-400">Ver Perfil Social</span>
+                            <span class="block text-xs text-slate-400">Ver Perfil</span>
                         </div>
                         <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
+                    </a>
+
+                    <a id="modal_dossie" href="#" target="_blank" class="flex items-center p-3 border border-indigo-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all text-indigo-700 group shadow-sm">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 group-hover:bg-indigo-200">
+                            <i class="fa-solid fa-file-pdf text-lg"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span class="block font-bold text-sm">Dossiê Completo</span>
+                            <span class="block text-xs text-indigo-400">Análise do Lead</span>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-indigo-300 text-xs"></i>
                     </a>
                 </div>
             </div>
@@ -253,6 +265,12 @@
         const mapsUrl = btn.getAttribute('data-maps');
         const prompt = btn.getAttribute('data-prompt');
         const instaUrl = btn.getAttribute('data-insta');
+        const dossieUrl = btn.getAttribute('data-dossie');
+        
+        let aDossie = document.getElementById('modal_dossie');
+        if (dossieUrl) {
+            aDossie.href = dossieUrl;
+        }
 
         document.getElementById('modal_nome').innerText = nome;
         
