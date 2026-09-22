@@ -294,8 +294,15 @@ def index():
 
 @app.route("/crm")
 def crm():
-    leads = load_leads()
-    return render_template("crm.html", leads=leads)
+    todos = load_leads()
+    ativos = [l for l in todos if l.get("status") != "Descartado"]
+    return render_template("crm.html", leads=ativos, is_descartados=False)
+
+@app.route("/crm/descartados")
+def crm_descartados():
+    todos = load_leads()
+    descartados = [l for l in todos if l.get("status") == "Descartado"]
+    return render_template("crm.html", leads=descartados, is_descartados=True)
 
 @app.route("/estatisticas")
 def estatisticas():

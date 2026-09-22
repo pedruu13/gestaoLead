@@ -79,9 +79,14 @@
                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gestão</span>
             </div>
             
-            <a href="/crm" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'crm' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
-                <i class="fa-solid fa-database w-5 text-center {% if active_page == 'crm' %}text-indigo-600{% else %}text-slate-400{% endif %}"></i> 
+            <a href="/crm" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'crm' and not is_descartados %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                <i class="fa-solid fa-database w-5 text-center {% if active_page == 'crm' and not is_descartados %}text-indigo-600{% else %}text-slate-400{% endif %}"></i> 
                 Base do CRM
+            </a>
+
+            <a href="/crm/descartados" class="flex items-center gap-3 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors whitespace-nowrap {% if active_page == 'crm' and is_descartados %}bg-red-50 text-red-700{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                <i class="fa-solid fa-trash-can w-5 text-center {% if active_page == 'crm' and is_descartados %}text-red-600{% else %}text-slate-400{% endif %}"></i> 
+                Descartados
             </a>
             
             <!-- Módulo de Estatísticas do SaaS -->

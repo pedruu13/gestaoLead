@@ -52,6 +52,7 @@
                     <th class="px-6 py-4 font-bold border-b border-slate-100">Lead</th>
                     <th class="px-6 py-4 font-bold border-b border-slate-100">Segmento</th>
                     <th class="px-6 py-4 font-bold border-b border-slate-100 text-center">Avaliação</th>
+                    <th class="px-6 py-4 font-bold border-b border-slate-100">Status</th>
                     <th class="px-6 py-4 font-bold border-b border-slate-100">Contato</th>
                     <th class="px-6 py-4 font-bold border-b border-slate-100 text-center">Ações</th>
                 </tr>
@@ -72,6 +73,15 @@
                         <div class="inline-flex items-center px-2 py-1 rounded font-bold text-xs {% if lead.nota >= '4.5' %}bg-green-50 text-green-700 border-green-200{% else %}bg-amber-50 text-amber-700 border-amber-200{% endif %} border">
                             {{ lead.nota }} <i class="fa-solid fa-star ml-1 text-[10px]"></i>
                         </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <select onchange="updateStatus('{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-lg border-slate-200 py-1.5 pl-3 pr-8 focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 bg-slate-50 cursor-pointer shadow-sm">
+                            <option value="Não Contatado" {% if lead.status == 'Não Contatado' %}selected{% endif %}>Não Contatado</option>
+                            <option value="Contato Feito" {% if lead.status == 'Contato Feito' %}selected{% endif %}>Contato Feito</option>
+                            <option value="Em Negociação" {% if lead.status == 'Em Negociação' %}selected{% endif %}>Em Negociação</option>
+                            <option value="Fechado" {% if lead.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                            <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
+                        </select>
                     </td>
                     <td class="px-6 py-4">
                         {% if lead.whatsapp_link %}
@@ -99,7 +109,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="px-6 py-16 text-center text-slate-500 bg-slate-50/50">
+                    <td colspan="6" class="px-6 py-16 text-center text-slate-500 bg-slate-50/50">
                         <div class="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
                             <i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
                         </div>
@@ -285,6 +295,25 @@
             btn.innerHTML = originalHtml;
             btn.classList.remove('bg-green-600');
         }, 2000);
+    }
+
+    async function updateStatus(placeId, newStatus) {
+        try {
+            await fetch('/api/update_status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({place_id: placeId, status: newStatus})
+            });
+            // Se mudou para Descartado na base normal, esconde a linha com efeito suave
+            if(newStatus === 'Descartado' && !window.location.pathname.includes('descartados')) {
+                let selectEl = event.target;
+                let tr = selectEl.closest('tr');
+                tr.style.opacity = '0';
+                setTimeout(() => tr.remove(), 300);
+            }
+        } catch (e) {
+            console.error(e);
+        }
     }
 </script>
 {% endblock %}
