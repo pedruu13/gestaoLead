@@ -507,9 +507,9 @@ def extrator_worker(data, config, queue):
                     try:
                         painel = page.locator("div[role='feed']").first
                         if painel.count() > 0:
-                            for _ in range(12):
+                            for _ in range(8):
                                 painel.evaluate("node => node.scrollTop = node.scrollHeight")
-                                time.sleep(random.uniform(1.5, 2.5))
+                                time.sleep(random.uniform(0.5, 1.2))
                                 page.keyboard.press("PageDown") # Fallback
                     except Exception as e: print("Aviso interno painel:", e)
                     
