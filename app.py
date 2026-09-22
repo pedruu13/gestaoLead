@@ -470,7 +470,14 @@ def extrator_worker(data, config, queue):
         is_headless = config.get("headless", True)
         GRANDES_REDES = ["odontocompany","smart fit","smartfit","mcdonalds","boticario","cacau show","subway","sorridents","amorasaude","bluefit","pague menos","raia","drogasil","localiza","unidas","movida"]
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=is_headless)
+            args = [
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-gpu",
+                "--disable-setuid-sandbox",
+                "--disable-software-rasterizer"
+            ]
+            browser = p.chromium.launch(headless=is_headless, args=args)
             print("[WORKER] Browser aberto.")
             context = browser.new_context(locale="pt-BR", viewport={"width": 1280, "height": 800})
             page = context.new_page()
