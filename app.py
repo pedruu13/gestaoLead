@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import time
 import random
@@ -11,14 +11,14 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response
 import google.generativeai as genai
 
-# NOTA: sync_playwright ÃƒÂ© importado DENTRO de extrator_worker para evitar
-# travamento quando o processo filho (spawn) reimporta este mÃ³dulo.
+# NOTA: sync_playwright ÃƒÆ’Ã‚Â© importado DENTRO de extrator_worker para evitar
+# travamento quando o processo filho (spawn) reimporta este mÃƒÂ³dulo.
 import traceback
 from bs4 import BeautifulSoup
 from multiprocessing import Process
 from dotenv import load_dotenv
 
-# Carrega ou cria .env para variÃ¡veis de ambiente seguras
+# Carrega ou cria .env para variÃƒÂ¡veis de ambiente seguras
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 if not os.path.exists(env_path):
     import secrets
@@ -175,50 +175,50 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     api_key = config.get('gemini_api_key', '').strip()
     
     if not api_key:
-        return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google e achei incrível. Posso te enviar um material sobre o posicionamento de vocês?'}
+        return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto} no Google e achei incrÃ­vel. Posso te enviar um material sobre o posicionamento de vocÃªs?'}
         
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-3.5-flash')
         
-        super_prompt = f"""Você é um estrategista sênior de prospecção B2B e growth hacking.
-O objetivo é gerar UMA MENSAGEM DE PROSPECÇÃO INICIAL (fria) para o responsável por uma empresa local que você encontrou no Google Maps.
-A mensagem NÃO deve vender o site ou serviço diretamente, mas sim chamar a atenção do empresário, demonstrar que você pesquisou a empresa, criar percepção de oportunidade e despertar curiosidade para conseguir a resposta: "Pode mandar."
+        super_prompt = f"""VocÃª Ã© um estrategista sÃªnior de prospecÃ§Ã£o B2B e growth hacking.
+O objetivo Ã© gerar UMA MENSAGEM DE PROSPECÃ‡ÃƒO INICIAL (fria) para o responsÃ¡vel por uma empresa local que vocÃª encontrou no Google Maps.
+A mensagem NÃƒO deve vender o site ou serviÃ§o diretamente, mas sim chamar a atenÃ§Ã£o do empresÃ¡rio, demonstrar que vocÃª pesquisou a empresa, criar percepÃ§Ã£o de oportunidade e despertar curiosidade para conseguir a resposta: "Pode mandar."
 
 ### DADOS DO LEAD:
 - Nome da Empresa: {nome_curto}
 - Segmento: {dados_lead.get('Nicho', '')}
-- Bairro/Região: {dados_lead.get('Bairro', '')}
+- Bairro/RegiÃ£o: {dados_lead.get('Bairro', '')}
 - Nota no Google Maps: {dados_lead.get('Nota Maps', '')}
-- Quantidade de avaliações: {dados_lead.get('Qtd Avaliacoes', '')}
-- Possui Site: {'Sim' if dados_lead.get('Link Inicial') else 'Não'}
+- Quantidade de avaliaÃ§Ãµes: {dados_lead.get('Qtd Avaliacoes', '')}
+- Possui Site: {'Sim' if dados_lead.get('Link Inicial') else 'NÃ£o'}
 - Meu Nome (Vendedor): {vendedor}
 
 ### DIRETRIZES FUNDAMENTAIS:
-1. Adapte a argumentação ao Segmento.
-   Exemplos lógicos (crie o seu baseado no nicho real):
-   - Móveis Planejados: valorize portfólio, projetos, acabamento e orçamento.
-   - Arquitetura: valorize autoridade, projetos, percepção de valor e contato.
-   - Odontologia: confiança, apresentação dos serviços, prova social e agendamento.
-   - Restaurantes/Delivery: cardápio, localização, experiência e contato rápido.
-2. NUNCA use clichês ou frases prontas ("Leve sua empresa para o próximo nível", "Potencialize sua presença", "Transforme sua presença online", "Destacar-se no mercado", "Solução personalizada", "Resultados incríveis", "Alavanque", "Conquiste clientes").
-3. Sem excesso de emojis, sem linguagem exageradamente comercial, sem robótica e sem palavras técnicas (ex: SEO, Landing Page, Tráfego).
-4. Sem elogios falsos ou afirmações não comprovadas.
-5. Se a empresa NÃO tiver site: NÃO seja invasivo dizendo "Notei que não tem site". Diga algo como "percebi uma oportunidade de melhorar a forma como quem encontra a empresa online conhece o trabalho de vocês."
-6. Se a empresa TIVER site: NÃO finja que não tem. Adapte dizendo que analisou o posicionamento digital atual deles.
-7. CTA (Chamada para Ação): Tem que ser leve, baixa fricção. Ex: "Posso te mostrar?", "Quer que eu te envie?", "Posso mandar uma imagem para você ver como ficou?". Nunca "Vamos fechar" ou "Quando marcamos reunião".
+1. Adapte a argumentaÃ§Ã£o ao Segmento.
+   Exemplos lÃ³gicos (crie o seu baseado no nicho real):
+   - MÃ³veis Planejados: valorize portfÃ³lio, projetos, acabamento e orÃ§amento.
+   - Arquitetura: valorize autoridade, projetos, percepÃ§Ã£o de valor e contato.
+   - Odontologia: confianÃ§a, apresentaÃ§Ã£o dos serviÃ§os, prova social e agendamento.
+   - Restaurantes/Delivery: cardÃ¡pio, localizaÃ§Ã£o, experiÃªncia e contato rÃ¡pido.
+2. NUNCA use clichÃªs ou frases prontas ("Leve sua empresa para o prÃ³ximo nÃ­vel", "Potencialize sua presenÃ§a", "Transforme sua presenÃ§a online", "Destacar-se no mercado", "SoluÃ§Ã£o personalizada", "Resultados incrÃ­veis", "Alavanque", "Conquiste clientes").
+3. Sem excesso de emojis, sem linguagem exageradamente comercial, sem robÃ³tica e sem palavras tÃ©cnicas (ex: SEO, Landing Page, TrÃ¡fego).
+4. Sem elogios falsos ou afirmaÃ§Ãµes nÃ£o comprovadas.
+5. Se a empresa NÃƒO tiver site: NÃƒO seja invasivo dizendo "Notei que nÃ£o tem site". Diga algo como "percebi uma oportunidade de melhorar a forma como quem encontra a empresa online conhece o trabalho de vocÃªs."
+6. Se a empresa TIVER site: NÃƒO finja que nÃ£o tem. Adapte dizendo que analisou o posicionamento digital atual deles.
+7. CTA (Chamada para AÃ§Ã£o): Tem que ser leve, baixa fricÃ§Ã£o. Ex: "Posso te mostrar?", "Quer que eu te envie?", "Posso mandar uma imagem para vocÃª ver como ficou?". Nunca "Vamos fechar" ou "Quando marcamos reuniÃ£o".
 8. Tamanho: Ideal para WhatsApp (500 a 900 caracteres).
-9. Variação de Estrutura: Escolha UMA entre 10 estruturas diferentes (ordem da informação, ângulo, formalidade, abertura) para evitar padrões de automação.
+9. VariaÃ§Ã£o de Estrutura: Escolha UMA entre 10 estruturas diferentes (ordem da informaÃ§Ã£o, Ã¢ngulo, formalidade, abertura) para evitar padrÃµes de automaÃ§Ã£o.
 
-### FORMATO DE SAÍDA OBRIGATÓRIO (use as tags exatas):
+### FORMATO DE SAÃDA OBRIGATÃ“RIO (use as tags exatas):
 [DADOS]
 Liste um resumo de como a IA interpretou os dados do lead.
 [ANALISE]
-Faça a análise profunda das vulnerabilidades e oportunidades baseada no perfil.
+FaÃ§a a anÃ¡lise profunda das vulnerabilidades e oportunidades baseada no perfil.
 [ESTRATEGIA]
-Qual foi o ângulo de argumentação e a estrutura escolhida (e por quê).
+Qual foi o Ã¢ngulo de argumentaÃ§Ã£o e a estrutura escolhida (e por quÃª).
 [MENSAGEM]
-Apenas a MENSAGEM FINAL que será enviada.
+Apenas a MENSAGEM FINAL que serÃ¡ enviada.
 """
         if is_intl:
             super_prompt += '\n\nIMPORTANT: TRANSLATE AND WRITE THE [MENSAGEM] ENTIRELY IN NATIVE ENGLISH.'
@@ -242,7 +242,7 @@ Apenas a MENSAGEM FINAL que será enviada.
         else: 
             mensagem = texto.replace('[MENSAGEM]', '').strip()
             
-        analise_completa = f"DADOS INTERPRETADOS:\n{dados_ia}\n\nANÁLISE:\n{analise}" if dados_ia else analise
+        analise_completa = f"DADOS INTERPRETADOS:\n{dados_ia}\n\nANÃLISE:\n{analise}" if dados_ia else analise
         
         return {
             'analise': analise_completa,
@@ -252,8 +252,8 @@ Apenas a MENSAGEM FINAL que será enviada.
         
     except Exception as e:
         print(f'[WORKER] Erro AI: {e}')
-        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
- no Google. Posso te enviar um material sobre o seu posicionamento?"}
+        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+
 
 def gerar_prompt_prototipo(nome, nicho):
     nome_curto = nome.split(" - ")[0].split("|")[0].strip()
@@ -377,17 +377,17 @@ def dossie(place_id):
     <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
     <div class="flex justify-between items-start mb-6"><div><h1 class="text-3xl font-bold mb-2 text-slate-900">Auditoria de Presenca Digital</h1><h2 class="text-xl text-red-600 font-semibold">Empresa: {lead['nome']}</h2></div><div class="text-right"><span class="inline-block bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide">{lead['nicho']}</span></div></div>
     <p class="text-slate-600 mb-8 border-b pb-6">Analise detalhada da presenca online na regiao de <strong>{lead['bairro']}</strong>.</p>
-    <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} â­</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
+    <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} Ã¢Â­Â</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
     <div class="mb-8"><h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Dados Encontrados Publicamente</h3><ul class="space-y-3 text-slate-600"><li><strong>Telefone/WhatsApp:</strong> {lead['telefone'] or 'Nao disponivel'}</li><li><strong>E-mail Publico:</strong> {email_info}</li><li><strong>Instagram:</strong> {instagram_link}</li><li><strong>LinkedIn:</strong> {linkedin_link}</li><li><strong>Link Atual (Google):</strong> {site_link}</li></ul></div>
     
     <div class="mb-8 bg-indigo-50 rounded-xl p-6 border border-indigo-100">
-        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> InteligÃªncia Artificial SDR</h3>
+        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> InteligÃƒÂªncia Artificial SDR</h3>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. AnÃ¡lise do Lead</h4>
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. AnÃƒÂ¡lise do Lead</h4>
             <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{analise_ia}</p>
         </div>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. EstratÃ©gia Adotada</h4>
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. EstratÃƒÂ©gia Adotada</h4>
             <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{estrategia_ia}</p>
         </div>
         <div>
@@ -674,13 +674,13 @@ def sugerir_alvos():
                 contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
                 
                 prompt = f"""Atue como um estrategista de vendas B2B.
-Eu prospecto empresas no Google Maps para vender criaÃ§Ã£o de Sites de Alta ConversÃ£o.
-Preciso que vocÃª me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
+Eu prospecto empresas no Google Maps para vender criaÃƒÂ§ÃƒÂ£o de Sites de Alta ConversÃƒÂ£o.
+Preciso que vocÃƒÂª me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
 
 Regras:
-1. Nichos devem ser muito lucrativos (ex: cirurgia plÃ¡stica, mÃ³veis planejados, arquitetura de luxo, energia solar, clÃ­nicas especializadas).
-2. As cidades DEVEM SER APENAS {contexto_regiao}. NÃ£o misture Brasil com Internacional.
-3. Retorne EXATAMENTE UM JSON vÃ¡lido e mais nada. O formato deve ser:
+1. Nichos devem ser muito lucrativos (ex: cirurgia plÃƒÂ¡stica, mÃƒÂ³veis planejados, arquitetura de luxo, energia solar, clÃƒÂ­nicas especializadas).
+2. As cidades DEVEM SER APENAS {contexto_regiao}. NÃƒÂ£o misture Brasil com Internacional.
+3. Retorne EXATAMENTE UM JSON vÃƒÂ¡lido e mais nada. O formato deve ser:
 {{
   "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
   "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
@@ -694,21 +694,21 @@ Regras:
                     "cidades": dados_ia.get("cidades", [])[:5]
                 })
             except Exception as e:
-                print(f"[IA] Erro ao gerar sugestÃµes: {e}")
+                print(f"[IA] Erro ao gerar sugestÃƒÂµes: {e}")
                 # Fallback para o hardcoded se a IA falhar
         
         # Fallback Hardcoded
         nichos_ht = [
-            "Advogado Trabalhista", "CirurgiÃ£o PlÃ¡stico", "ClÃ­nica de EstÃ©tica", "ImobiliÃ¡ria de Alto PadrÃ£o",
-            "ClÃ­nica OdontolÃ³gica", "EscritÃ³rio de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
-            "Construtora", "ClÃ­nica VeterinÃ¡ria", "ConcessionÃ¡ria de VeÃ­culos", "Consultoria Financeira",
-            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "MÃ³veis Planejados", "Seguros"
+            "Advogado Trabalhista", "CirurgiÃƒÂ£o PlÃƒÂ¡stico", "ClÃƒÂ­nica de EstÃƒÂ©tica", "ImobiliÃƒÂ¡ria de Alto PadrÃƒÂ£o",
+            "ClÃƒÂ­nica OdontolÃƒÂ³gica", "EscritÃƒÂ³rio de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
+            "Construtora", "ClÃƒÂ­nica VeterinÃƒÂ¡ria", "ConcessionÃƒÂ¡ria de VeÃƒÂ­culos", "Consultoria Financeira",
+            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "MÃƒÂ³veis Planejados", "Seguros"
         ]
         
         cidades_br = [
-            "Alphaville SP", "Moema SÃ£o Paulo", "BalneÃ¡rio CamboriÃº SC", "Nova Lima MG", 
-            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "JurerÃª Internacional SC",
-            "Campinas SP", "RibeirÃ£o Preto SP", "Jardins SÃ£o Paulo", "Lago Sul BrasÃ­lia"
+            "Alphaville SP", "Moema SÃƒÂ£o Paulo", "BalneÃƒÂ¡rio CamboriÃƒÂº SC", "Nova Lima MG", 
+            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "JurerÃƒÂª Internacional SC",
+            "Campinas SP", "RibeirÃƒÂ£o Preto SP", "Jardins SÃƒÂ£o Paulo", "Lago Sul BrasÃƒÂ­lia"
         ]
         cidades_intl = [
             "Miami FL", "Orlando FL", "Beverly Hills CA", "Brickell Miami", "Boca Raton FL",
@@ -726,7 +726,7 @@ Regras:
             "cidades": selecionados_cidades
         })
     except Exception as e:
-        print("[ERRO IA SugestÃ£o]:", e)
+        print("[ERRO IA SugestÃƒÂ£o]:", e)
         return jsonify({"erro": str(e)}), 500
 
 @app.route("/api/limpar_crm", methods=["POST"])
@@ -762,4 +762,5 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
+
 
