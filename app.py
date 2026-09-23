@@ -180,7 +180,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        model = genai.GenerativeModel('gemini-flash-lite-latest')
         
         super_prompt = f"""VocÃª Ã© um estrategista sÃªnior de prospecÃ§Ã£o B2B e growth hacking.
 O objetivo Ã© gerar UMA MENSAGEM DE PROSPECÃ‡ÃƒO INICIAL (fria) para o responsÃ¡vel por uma empresa local que vocÃª encontrou no Google Maps.
@@ -687,7 +687,7 @@ def sugerir_alvos():
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-3.5-flash')
+                model = genai.GenerativeModel('gemini-flash-lite-latest')
                 
                 contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
                 
@@ -768,7 +768,7 @@ def test_gemini():
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        model = genai.GenerativeModel('gemini-flash-lite-latest')
         response = model.generate_content("Diga apenas 'ok'")
         if response and response.text:
             return jsonify({"success": True})
@@ -780,6 +780,7 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
+
 
 
 
