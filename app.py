@@ -177,7 +177,6 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     
     if not api_key:
         return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
- no Google e achei incrÃ­vel. Posso te enviar um material sobre o posicionamento de vocÃªs?'}
         
     try:
         genai.configure(api_key=api_key)
@@ -781,6 +780,7 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
+
 
 
 
