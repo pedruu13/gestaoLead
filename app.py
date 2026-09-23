@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import time
 import random
@@ -181,7 +181,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-3.5-flash')
         
-        super_prompt = f\"\"\"Você é um estrategista sênior de prospecção B2B e growth hacking.
+        super_prompt = f"""Você é um estrategista sênior de prospecção B2B e growth hacking.
 O objetivo é gerar UMA MENSAGEM DE PROSPECÇÃO INICIAL (fria) para o responsável por uma empresa local que você encontrou no Google Maps.
 A mensagem NÃO deve vender o site ou serviço diretamente, mas sim chamar a atenção do empresário, demonstrar que você pesquisou a empresa, criar percepção de oportunidade e despertar curiosidade para conseguir a resposta: "Pode mandar."
 
@@ -219,7 +219,7 @@ Faça a análise profunda das vulnerabilidades e oportunidades baseada no perfil
 Qual foi o ângulo de argumentação e a estrutura escolhida (e por quê).
 [MENSAGEM]
 Apenas a MENSAGEM FINAL que será enviada.
-\"\"\"
+"""
         if is_intl:
             super_prompt += '\n\nIMPORTANT: TRANSLATE AND WRITE THE [MENSAGEM] ENTIRELY IN NATIVE ENGLISH.'
         
