@@ -177,7 +177,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         
         super_prompt = f"""Você é um especialista em vendas B2B e prospecção altamente persuasivo.
 O objetivo é criar UMA MENSAGEM DE PROSPECÇÃO INICIAL (fria) para o responsável por uma empresa local.
@@ -655,7 +655,7 @@ def sugerir_alvos():
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-3.5-flash')
                 
                 contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
                 
@@ -736,7 +736,7 @@ def test_gemini():
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         response = model.generate_content("Diga apenas 'ok'")
         if response and response.text:
             return jsonify({"success": True})
