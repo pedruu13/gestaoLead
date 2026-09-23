@@ -11,14 +11,14 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response
 import google.generativeai as genai
 
-# NOTA: sync_playwright ÃƒÆ’Ã‚Â© importado DENTRO de extrator_worker para evitar
-# travamento quando o processo filho (spawn) reimporta este mÃƒÂ³dulo.
+# NOTA: sync_playwright ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© importado DENTRO de extrator_worker para evitar
+# travamento quando o processo filho (spawn) reimporta este mÃƒÆ’Ã‚Â³dulo.
 import traceback
 from bs4 import BeautifulSoup
 from multiprocessing import Process
 from dotenv import load_dotenv
 
-# Carrega ou cria .env para variÃƒÂ¡veis de ambiente seguras
+# Carrega ou cria .env para variÃƒÆ’Ã‚Â¡veis de ambiente seguras
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 if not os.path.exists(env_path):
     import secrets
@@ -169,6 +169,7 @@ def formatar_whatsapp(numeros, copy_texto=""):
 def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     import google.generativeai as genai
     import re
+    import time
     
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
     vendedor = config.get('vendedor_nome', '').strip() or 'aqui'
@@ -223,7 +224,21 @@ Apenas a MENSAGEM FINAL que serÃ¡ enviada.
         if is_intl:
             super_prompt += '\n\nIMPORTANT: TRANSLATE AND WRITE THE [MENSAGEM] ENTIRELY IN NATIVE ENGLISH.'
         
-        response = model.generate_content(super_prompt)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(super_prompt)
+                break
+            except Exception as e:
+                err_str = str(e)
+                if '429' in err_str or 'quota' in err_str.lower():
+                    print(f'[WORKER] Rate limit atingido. Tentativa {attempt+1}/{max_retries}. Aguardando 20s...')
+                    time.sleep(20)
+                else:
+                    raise e
+        else:
+            return {'analise': 'Erro na IA por excesso de limites.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto}
+
         texto = response.text or ''
         
         # Parsando as tags
@@ -252,7 +267,8 @@ Apenas a MENSAGEM FINAL que serÃ¡ enviada.
         
     except Exception as e:
         print(f'[WORKER] Erro AI: {e}')
-        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto}
+
 
 
 def gerar_prompt_prototipo(nome, nicho):
@@ -377,17 +393,17 @@ def dossie(place_id):
     <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
     <div class="flex justify-between items-start mb-6"><div><h1 class="text-3xl font-bold mb-2 text-slate-900">Auditoria de Presenca Digital</h1><h2 class="text-xl text-red-600 font-semibold">Empresa: {lead['nome']}</h2></div><div class="text-right"><span class="inline-block bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide">{lead['nicho']}</span></div></div>
     <p class="text-slate-600 mb-8 border-b pb-6">Analise detalhada da presenca online na regiao de <strong>{lead['bairro']}</strong>.</p>
-    <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} Ã¢Â­Â</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
+    <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} ÃƒÂ¢Ã‚Â­Ã‚Â</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
     <div class="mb-8"><h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Dados Encontrados Publicamente</h3><ul class="space-y-3 text-slate-600"><li><strong>Telefone/WhatsApp:</strong> {lead['telefone'] or 'Nao disponivel'}</li><li><strong>E-mail Publico:</strong> {email_info}</li><li><strong>Instagram:</strong> {instagram_link}</li><li><strong>LinkedIn:</strong> {linkedin_link}</li><li><strong>Link Atual (Google):</strong> {site_link}</li></ul></div>
     
     <div class="mb-8 bg-indigo-50 rounded-xl p-6 border border-indigo-100">
-        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> InteligÃƒÂªncia Artificial SDR</h3>
+        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> InteligÃƒÆ’Ã‚Âªncia Artificial SDR</h3>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. AnÃƒÂ¡lise do Lead</h4>
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. AnÃƒÆ’Ã‚Â¡lise do Lead</h4>
             <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{analise_ia}</p>
         </div>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. EstratÃƒÂ©gia Adotada</h4>
+            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. EstratÃƒÆ’Ã‚Â©gia Adotada</h4>
             <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{estrategia_ia}</p>
         </div>
         <div>
@@ -674,13 +690,13 @@ def sugerir_alvos():
                 contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
                 
                 prompt = f"""Atue como um estrategista de vendas B2B.
-Eu prospecto empresas no Google Maps para vender criaÃƒÂ§ÃƒÂ£o de Sites de Alta ConversÃƒÂ£o.
-Preciso que vocÃƒÂª me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
+Eu prospecto empresas no Google Maps para vender criaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de Sites de Alta ConversÃƒÆ’Ã‚Â£o.
+Preciso que vocÃƒÆ’Ã‚Âª me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
 
 Regras:
-1. Nichos devem ser muito lucrativos (ex: cirurgia plÃƒÂ¡stica, mÃƒÂ³veis planejados, arquitetura de luxo, energia solar, clÃƒÂ­nicas especializadas).
-2. As cidades DEVEM SER APENAS {contexto_regiao}. NÃƒÂ£o misture Brasil com Internacional.
-3. Retorne EXATAMENTE UM JSON vÃƒÂ¡lido e mais nada. O formato deve ser:
+1. Nichos devem ser muito lucrativos (ex: cirurgia plÃƒÆ’Ã‚Â¡stica, mÃƒÆ’Ã‚Â³veis planejados, arquitetura de luxo, energia solar, clÃƒÆ’Ã‚Â­nicas especializadas).
+2. As cidades DEVEM SER APENAS {contexto_regiao}. NÃƒÆ’Ã‚Â£o misture Brasil com Internacional.
+3. Retorne EXATAMENTE UM JSON vÃƒÆ’Ã‚Â¡lido e mais nada. O formato deve ser:
 {{
   "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
   "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
@@ -694,21 +710,21 @@ Regras:
                     "cidades": dados_ia.get("cidades", [])[:5]
                 })
             except Exception as e:
-                print(f"[IA] Erro ao gerar sugestÃƒÂµes: {e}")
+                print(f"[IA] Erro ao gerar sugestÃƒÆ’Ã‚Âµes: {e}")
                 # Fallback para o hardcoded se a IA falhar
         
         # Fallback Hardcoded
         nichos_ht = [
-            "Advogado Trabalhista", "CirurgiÃƒÂ£o PlÃƒÂ¡stico", "ClÃƒÂ­nica de EstÃƒÂ©tica", "ImobiliÃƒÂ¡ria de Alto PadrÃƒÂ£o",
-            "ClÃƒÂ­nica OdontolÃƒÂ³gica", "EscritÃƒÂ³rio de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
-            "Construtora", "ClÃƒÂ­nica VeterinÃƒÂ¡ria", "ConcessionÃƒÂ¡ria de VeÃƒÂ­culos", "Consultoria Financeira",
-            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "MÃƒÂ³veis Planejados", "Seguros"
+            "Advogado Trabalhista", "CirurgiÃƒÆ’Ã‚Â£o PlÃƒÆ’Ã‚Â¡stico", "ClÃƒÆ’Ã‚Â­nica de EstÃƒÆ’Ã‚Â©tica", "ImobiliÃƒÆ’Ã‚Â¡ria de Alto PadrÃƒÆ’Ã‚Â£o",
+            "ClÃƒÆ’Ã‚Â­nica OdontolÃƒÆ’Ã‚Â³gica", "EscritÃƒÆ’Ã‚Â³rio de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
+            "Construtora", "ClÃƒÆ’Ã‚Â­nica VeterinÃƒÆ’Ã‚Â¡ria", "ConcessionÃƒÆ’Ã‚Â¡ria de VeÃƒÆ’Ã‚Â­culos", "Consultoria Financeira",
+            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "MÃƒÆ’Ã‚Â³veis Planejados", "Seguros"
         ]
         
         cidades_br = [
-            "Alphaville SP", "Moema SÃƒÂ£o Paulo", "BalneÃƒÂ¡rio CamboriÃƒÂº SC", "Nova Lima MG", 
-            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "JurerÃƒÂª Internacional SC",
-            "Campinas SP", "RibeirÃƒÂ£o Preto SP", "Jardins SÃƒÂ£o Paulo", "Lago Sul BrasÃƒÂ­lia"
+            "Alphaville SP", "Moema SÃƒÆ’Ã‚Â£o Paulo", "BalneÃƒÆ’Ã‚Â¡rio CamboriÃƒÆ’Ã‚Âº SC", "Nova Lima MG", 
+            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "JurerÃƒÆ’Ã‚Âª Internacional SC",
+            "Campinas SP", "RibeirÃƒÆ’Ã‚Â£o Preto SP", "Jardins SÃƒÆ’Ã‚Â£o Paulo", "Lago Sul BrasÃƒÆ’Ã‚Â­lia"
         ]
         cidades_intl = [
             "Miami FL", "Orlando FL", "Beverly Hills CA", "Brickell Miami", "Boca Raton FL",
@@ -726,7 +742,7 @@ Regras:
             "cidades": selecionados_cidades
         })
     except Exception as e:
-        print("[ERRO IA SugestÃƒÂ£o]:", e)
+        print("[ERRO IA SugestÃƒÆ’Ã‚Â£o]:", e)
         return jsonify({"erro": str(e)}), 500
 
 @app.route("/api/limpar_crm", methods=["POST"])
@@ -762,5 +778,8 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
+
+
+
 
 
