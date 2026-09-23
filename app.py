@@ -176,7 +176,8 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     api_key = config.get('gemini_api_key', '').strip()
     
     if not api_key:
-        return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto} no Google e achei incrÃ­vel. Posso te enviar um material sobre o posicionamento de vocÃªs?'}
+        return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+ no Google e achei incrÃ­vel. Posso te enviar um material sobre o posicionamento de vocÃªs?'}
         
     try:
         genai.configure(api_key=api_key)
@@ -237,7 +238,8 @@ Apenas a MENSAGEM FINAL que serÃ¡ enviada.
                 else:
                     raise e
         else:
-            return {'analise': 'Erro na IA por excesso de limites.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto}
+            return {'analise': 'Erro na IA por excesso de limites.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+
 
         texto = response.text or ''
         
@@ -267,7 +269,8 @@ Apenas a MENSAGEM FINAL que serÃ¡ enviada.
         
     except Exception as e:
         print(f'[WORKER] Erro AI: {e}')
-        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'OlÃ¡, vi a {nome_curto}
+        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+
 
 
 
@@ -778,6 +781,7 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True, use_reloader=False)
+
 
 
 
