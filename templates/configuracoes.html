@@ -102,3 +102,44 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    async function testarAPI() {
+        const keyInput = document.getElementById('gemini_api_key');
+        const result = document.getElementById('api-test-result');
+        const key = keyInput.value.trim();
+
+        result.classList.remove('hidden', 'text-emerald-600', 'text-red-600');
+        if (!key) {
+            result.classList.add('text-red-600');
+            result.textContent = 'Informe uma API Key antes de testar.';
+            return;
+        }
+
+        result.classList.add('text-slate-500');
+        result.textContent = 'Testando conexão com o Gemini...';
+
+        try {
+            const response = await fetch('/api/test_gemini', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key})
+            });
+            const data = await response.json();
+            result.classList.remove('text-slate-500');
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Não foi possível validar a API Key.');
+            }
+
+            result.classList.add('text-emerald-600');
+            result.textContent = data.message || 'API Key validada com sucesso.';
+        } catch (error) {
+            result.classList.remove('text-slate-500');
+            result.classList.add('text-red-600');
+            result.textContent = error.message || 'Erro de conexão ao testar a API Key.';
+        }
+    }
+</script>
+{% endblock %}

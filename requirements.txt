@@ -4,3 +4,6 @@ playwright
 openpyxl
 Flask
 psutil
+google-generativeai
+beautifulsoup4
+python-dotenv

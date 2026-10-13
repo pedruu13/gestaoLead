@@ -111,6 +111,26 @@ def save_lead_db(lead, place_id):
     finally:
         conn.close()
 
+def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_link):
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """UPDATE leads
+               SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?
+               WHERE place_id = ?""",
+            (copy_texto, analise_ia, estrategia_ia, whatsapp_link, place_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def load_existing_place_ids():
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        return {row[0] for row in conn.execute("SELECT place_id FROM leads")}
+    finally:
+        conn.close()
+
 def tratar_consentimento_cookies(page):
     try:
         seletores = [
@@ -289,15 +309,16 @@ def extrair_avaliacoes(page):
     qtd = "0"
     try:
         elementos = page.locator("[aria-label]")
-        for i in range(min(elementos.count(), 100)):
+        for i in range(min(elementos.count(), 300)):
             aria = elementos.nth(i).get_attribute("aria-label")
             if not aria: continue
-            if "estrelas" in aria and nota == "0" and "avalia" not in aria:
-                match_nota = re.search(r"([\d,.]+)\s*estrelas", aria)
+            aria_normalizado = aria.lower()
+            if nota == "0":
+                match_nota = re.search(r"([\d,.]+)\s*(?:estrelas?|stars?)", aria_normalizado)
                 if match_nota: nota = match_nota.group(1)
-            if "avalia" in aria and qtd == "0" and "estrelas" not in aria and "resumo" not in aria:
-                match_qtd = re.search(r"([\d,.]+)\s*avalia", aria)
-                if match_qtd: qtd = match_qtd.group(1).replace(".", "")
+            if qtd == "0":
+                match_qtd = re.search(r"([\d,.]+)\s*(?:avalia(?:cao|coes|ção|ções)|reviews?)", aria_normalizado)
+                if match_qtd: qtd = match_qtd.group(1).replace(".", "").replace(",", "")
             if nota != "0" and qtd != "0":
                 break
     except Exception as e: print("Aviso interno:", e)
@@ -342,7 +363,7 @@ def estatisticas():
     total_leads = len(leads)
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
-    em_negociacao = sum(1 for l in leads if l.get("status") == "Em Negociacao")
+    em_negociacao = sum(1 for l in leads if l.get("status") == "Em Negociação")
     return render_template("estatisticas.html", total=total_leads, whats=com_whats, fechados=fechados, em_negociacao=em_negociacao, leads=leads)
 
 @app.route("/configuracoes", methods=["GET", "POST"])
@@ -356,12 +377,20 @@ def configuracoes():
 
 @app.route("/api/update_status", methods=["POST"])
 def update_status():
-    data = request.json
+    data = request.get_json(silent=True) or {}
+    place_id = data.get("place_id", "")
+    status = data.get("status", "")
+    status_validos = {"Novo", "Contato Feito", "Em Negociação", "Fechado", "Descartado"}
+    if not place_id or status not in status_validos:
+        return jsonify({"success": False, "error": "Status ou lead inválido"}), 400
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE leads SET status = ? WHERE place_id = ?", (data["status"], data["place_id"]))
+    c.execute("UPDATE leads SET status = ? WHERE place_id = ?", (status, place_id))
     conn.commit()
+    atualizado = c.rowcount > 0
     conn.close()
+    if not atualizado:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
     return jsonify({"success": True})
 
 @app.route("/export/csv")
@@ -494,8 +523,30 @@ def extrator_worker(data, config, queue):
         process = psutil.Process(os.getpid())
         mem_inicial = process.memory_info().rss / (1024 * 1024)
         print(f"[WORKER] Iniciando. Memoria RAM uso atual: {mem_inicial:.2f} MB")
-        stats = {"novos_db": 0}
-        atualizar_status({"rodando": True, "mensagem": "Abrindo navegador...", "leads_salvos": 0})
+        stats = {
+            "encontrados": 0,
+            "analisados": 0,
+            "salvos": 0,
+            "duplicados": 0,
+            "com_site": 0,
+            "franquias": 0,
+            "fora_regiao": 0,
+            "telefone_invalido": 0,
+            "nota_baixa": 0,
+            "sem_whatsapp": 0,
+            "erros": 0,
+        }
+        existing_place_ids = load_existing_place_ids()
+
+        def publicar_status(mensagem, rodando=True):
+            atualizar_status({
+                "rodando": rodando,
+                "mensagem": mensagem,
+                "leads_salvos": stats["salvos"],
+                "metricas": stats.copy(),
+            })
+
+        publicar_status("Abrindo navegador...")
         nichos = [n.strip() for n in data["nichos"].split(",") if n.strip()]
         bairros = [b.strip() for b in data["bairros"].split(",") if b.strip()]
         print(f"[WORKER] nichos={nichos}, bairros={bairros}")
@@ -520,7 +571,7 @@ def extrator_worker(data, config, queue):
                 for nicho in nichos:
                     busca = f"{nicho} {bairro}"
                     print(f"[WORKER] Buscando: {busca}")
-                    atualizar_status({"rodando": True, "mensagem": f"Buscando '{nicho}' em '{bairro}'...", "leads_salvos": stats["novos_db"]})
+                    publicar_status(f"Buscando '{nicho}' em '{bairro}'...")
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
                     try:
                         page.goto(url, wait_until="domcontentloaded", timeout=60000)
@@ -556,10 +607,16 @@ def extrator_worker(data, config, queue):
                     for i in range(min(links.count(), 50)):
                         h = links.nth(i).get_attribute("href")
                         if h and h not in hrefs: hrefs.append(h)
+                    stats["encontrados"] += len(hrefs)
                     for index, href in enumerate(hrefs):
                         place_id = extrair_id_unico(href)
+                        if place_id in existing_place_ids:
+                            stats["duplicados"] += 1
+                            publicar_status(f"Ignorando duplicado {index+1}/{len(hrefs)}...")
+                            continue
                         try:
-                            atualizar_status({"rodando": True, "mensagem": f"Analisando lead {index+1}/{len(hrefs)}...", "leads_salvos": stats["novos_db"]})
+                            stats["analisados"] += 1
+                            publicar_status(f"Analisando lead {index+1}/{len(hrefs)}...")
                             page.goto(href, wait_until="domcontentloaded", timeout=20000)
                             try: page.wait_for_selector("h1", timeout=5000)
                             except Exception as e: print("Aviso interno:", e)
@@ -573,7 +630,9 @@ def extrator_worker(data, config, queue):
                             nome_el = page.locator("h1").first
                             nome = nome_el.inner_text() if nome_el.count() > 0 else page.title().split(" - Google")[0]
                             if not nome or "Google Maps" in nome: continue
-                            if data.get("anti_franchise") and any(rede in nome.lower() for rede in GRANDES_REDES): continue
+                            if data.get("anti_franchise") and any(rede in nome.lower() for rede in GRANDES_REDES):
+                                stats["franquias"] += 1
+                                continue
                             
                             link_el = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']")
                             link_encontrado = link_el.first.get_attribute("href") if link_el.count() > 0 else ""
@@ -587,23 +646,33 @@ def extrator_worker(data, config, queue):
                                         break
                                         
                             is_real_website = link_encontrado and not is_social_or_directory(link_encontrado)
-                            if data.get("strict_no_socials") and is_real_website: 
-                                print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo."); continue
+                            if data.get("strict_no_socials") and is_real_website:
+                                stats["com_site"] += 1
+                                print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo.")
+                                continue
 
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
-                            if data.get("strict_mobile") and not eh_celular_valido(numeros_whats): continue
+                            if data.get("strict_mobile") and not eh_celular_valido(numeros_whats):
+                                stats["telefone_invalido"] += 1
+                                continue
                             end_el = page.locator("button[data-item-id='address']")
                             endereco = end_el.first.get_attribute("aria-label").replace("Endereco: ", "").strip() if end_el.count() > 0 else ""
-                            if data.get("strict_bairro") and bairro.split("-")[0].strip().lower() not in endereco.lower(): continue
+                            if data.get("strict_bairro") and bairro.split("-")[0].strip().lower() not in endereco.lower():
+                                stats["fora_regiao"] += 1
+                                continue
                             nota_str, avaliacoes_str = extrair_avaliacoes(page)
                             try: nota_float = float(nota_str.replace(",", "."))
                             except ValueError: nota_float = 0.0
                             if nota_float < float(data.get("min_nota", 0)):
-                                print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa"); continue
+                                stats["nota_baixa"] += 1
+                                print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa")
+                                continue
                             if data.get("req_whatsapp") and not numeros_whats:
-                                print(f"[WORKER] Ignorando {nome} - Sem WhatsApp"); continue
+                                stats["sem_whatsapp"] += 1
+                                print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
+                                continue
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado, nome=nome, bairro=bairro)
                             
@@ -616,17 +685,7 @@ def extrator_worker(data, config, queue):
                             }
                             
                             is_intl = not numeros_whats.startswith("55") if numeros_whats else False
-                            copy_texto = ""
-                            analise_ia = ""
-                            estrategia_ia = ""
-                            
-                            if data.get("ai_copy"):
-                                resultado_ia = gerar_copy_inteligente(dados_raw, config, is_intl)
-                                copy_texto = resultado_ia.get("mensagem", "")
-                                analise_ia = resultado_ia.get("analise", "")
-                                estrategia_ia = resultado_ia.get("estrategia", "")
-                                
-                            whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
+                            whats_link_final = formatar_whatsapp(numeros_whats, "") if numeros_whats else ""
                             lead_data = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
@@ -638,21 +697,38 @@ def extrator_worker(data, config, queue):
                                 "Link Inicial": link_encontrado,
                                 "Google Maps": href,
                                 "Prompt Prototipo": gerar_prompt_prototipo(nome, nicho),
-                                "Copy Texto": copy_texto,
-                                "Analise IA": analise_ia,
-                                "Estrategia IA": estrategia_ia
+                                "Copy Texto": "",
+                                "Analise IA": "",
+                                "Estrategia IA": ""
                             }
                             salvo = save_lead_db(lead_data, place_id)
                             if salvo:
                                 print(f"[WORKER] Salvo com sucesso: {nome}")
-                                stats["novos_db"] += 1
-                                atualizar_status({"rodando": True, "mensagem": f"Lead salvo: {nome}", "leads_salvos": stats["novos_db"]})
+                                existing_place_ids.add(place_id)
+                                stats["salvos"] += 1
+                                publicar_status(f"Lead salvo: {nome}")
+
+                                if data.get("ai_copy"):
+                                    publicar_status(f"Gerando mensagem para: {nome}")
+                                    resultado_ia = gerar_copy_inteligente(dados_raw, config, is_intl)
+                                    copy_texto = resultado_ia.get("mensagem", "")
+                                    analise_ia = resultado_ia.get("analise", "")
+                                    estrategia_ia = resultado_ia.get("estrategia", "")
+                                    whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
+                                    update_lead_ai(
+                                        place_id,
+                                        copy_texto,
+                                        analise_ia,
+                                        estrategia_ia,
+                                        whats_link_final,
+                                    )
                         except Exception as e:
+                            stats["erros"] += 1
                             print(f"[WORKER] Erro no lead {href}: {e}")
             print("[WORKER] Fechando navegador.")
             mem_final = process.memory_info().rss / (1024 * 1024)
             print(f"[WORKER] Finalizando. Memoria RAM uso final: {mem_final:.2f} MB")
-            atualizar_status({"rodando": False, "mensagem": "Busca finalizada.", "leads_salvos": stats["novos_db"]})
+            publicar_status("Busca finalizada.", rodando=False)
             browser.close()
         print("[WORKER] Finalizado com sucesso.")
     except Exception as e:

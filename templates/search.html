@@ -73,17 +73,20 @@
                 <!-- Target Filter -->
                 <div class="md:col-span-2 mt-2">
                     <div class="flex items-center group bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
-                        <input type="checkbox" id="strict_no_socials" checked class="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer">
+                        <input type="checkbox" id="strict_no_socials" class="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer">
                         <label class="ml-3 text-sm text-indigo-900 font-bold cursor-pointer" for="strict_no_socials">
-                            Alvo Padrão: Empresas SEM Site (Baixa Presença Digital)
+                            Filtrar somente empresas sem site
                             <span class="block font-normal text-xs text-indigo-700 mt-1 opacity-80">
-                                Ignora se a empresa já tiver um site real (Preserva se tiver apenas Instagram/Facebook).
+                                Quando ativado, empresas com site próprio serão descartadas.
                             </span>
                         </label>
                     </div>
                 </div>
-                
-                <input type="hidden" id="min_nota" value="3.0">
+
+                <div>
+                    <label for="min_nota" class="block text-sm font-semibold text-slate-700 mb-2">Nota mínima</label>
+                    <input type="number" id="min_nota" value="3.0" step="0.1" min="0" max="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
+                </div>
             </div>
 
             <!-- AI Pitch Switch -->
@@ -133,6 +136,34 @@
     // Campos de preferências
     const inputs = ['nichos', 'bairros', 'min_nota', 'req_whatsapp', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
 
+    if (localStorage.getItem('search_preferences_version') !== '2') {
+        localStorage.setItem('pref_strict_no_socials', 'false');
+        localStorage.setItem('search_preferences_version', '2');
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function formatMetrics(status) {
+        const metrics = status.metricas || {};
+        return [
+            ['Encontrados', metrics.encontrados || 0],
+            ['Analisados', metrics.analisados || 0],
+            ['Salvos', metrics.salvos || status.leads_salvos || 0],
+            ['Duplicados', metrics.duplicados || 0],
+            ['Com site', metrics.com_site || 0],
+            ['Nota baixa', metrics.nota_baixa || 0],
+            ['Sem WhatsApp', metrics.sem_whatsapp || 0],
+            ['Erros', metrics.erros || 0],
+        ].map(([label, value]) => `<span class="inline-block mr-4 mb-2"><span class="text-slate-400">${label}:</span> <strong class="text-white">${value}</strong></span>`).join('');
+    }
+
     // Carregar preferências
     function loadPreferences() {
         inputs.forEach(id => {
@@ -172,11 +203,11 @@
             
             if (status.rodando) {
                 setRunningState();
-                log.innerHTML = `<span class="text-slate-300">Status:</span> ${status.mensagem}<br><br><span class="text-indigo-400 font-bold text-lg">> Leads Extraídos: ${status.leads_salvos}</span><span class="animate-pulse">_</span>`;
+                log.innerHTML = `<span class="text-slate-300">Status:</span> ${escapeHtml(status.mensagem)}<br><br>${formatMetrics(status)}<span class="animate-pulse">_</span>`;
                 pollInterval = setTimeout(verificarStatus, 3000);
             } else {
                 if (pollInterval) { // Se estava rodando e agora parou, finalizamos
-                    log.innerHTML = `<span class="text-green-500 font-bold">✓ Operação Concluída!</span><br><br>Total de <span class="text-white">${status.leads_salvos}</span> leads capturados.<br>Redirecionando para a Base...`;
+                    log.innerHTML = `<span class="text-green-500 font-bold">✓ Operação concluída!</span><br><br>${formatMetrics(status)}<br>Redirecionando para a Base...`;
                     setTimeout(() => { window.location.href = '/crm'; }, 2000);
                 } else {
                     // Não estava rodando e carregou a tela agora
