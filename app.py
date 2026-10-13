@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import time
 import random
@@ -186,9 +186,60 @@ def formatar_whatsapp(numeros, copy_texto=""):
     if copy_texto: url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
+def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
+    nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
+    nicho = (dados_lead.get('Categoria Maps') or dados_lead.get('Nicho') or '').lower()
+    bairro = dados_lead.get('Bairro', '')
+    site = dados_lead.get('Link Inicial')
+    regiao = f" em {bairro}" if bairro else ""
+    
+    if any(k in nicho for k in ['advoc', 'jurid', 'direito']):
+        if site:
+            msg = f"Olá, tudo bem? Localizei o escritório da {nome_curto}{regiao} no Google. Analisei a estrutura digital de vocês e montei um comparativo visual mostrando como deixar a apresentação das áreas de atuação e o botão de atendimento consultivo mais objetivos para novos clientes. Posso te encaminhar essa sugestão para avaliar?"
+        else:
+            msg = f"Olá, tudo bem? Localizei o escritório da {nome_curto}{regiao} no Google e notei que vocês têm presença de destaque, mas quem busca atendimento online não encontra uma página institucional rápida com as áreas de atuação. Desenvolvi um modelo visual de apresentação institucional para o escritório. Posso te enviar para você ver?"
+        estrategia = "Contingência Setorial: Advocacia (respeito a sobriedade e código de ética, foco em apresentação institucional das áreas e atendimento consultivo)."
+    elif any(k in nicho for k in ['odont', 'dentist', 'clinic', 'medic', 'saud', 'dermat', 'estetic']):
+        if site:
+            msg = f"Olá, tudo bem? Vi a {nome_curto}{regiao} no Google. Estava avaliando a presença online da clínica e estruturei uma proposta visual rápida para otimizar a experiência mobile e facilitar o agendamento de consultas/avaliações direto pelo WhatsApp. Posso te mandar uma prévia para dar uma olhada?"
+        else:
+            msg = f"Olá, tudo bem? Encontrei a {nome_curto}{regiao} no Google com ótimas avaliações. Notei que os pacientes que encontram a clínica online ainda não têm uma página exclusiva para conhecer os tratamentos e agendar com facilidade. Criei um layout demonstrativo de agendamento online focado nos serviços de vocês. Posso te enviar?"
+        estrategia = "Contingência Setorial: Saúde/Estética (foco em confiança, apresentação dos procedimentos e facilidade de agendamento)."
+    elif any(k in nicho for k in ['imob', 'corret', 'imove']):
+        if site:
+            msg = f"Olá, tudo bem? Vi a {nome_curto} atuando no mercado imobiliário{regiao}. Analisei o posicionamento online de vocês e desenhei uma melhoria visual focada em reter proprietários e compradores qualificados direto na página principal, antes que cliquem em concorrentes. Posso te enviar um print da ideia?"
+        else:
+            msg = f"Olá, tudo bem? Localizei a {nome_curto}{regiao} no Google Maps. Quem busca imóveis na região tem forte interesse visual e praticidade, e notei que vocês ainda não possuem uma página própria para destacar as oportunidades e captar contatos diretos. Desenvolvi um protótipo de landing page imobiliária para vocês. Posso te mostrar?"
+        estrategia = "Contingência Setorial: Imobiliário (foco em captação de proprietários e compradores de alto valor)."
+    elif any(k in nicho for k in ['move', 'planejad', 'marcen', 'arquitet', 'interiores', 'decor']):
+        if site:
+            msg = f"Olá, tudo bem? Acompanhei o trabalho da {nome_curto}{regiao} no Google. Montei um layout demonstrativo mostrando como organizar o portfólio de projetos para valorizar ainda mais o padrão de acabamento e estimular pedidos de orçamento qualificados. Posso te enviar uma imagem do projeto?"
+        else:
+            msg = f"Olá, tudo bem? Vi os projetos e avaliações da {nome_curto}{regiao} no Google Maps. Como o mercado de projetos exige forte apelo visual, preparei um protótipo de portfólio digital para apresentar os trabalhos e direcionar novos clientes para orçamento no WhatsApp. Posso te mostrar como ficou?"
+        estrategia = "Contingência Setorial: Arquitetura/Móveis (foco em autoridade visual, acabamento e orçamento)."
+    elif any(k in nicho for k in ['restauran', 'bar', 'pizz', 'hamburg', 'caf', 'padar', 'gastronom']):
+        if site:
+            msg = f"Olá! Encontrei a {nome_curto}{regiao} no Google. Analisei a presença digital de vocês e preparei um rascunho de página otimizada para carregar o cardápio rápido no celular e direcionar reservas sem fricção. Posso te mandar o print?"
+        else:
+            msg = f"Olá! Vi a {nome_curto}{regiao} no Google com excelente recomendação. Percebi que vocês ainda não contam com uma página rápida com o cardápio e botão de pedidos/reservas direto para quem pesquisa a casa no Google. Criei um modelo visual prático para o espaço de vocês. Quer que eu te envie para ver?"
+        estrategia = "Contingência Setorial: Gastronomia (foco em cardápio rápido mobile e reserva/pedido)."
+    else:
+        if site:
+            msg = f"Olá, tudo bem? Encontrei a {nome_curto}{regiao} no Google. Analisei o posicionamento online do segmento de vocês e preparei uma demonstração visual mostrando como simplificar o caminho do visitante até o contato comercial direto. Posso te enviar para dar uma olhada?"
+        else:
+            msg = f"Olá, tudo bem? Localizei a {nome_curto}{regiao} no Google Maps e vi que vocês já possuem boa visibilidade. Desenvolvi um protótipo visual demonstrando como uma página focada em conversão pode transformar quem já pesquisa pela empresa no Google em contatos reais no WhatsApp. Posso te mostrar como ficou?"
+        estrategia = "Contingência Setorial Geral (proposta consultiva de melhoria de conversão/site)."
+
+    aviso_motivo = f" [Alerta: {motivo}]" if motivo else ""
+    return {
+        'analise': f"Contingência setorial aplicada com base em dados reais do lead.{aviso_motivo}",
+        'estrategia': estrategia,
+        'mensagem': msg
+    }
+
 def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     import google.generativeai as genai
-    import re
+    import json
     import time
     
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
@@ -196,99 +247,96 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     api_key = config.get('gemini_api_key', '').strip()
     
     if not api_key:
-        return {'analise': 'Sem API Key.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+        return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada")
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-flash-latest')
+        model = genai.GenerativeModel(
+            'gemini-flash-latest',
+            generation_config={"response_mime_type": "application/json"}
+        )
         
-        super_prompt = f"""VocÃª Ã© um estrategista sÃªnior de prospecÃ§Ã£o B2B e growth hacking.
-O objetivo Ã© gerar UMA MENSAGEM DE PROSPECÃ‡ÃƒO INICIAL (fria) para o responsÃ¡vel por uma empresa local que vocÃª encontrou no Google Maps.
-A mensagem NÃƒO deve vender o site ou serviÃ§o diretamente, mas sim chamar a atenÃ§Ã£o do empresÃ¡rio, demonstrar que vocÃª pesquisou a empresa, criar percepÃ§Ã£o de oportunidade e despertar curiosidade para conseguir a resposta: "Pode mandar."
+        categoria = dados_lead.get('Categoria Maps') or dados_lead.get('Nicho', '')
+        resumo = dados_lead.get('Resumo Maps', '')
+        site_encontrado = dados_lead.get('Link Inicial', '')
+        tem_site = bool(site_encontrado and not is_social_or_directory(site_encontrado))
+        
+        super_prompt = f"""Você é um especialista em prospecção consultiva B2B e criação de sites de alta conversão.
+Sua missão é gerar uma mensagem curta e humana de primeiro contato para o WhatsApp do responsável por esta empresa local encontrada no Google Maps.
 
-### DADOS DO LEAD:
+### DADOS REAIS DO NEGÓCIO:
 - Nome da Empresa: {nome_curto}
-- Segmento: {dados_lead.get('Nicho', '')}
-- Bairro/RegiÃ£o: {dados_lead.get('Bairro', '')}
-- Nota no Google Maps: {dados_lead.get('Nota Maps', '')}
-- Quantidade de avaliaÃ§Ãµes: {dados_lead.get('Qtd Avaliacoes', '')}
-- Possui Site: {'Sim' if dados_lead.get('Link Inicial') else 'NÃ£o'}
-- Meu Nome (Vendedor): {vendedor}
+- Nicho de Busca: {dados_lead.get('Nicho', '')}
+- Categoria Real no Google Maps: {categoria}
+- Resumo/Atuação: {resumo if resumo else 'Não informado'}
+- Localização/Bairro: {dados_lead.get('Bairro', '')}
+- Prova Social: Nota {dados_lead.get('Nota Maps', 'N/A')} ({dados_lead.get('Qtd Avaliacoes', '0')} avaliações no Google)
+- Status de Site: {'JÁ POSSUI SITE PRÓPRIO (' + site_encontrado + ')' if tem_site else 'NÃO POSSUI SITE PRÓPRIO (ou apenas rede social/diretório)'}
+- Meu Nome: {vendedor}
 
-### DIRETRIZES FUNDAMENTAIS:
-1. Adapte a argumentaÃ§Ã£o ao Segmento.
-   Exemplos lÃ³gicos (crie o seu baseado no nicho real):
-   - MÃ³veis Planejados: valorize portfÃ³lio, projetos, acabamento e orÃ§amento.
-   - Arquitetura: valorize autoridade, projetos, percepÃ§Ã£o de valor e contato.
-   - Odontologia: confianÃ§a, apresentaÃ§Ã£o dos serviÃ§os, prova social e agendamento.
-   - Restaurantes/Delivery: cardÃ¡pio, localizaÃ§Ã£o, experiÃªncia e contato rÃ¡pido.
-2. NUNCA use clichÃªs ou frases prontas ("Leve sua empresa para o prÃ³ximo nÃ­vel", "Potencialize sua presenÃ§a", "Transforme sua presenÃ§a online", "Destacar-se no mercado", "SoluÃ§Ã£o personalizada", "Resultados incrÃ­veis", "Alavanque", "Conquiste clientes").
-3. Sem excesso de emojis, sem linguagem exageradamente comercial, sem robÃ³tica e sem palavras tÃ©cnicas (ex: SEO, Landing Page, TrÃ¡fego).
-4. Sem elogios falsos ou afirmaÃ§Ãµes nÃ£o comprovadas.
-5. Se a empresa NÃƒO tiver site: NÃƒO seja invasivo dizendo "Notei que nÃ£o tem site". Diga algo como "percebi uma oportunidade de melhorar a forma como quem encontra a empresa online conhece o trabalho de vocÃªs."
-6. Se a empresa TIVER site: NÃƒO finja que nÃ£o tem. Adapte dizendo que analisou o posicionamento digital atual deles.
-7. CTA (Chamada para AÃ§Ã£o): Tem que ser leve, baixa fricÃ§Ã£o. Ex: "Posso te mostrar?", "Quer que eu te envie?", "Posso mandar uma imagem para vocÃª ver como ficou?". Nunca "Vamos fechar" ou "Quando marcamos reuniÃ£o".
-8. Tamanho: Ideal para WhatsApp (500 a 900 caracteres).
-9. VariaÃ§Ã£o de Estrutura: Escolha UMA entre 10 estruturas diferentes (ordem da informaÃ§Ã£o, Ã¢ngulo, formalidade, abertura) para evitar padrÃµes de automaÃ§Ã£o.
+### DIRETRIZES DA ABORDAGEM:
+1. FOCO DA PROPOSTA:
+   - Se a empresa NÃO tem site: Apresente a oportunidade de transformar quem já acha a empresa no Google em contatos qualificados. Mostre que você já preparou um modelo/protótipo visual específico para o segmento deles e pergunte se pode enviar uma imagem/prévia.
+   - Se a empresa JÁ tem site: Reconheça a presença atual e apresente uma oportunidade clara de otimização (conversão mobile, velocidade, apresentação de serviços ou retenção). Mostre que rascunhou uma sugestão visual sem compromisso.
+2. ADAPTAÇÃO AO NICHO:
+   - Advocacia: Sobriedade institucional, respeito ao código da OAB (sem promessas de causas/ganhos, foco em clareza das áreas e contato ético).
+   - Saúde/Odonto/Clínicas: Credibilidade, apresentação dos tratamentos e facilidade de agendamento/tira-dúvidas.
+   - Imobiliária/Corretores: Captação de proprietários, destaque visual dos imóveis e atendimento ágil.
+   - Móveis/Arquitetura: Portfólio, projetos concluídos e solicitação de orçamento.
+   - Gastronomia/Comércio: Praticidade mobile, cardápio rápido e pedidos/reservas.
+3. ESTILO DE REDAÇÃO:
+   - Tom natural, humano, direto e profissional.
+   - Tamanho ideal para WhatsApp: entre 350 e 700 caracteres.
+   - NUNCA use clichês como: "próximo nível", "potencialize sua presença", "transforme sua presença", "solução personalizada", "alavanque resultados".
+   - CTA (Chamada de Ação) de baixíssima fricção no final: "Posso te mandar uma imagem para você ver?", "Quer que eu te envie para dar uma olhada?", "Posso te mostrar o que preparei?".
+   - Nunca pergunte "vamos marcar reunião" ou "posso enviar proposta comercial". O objetivo é apenas conseguir a permissão para mostrar a demonstração.
 
-### FORMATO DE SAÃDA OBRIGATÃ“RIO (use as tags exatas):
-[DADOS]
-Liste um resumo de como a IA interpretou os dados do lead.
-[ANALISE]
-FaÃ§a a anÃ¡lise profunda das vulnerabilidades e oportunidades baseada no perfil.
-[ESTRATEGIA]
-Qual foi o Ã¢ngulo de argumentaÃ§Ã£o e a estrutura escolhida (e por quÃª).
-[MENSAGEM]
-Apenas a MENSAGEM FINAL que serÃ¡ enviada.
+### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
+Retorne estritamente um objeto JSON com as chaves:
+{{
+  "diagnostico": "Resumo em 1-2 frases do diagnóstico da presença digital da empresa.",
+  "estrategia": "Explicação do ângulo comercial adotado e o porquê.",
+  "mensagem": "Texto completo e final da mensagem de abordagem para o WhatsApp."
+}}
 """
         if is_intl:
-            super_prompt += '\n\nIMPORTANT: TRANSLATE AND WRITE THE [MENSAGEM] ENTIRELY IN NATIVE ENGLISH.'
+            super_prompt += '\n\nIMPORTANTE: Escreva a chave "mensagem" em INGLÊS natural.'
         
         max_retries = 3
+        resposta_bruta = ""
         for attempt in range(max_retries):
             try:
                 response = model.generate_content(super_prompt)
+                resposta_bruta = response.text or ""
                 break
             except Exception as e:
                 err_str = str(e)
                 if '429' in err_str or 'quota' in err_str.lower():
-                    print(f'[WORKER] Rate limit atingido. Tentativa {attempt+1}/{max_retries}. Aguardando 20s...')
-                    time.sleep(20)
+                    print(f'[WORKER] Quota/Rate limit Gemini. Tentativa {attempt+1}/{max_retries}.')
+                    if attempt < max_retries - 1:
+                        time.sleep(15)
                 else:
                     raise e
         else:
-            return {'analise': 'Erro na IA por excesso de limites.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Limite de requisições do Gemini atingido (Erro 429)")
 
+        parsed = json.loads(resposta_bruta)
+        mensagem = parsed.get("mensagem", "").strip()
+        diagnostico = parsed.get("diagnostico", "").strip()
+        estrategia = parsed.get("estrategia", "").strip()
+        
+        if not mensagem:
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta vazia da IA")
 
-        texto = response.text or ''
-        
-        # Parsando as tags
-        dados_ia, analise, estrategia, mensagem = '', '', '', ''
-        
-        match_d = re.search(r'\[DADOS\](.*?)\[ANALISE\]', texto, re.DOTALL)
-        match_a = re.search(r'\[ANALISE\](.*?)\[ESTRATEGIA\]', texto, re.DOTALL)
-        match_e = re.search(r'\[ESTRATEGIA\](.*?)\[MENSAGEM\]', texto, re.DOTALL)
-        match_m = re.search(r'\[MENSAGEM\](.*)', texto, re.DOTALL)
-        
-        if match_d: dados_ia = match_d.group(1).strip()
-        if match_a: analise = match_a.group(1).strip()
-        if match_e: estrategia = match_e.group(1).strip()
-        if match_m: 
-            mensagem = match_m.group(1).strip()
-        else: 
-            mensagem = texto.replace('[MENSAGEM]', '').strip()
-            
-        analise_completa = f"DADOS INTERPRETADOS:\n{dados_ia}\n\nANÃLISE:\n{analise}" if dados_ia else analise
-        
         return {
-            'analise': analise_completa,
-            'estrategia': estrategia,
+            'analise': f"DIAGNÓSTICO:\n{diagnostico}" if diagnostico else "Análise concluída via IA.",
+            'estrategia': estrategia or "Abordagem consultiva com proposta de melhoria/protótipo de site.",
             'mensagem': mensagem
         }
         
     except Exception as e:
         print(f'[WORKER] Erro AI: {e}')
-        return {'analise': 'Erro na IA.', 'estrategia': 'Fallback.', 'mensagem': f'Olá, vi a {nome_curto} no Google. Posso te enviar um material sobre o seu posicionamento?'}
+        return obter_copy_contingencia(dados_lead, vendedor, motivo=f"Erro na execução da IA: {e}")
 
 
 
@@ -673,11 +721,29 @@ def extrator_worker(data, config, queue):
                                 stats["sem_whatsapp"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
                                 continue
+                            categoria_el = page.locator("button[jsaction*='pane.rating.category'], span[jsaction*='pane.rating.category'], button[data-item-id='address'] + div button, div.fontBodyMedium button").first
+                            categoria_maps = ""
+                            try:
+                                if categoria_el.count() > 0:
+                                    categoria_maps = categoria_el.inner_text().strip()
+                            except Exception:
+                                pass
+
+                            resumo_el = page.locator("div[aria-label*='Sobre'], div.PYvSYb, div[jslog*='metadata']").first
+                            resumo_maps = ""
+                            try:
+                                if resumo_el.count() > 0:
+                                    resumo_maps = resumo_el.inner_text().strip()[:200]
+                            except Exception:
+                                pass
+
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado, nome=nome, bairro=bairro)
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
+                                "Categoria Maps": categoria_maps or nicho,
+                                "Resumo Maps": resumo_maps,
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
                                 "Telefone": telefone_raw, "E-mail Encontrado": dados_profundos["email"],
                                 "Instagram": dados_profundos["instagram"],

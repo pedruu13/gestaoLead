@@ -115,9 +115,12 @@
                     <td class="px-6 py-4 text-center">
                         <button onclick="abrirDetalhes(this)" 
                                 data-nome="{{ lead.nome }}" 
-                                data-maps="https://www.google.com/maps/search/?api=1&query={{ lead.nome | replace(' ', '+') }}&query_place_id={{ lead.place_id }}" 
+                                data-maps="{% if lead.google_maps %}{{ lead.google_maps }}{% else %}https://www.google.com/maps/search/?api=1&query={{ lead.nome | replace(' ', '+') }}&query_place_id={{ lead.place_id }}{% endif %}" 
+                                data-site="{{ lead.link_inicial }}"
                                 data-insta="{{ lead.instagram }}" 
                                 data-prompt="{{ lead.copy_texto }}"
+                                data-analise="{{ lead.analise_ia }}"
+                                data-estrategia="{{ lead.estrategia_ia }}"
                                 data-dossie="/dossie/{{ lead.place_id }}"
                                 class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold py-1.5 px-3 rounded-lg text-xs shadow-sm transition-all hover:border-slate-300">
                             <i class="fa-solid fa-eye mr-1 text-indigo-500"></i> Detalhes
@@ -157,57 +160,81 @@
             <!-- Links Vitais -->
             <div>
                 <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Presença Digital Encontrada</h4>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center mr-3 group-hover:bg-emerald-100">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center mr-3 group-hover:bg-emerald-100 shrink-0">
                             <i class="fa-solid fa-map-location-dot text-lg"></i>
                         </div>
-                        <div class="flex-1">
+                        <div class="flex-1 min-w-0">
                             <span class="block font-bold text-sm">Google Maps</span>
-                            <span class="block text-xs text-slate-400">Ver Loja/Fotos</span>
+                            <span class="block text-xs text-slate-400 truncate">Ver Perfil / Fotos</span>
                         </div>
-                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs ml-1"></i>
+                    </a>
+
+                    <a id="modal_site" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm hidden">
+                        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center mr-3 group-hover:bg-blue-100 shrink-0">
+                            <i class="fa-solid fa-globe text-lg"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <span class="block font-bold text-sm">Website</span>
+                            <span class="block text-xs text-slate-400 truncate">Acessar Site</span>
+                        </div>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs ml-1"></i>
                     </a>
                     
                     <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700 group shadow-sm hidden">
-                        <div class="w-10 h-10 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center mr-3 group-hover:bg-pink-100">
+                        <div class="w-10 h-10 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center mr-3 group-hover:bg-pink-100 shrink-0">
                             <i class="fa-brands fa-instagram text-lg"></i>
                         </div>
-                        <div class="flex-1">
+                        <div class="flex-1 min-w-0">
                             <span class="block font-bold text-sm">Instagram</span>
-                            <span class="block text-xs text-slate-400">Ver Perfil</span>
+                            <span class="block text-xs text-slate-400 truncate">Ver Perfil</span>
                         </div>
-                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs"></i>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 text-xs ml-1"></i>
                     </a>
 
                     <a id="modal_dossie" href="#" target="_blank" class="flex items-center p-3 border border-indigo-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all text-indigo-700 group shadow-sm">
-                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 group-hover:bg-indigo-200">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 group-hover:bg-indigo-200 shrink-0">
                             <i class="fa-solid fa-file-pdf text-lg"></i>
                         </div>
-                        <div class="flex-1">
-                            <span class="block font-bold text-sm">Dossiê Completo</span>
-                            <span class="block text-xs text-indigo-400">Análise do Lead</span>
+                        <div class="flex-1 min-w-0">
+                            <span class="block font-bold text-sm">Dossiê</span>
+                            <span class="block text-xs text-indigo-400 truncate">Análise Completa</span>
                         </div>
-                        <i class="fa-solid fa-arrow-up-right-from-square text-indigo-300 text-xs"></i>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-indigo-300 text-xs ml-1"></i>
                     </a>
                 </div>
             </div>
 
-            <!-- Prompt de IA -->
-            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 relative">
+            <!-- Pitch de IA e Estratégia -->
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl border border-indigo-100 relative space-y-4">
                 <div class="absolute top-0 right-0 p-3 opacity-10">
                     <i class="fa-solid fa-robot text-6xl"></i>
                 </div>
-                <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-1 flex items-center relative z-10">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-2 text-indigo-500"></i> Pitch de Vendas Personalizado (IA)
-                </h4>
-                <p class="text-xs text-indigo-600 mb-4 relative z-10 max-w-md">Mensagem gerada baseada no nicho, localização e nota desta empresa. Copie e envie para abordar!</p>
+                <div>
+                    <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-1 flex items-center relative z-10">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2 text-indigo-500"></i> Proposta de Abordagem para WhatsApp
+                    </h4>
+                    <p class="text-xs text-indigo-600 relative z-10">Mensagem adaptada à presença digital e ao segmento da empresa.</p>
+                </div>
                 
                 <div class="relative z-10">
                     <textarea id="modal_prompt" readonly class="w-full bg-white border border-indigo-200 rounded-xl p-4 text-sm text-slate-700 h-32 focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm leading-relaxed"></textarea>
                     <button onclick="copiarPrompt()" class="absolute bottom-3 right-3 gradient-btn text-white px-4 py-2 rounded-lg text-xs font-bold transition-transform shadow-md hover:-translate-y-0.5 flex items-center">
-                        <i class="fa-solid fa-copy mr-2"></i> Copiar
+                        <i class="fa-solid fa-copy mr-2"></i> Copiar Mensagem
                     </button>
+                </div>
+
+                <div id="box_estrategia" class="bg-white/80 border border-indigo-100 rounded-xl p-3 relative z-10 text-xs space-y-2">
+                    <div>
+                        <span class="font-bold text-slate-700">Ângulo Comercial & Estratégia:</span>
+                        <p id="modal_estrategia" class="text-slate-600 mt-0.5"></p>
+                    </div>
+                    <div id="wrap_analise">
+                        <span class="font-bold text-slate-700">Diagnóstico Digital:</span>
+                        <p id="modal_analise" class="text-slate-500 mt-0.5 whitespace-pre-line"></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -283,7 +310,10 @@
     function abrirDetalhes(btn) {
         const nome = btn.getAttribute('data-nome');
         const mapsUrl = btn.getAttribute('data-maps');
+        const siteUrl = btn.getAttribute('data-site');
         const prompt = btn.getAttribute('data-prompt');
+        const analise = btn.getAttribute('data-analise');
+        const estrategia = btn.getAttribute('data-estrategia');
         const instaUrl = btn.getAttribute('data-insta');
         const dossieUrl = btn.getAttribute('data-dossie');
         
@@ -302,6 +332,14 @@
             aMaps.style.display = 'none';
         }
 
+        let aSite = document.getElementById('modal_site');
+        if (siteUrl && siteUrl !== "None" && siteUrl.trim() !== "") {
+            aSite.href = siteUrl;
+            aSite.classList.remove('hidden');
+        } else {
+            aSite.classList.add('hidden');
+        }
+
         let aInsta = document.getElementById('modal_insta');
         if (instaUrl && instaUrl !== "None" && instaUrl.trim() !== "") {
             aInsta.href = instaUrl;
@@ -310,7 +348,10 @@
             aInsta.classList.add('hidden');
         }
 
-        document.getElementById('modal_prompt').value = prompt;
+        document.getElementById('modal_prompt').value = prompt || "Nenhuma mensagem gerada para este lead ainda.";
+        document.getElementById('modal_estrategia').innerText = estrategia || "Estratégia padrão consultiva de primeiro contato.";
+        document.getElementById('modal_analise').innerText = analise || "Sem diagnóstico detalhado disponível.";
+
         document.getElementById('modal_detalhes').classList.remove('hidden');
     }
 
