@@ -186,22 +186,42 @@ def formatar_whatsapp(numeros, copy_texto=""):
     if copy_texto: url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
+def normalizar_texto(texto, limite=900):
+    return re.sub(r"\s+", " ", texto or "").strip()[:limite]
+
+def mensagem_parece_personalizada(mensagem, nome_empresa):
+    if len(mensagem.strip()) < 120:
+        return False
+    palavras_ignoradas = {
+        "advocacia", "agencia", "clínica", "clinica", "comércio", "comercio",
+        "empresa", "escritório", "escritorio", "ltda", "serviços", "servicos",
+    }
+    termos_da_marca = [
+        termo for termo in re.findall(r"[\wÀ-ÿ]+", nome_empresa.casefold())
+        if len(termo) >= 4 and termo not in palavras_ignoradas
+    ]
+    return not termos_da_marca or any(termo in mensagem.casefold() for termo in termos_da_marca)
+
 def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
-    nicho = (dados_lead.get('Categoria Maps') or dados_lead.get('Nicho') or '').lower()
+    nicho = " ".join([
+        dados_lead.get('Categoria Maps', ''),
+        dados_lead.get('Nicho', ''),
+        dados_lead.get('Contexto do Site', ''),
+    ]).lower()
     bairro = dados_lead.get('Bairro', '')
     site = dados_lead.get('Link Inicial')
     regiao = f" em {bairro}" if bairro else ""
     
     if any(k in nicho for k in ['advoc', 'jurid', 'direito']):
         if site:
-            msg = f"Olá, tudo bem? Localizei o escritório da {nome_curto}{regiao} no Google. Analisei a estrutura digital de vocês e montei um comparativo visual mostrando como deixar a apresentação das áreas de atuação e o botão de atendimento consultivo mais objetivos para novos clientes. Posso te encaminhar essa sugestão para avaliar?"
+            msg = f"Olá, tudo bem? Localizei o escritório da {nome_curto}{regiao} no Google. Preparei um comparativo visual mostrando como deixar a apresentação das áreas de atuação e o botão de atendimento consultivo mais objetivos para novos clientes. Posso te encaminhar essa sugestão para avaliar?"
         else:
             msg = f"Olá, tudo bem? Localizei o escritório da {nome_curto}{regiao} no Google e notei que vocês têm presença de destaque, mas quem busca atendimento online não encontra uma página institucional rápida com as áreas de atuação. Desenvolvi um modelo visual de apresentação institucional para o escritório. Posso te enviar para você ver?"
         estrategia = "Contingência Setorial: Advocacia (respeito a sobriedade e código de ética, foco em apresentação institucional das áreas e atendimento consultivo)."
     elif any(k in nicho for k in ['odont', 'dentist', 'clinic', 'medic', 'saud', 'dermat', 'estetic']):
         if site:
-            msg = f"Olá, tudo bem? Vi a {nome_curto}{regiao} no Google. Estava avaliando a presença online da clínica e estruturei uma proposta visual rápida para otimizar a experiência mobile e facilitar o agendamento de consultas/avaliações direto pelo WhatsApp. Posso te mandar uma prévia para dar uma olhada?"
+            msg = f"Olá, tudo bem? Vi a {nome_curto}{regiao} no Google. Estruturei uma proposta visual rápida para otimizar a experiência mobile e facilitar o agendamento de consultas/avaliações direto pelo WhatsApp. Posso te mandar uma prévia para dar uma olhada?"
         else:
             msg = f"Olá, tudo bem? Encontrei a {nome_curto}{regiao} no Google com ótimas avaliações. Notei que os pacientes que encontram a clínica online ainda não têm uma página exclusiva para conhecer os tratamentos e agendar com facilidade. Criei um layout demonstrativo de agendamento online focado nos serviços de vocês. Posso te enviar?"
         estrategia = "Contingência Setorial: Saúde/Estética (foco em confiança, apresentação dos procedimentos e facilidade de agendamento)."
@@ -234,7 +254,8 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
     return {
         'analise': f"Contingência setorial aplicada com base em dados reais do lead.{aviso_motivo}",
         'estrategia': estrategia,
-        'mensagem': msg
+        'mensagem': msg,
+        'gerada_por_ia': False,
     }
 
 def gerar_copy_inteligente(dados_lead, config, is_intl=False):
@@ -258,6 +279,9 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         
         categoria = dados_lead.get('Categoria Maps') or dados_lead.get('Nicho', '')
         resumo = dados_lead.get('Resumo Maps', '')
+        titulo_site = dados_lead.get('Título do Site', '')
+        descricao_site = dados_lead.get('Descrição do Site', '')
+        contexto_site = dados_lead.get('Contexto do Site', '')
         site_encontrado = dados_lead.get('Link Inicial', '')
         tem_site = bool(site_encontrado and not is_social_or_directory(site_encontrado))
         
@@ -269,6 +293,9 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
 - Nicho de Busca: {dados_lead.get('Nicho', '')}
 - Categoria Real no Google Maps: {categoria}
 - Resumo/Atuação: {resumo if resumo else 'Não informado'}
+- Título do Site: {titulo_site if titulo_site else 'Não informado'}
+- Descrição do Site: {descricao_site if descricao_site else 'Não informada'}
+- Serviços/temas visíveis no Site: {contexto_site if contexto_site else 'Não informado'}
 - Localização/Bairro: {dados_lead.get('Bairro', '')}
 - Prova Social: Nota {dados_lead.get('Nota Maps', 'N/A')} ({dados_lead.get('Qtd Avaliacoes', '0')} avaliações no Google)
 - Status de Site: {'JÁ POSSUI SITE PRÓPRIO (' + site_encontrado + ')' if tem_site else 'NÃO POSSUI SITE PRÓPRIO (ou apenas rede social/diretório)'}
@@ -290,6 +317,8 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
    - NUNCA use clichês como: "próximo nível", "potencialize sua presença", "transforme sua presença", "solução personalizada", "alavanque resultados".
    - CTA (Chamada de Ação) de baixíssima fricção no final: "Posso te mandar uma imagem para você ver?", "Quer que eu te envie para dar uma olhada?", "Posso te mostrar o que preparei?".
    - Nunca pergunte "vamos marcar reunião" ou "posso enviar proposta comercial". O objetivo é apenas conseguir a permissão para mostrar a demonstração.
+    - Se o Nicho de Busca contrariar a Categoria Real ou o conteúdo do Site, use a Categoria Real e o conteúdo do Site. Nunca escreva uma abordagem de estética para uma empresa jurídica, por exemplo.
+    - Cite apenas um detalhe que esteja nos dados reais acima. Se não houver detalhe confiável, use uma abordagem neutra do segmento, sem inventar serviços.
 
 ### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 Retorne estritamente um objeto JSON com as chaves:
@@ -320,18 +349,20 @@ Retorne estritamente um objeto JSON com as chaves:
         else:
             return obter_copy_contingencia(dados_lead, vendedor, motivo="Limite de requisições do Gemini atingido (Erro 429)")
 
+        resposta_bruta = re.sub(r"^```(?:json)?\s*|\s*```$", "", resposta_bruta.strip(), flags=re.IGNORECASE)
         parsed = json.loads(resposta_bruta)
         mensagem = parsed.get("mensagem", "").strip()
         diagnostico = parsed.get("diagnostico", "").strip()
         estrategia = parsed.get("estrategia", "").strip()
         
-        if not mensagem:
-            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta vazia da IA")
+        if not mensagem_parece_personalizada(mensagem, nome_curto):
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta da IA sem personalização suficiente")
 
         return {
             'analise': f"DIAGNÓSTICO:\n{diagnostico}" if diagnostico else "Análise concluída via IA.",
             'estrategia': estrategia or "Abordagem consultiva com proposta de melhoria/protótipo de site.",
-            'mensagem': mensagem
+            'mensagem': mensagem,
+            'gerada_por_ia': True,
         }
         
     except Exception as e:
@@ -522,7 +553,10 @@ def is_social_or_directory(url):
     return any(d in url for d in domains)
 
 def cacar_dados_profundos(context, url, nome="", bairro=""):
-    dados = {"email": "", "instagram": "", "facebook": "", "linkedin": ""}
+    dados = {
+        "email": "", "instagram": "", "facebook": "", "linkedin": "",
+        "titulo_site": "", "descricao_site": "", "contexto_site": "",
+    }
     
     # Se tem URL, tenta extrair da URL
     if url and not is_social_or_directory(url):
@@ -534,6 +568,21 @@ def cacar_dados_profundos(context, url, nome="", bairro=""):
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 content = resp.read(400_000).decode("utf-8", "replace")
+            soup = BeautifulSoup(content, "html.parser")
+            dados["titulo_site"] = normalizar_texto(
+                soup.title.get_text(" ", strip=True) if soup.title else "", 180
+            )
+            meta_descricao = soup.find("meta", attrs={"name": re.compile("^description$", re.I)})
+            dados["descricao_site"] = normalizar_texto(
+                meta_descricao.get("content", "") if meta_descricao else "", 400
+            )
+            titulos = [
+                normalizar_texto(tag.get_text(" ", strip=True), 160)
+                for tag in soup.find_all(["h1", "h2"])[:8]
+            ]
+            dados["contexto_site"] = normalizar_texto(
+                " | ".join(titulo for titulo in titulos if titulo), 700
+            )
                 
             emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", content)
             emails = [e for e in emails if not e.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4")) and "sentry" not in e and "example" not in e]
@@ -747,7 +796,10 @@ def extrator_worker(data, config, queue):
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
                                 "Telefone": telefone_raw, "E-mail Encontrado": dados_profundos["email"],
                                 "Instagram": dados_profundos["instagram"],
-                                "Link Inicial": link_encontrado
+                                "Link Inicial": link_encontrado,
+                                "Título do Site": dados_profundos["titulo_site"],
+                                "Descrição do Site": dados_profundos["descricao_site"],
+                                "Contexto do Site": dados_profundos["contexto_site"],
                             }
                             
                             is_intl = not numeros_whats.startswith("55") if numeros_whats else False
@@ -780,6 +832,11 @@ def extrator_worker(data, config, queue):
                                     copy_texto = resultado_ia.get("mensagem", "")
                                     analise_ia = resultado_ia.get("analise", "")
                                     estrategia_ia = resultado_ia.get("estrategia", "")
+                                    if resultado_ia.get("gerada_por_ia"):
+                                        publicar_status(f"Mensagem personalizada pronta: {nome}")
+                                    else:
+                                        publicar_status(f"Mensagem de contingência criada: {nome}")
+                                        print(f"[WORKER] Gemini indisponível para {nome}; revise a mensagem antes de enviar.")
                                     whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
                                     update_lead_ai(
                                         place_id,
