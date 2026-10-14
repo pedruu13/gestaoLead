@@ -200,7 +200,9 @@ def mensagem_parece_personalizada(mensagem, nome_empresa):
         termo for termo in re.findall(r"[\wÀ-ÿ]+", nome_empresa.casefold())
         if len(termo) >= 4 and termo not in palavras_ignoradas
     ]
-    return not termos_da_marca or any(termo in mensagem.casefold() for termo in termos_da_marca)
+    menciona_marca = not termos_da_marca or any(termo in mensagem.casefold() for termo in termos_da_marca)
+    menciona_site = "site" in mensagem.casefold() or "website" in mensagem.casefold()
+    return menciona_marca and menciona_site
 
 def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
@@ -249,6 +251,11 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
         else:
             msg = f"Olá, tudo bem? Localizei a {nome_curto}{regiao} no Google Maps e vi que vocês já possuem boa visibilidade. Desenvolvi um protótipo visual demonstrando como uma página focada em conversão pode transformar quem já pesquisa pela empresa no Google em contatos reais no WhatsApp. Posso te mostrar como ficou?"
         estrategia = "Contingência Setorial Geral (proposta consultiva de melhoria de conversão/site)."
+
+    if "site" not in msg.casefold() and "website" not in msg.casefold():
+        msg = msg.replace(
+            " Posso", " A sugestão é para um site pensado para esse atendimento. Posso", 1
+        )
 
     aviso_motivo = f" [Alerta: {motivo}]" if motivo else ""
     return {
@@ -317,6 +324,7 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
    - NUNCA use clichês como: "próximo nível", "potencialize sua presença", "transforme sua presença", "solução personalizada", "alavanque resultados".
    - CTA (Chamada de Ação) de baixíssima fricção no final: "Posso te mandar uma imagem para você ver?", "Quer que eu te envie para dar uma olhada?", "Posso te mostrar o que preparei?".
    - Nunca pergunte "vamos marcar reunião" ou "posso enviar proposta comercial". O objetivo é apenas conseguir a permissão para mostrar a demonstração.
+    - Diga explicitamente que a sugestão é de um SITE. A palavra "site" deve aparecer naturalmente na mensagem; não use apenas "página", "presença digital" ou "layout" de forma vaga.
     - Se o Nicho de Busca contrariar a Categoria Real ou o conteúdo do Site, use a Categoria Real e o conteúdo do Site. Nunca escreva uma abordagem de estética para uma empresa jurídica, por exemplo.
     - Cite apenas um detalhe que esteja nos dados reais acima. Se não houver detalhe confiável, use uma abordagem neutra do segmento, sem inventar serviços.
 
