@@ -7,26 +7,30 @@ import urllib.parse
 import sqlite3
 import multiprocessing
 import hmac
+from datetime import timedelta
 import threading
 import psutil
 import pandas as pd
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 from markupsafe import escape
 import google.generativeai as genai
 
-# NOTA: sync_playwright ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© importado DENTRO de extrator_worker para evitar
-# travamento quando o processo filho (spawn) reimporta este mÃƒÆ’Ã‚Â³dulo.
+# NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
+# travamento quando o processo filho (spawn) reimporta este módulo.
 import traceback
 from bs4 import BeautifulSoup
 from multiprocessing import Process
 from dotenv import load_dotenv
 
-# Carrega ou cria .env para variÃƒÆ’Ã‚Â¡veis de ambiente seguras
+# Carrega ou cria .env para variáveis de ambiente seguras
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(env_path)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=60)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
@@ -426,21 +430,57 @@ def check_auth(username, password):
         hmac.compare_digest(username, valid_user) and hmac.compare_digest(password, valid_pass)
     )
 
-def authenticate():
-    return Response(
-        "Autenticação necessária.", 401,
-        {"WWW-Authenticate": 'Basic realm="GestaoLead Login"'})
-
 @app.before_request
 def require_login():
-    if request.endpoint == "static": return
+    if request.endpoint in ("static", "login"):
+        return
+    
+    # Suporte para requisições com Authorization Header (compatibilidade com automações/curl)
     auth = request.authorization
-    if not auth or not check_auth(auth.username, auth.password):
-        return authenticate()
+    if auth and check_auth(auth.username, auth.password):
+        return
+
+    # Autenticação via Sessão Web duradoura (cookie)
+    if not session.get("authenticated"):
+        if request.path.startswith("/api/") or request.path.startswith("/status_"):
+            return jsonify({"success": False, "error": "Não autenticado"}), 401
+        dest = request.full_path if request.query_string else request.path
+        return redirect(url_for("login", next=dest))
+
+    # Validação de origem em requisições de mutação
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         origin = request.headers.get("Origin")
         if origin and urllib.parse.urlparse(origin).netloc != request.host:
             return jsonify({"success": False, "error": "Origem da requisição não permitida"}), 403
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("authenticated"):
+        return redirect(url_for("index"))
+    
+    erro = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        
+        if check_auth(username, password):
+            session.permanent = True
+            session["authenticated"] = True
+            session["user"] = username
+            
+            next_url = request.args.get("next")
+            if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
+                next_url = url_for("index")
+            return redirect(next_url)
+        else:
+            erro = "Usuário ou senha incorretos. Verifique suas credenciais."
+            
+    return render_template("login.html", erro=erro)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 @app.after_request
 def aplicar_cabecalhos_seguranca(response):
