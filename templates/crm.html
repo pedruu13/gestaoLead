@@ -3,12 +3,13 @@
 {% block header_title %}Base do CRM{% endblock %}
 
 {% block content %}
-<div class="bg-[#12151c] rounded-2xl shadow-xl flex flex-col border border-[#222733] overflow-hidden w-full">
+<div class="crm-workspace rounded-[2rem] shadow-[0_24px_70px_rgba(15,35,58,.14)] flex flex-col border overflow-hidden w-full">
     <!-- Header -->
-    <div class="p-6 border-b border-[#222733] bg-[#0d1017] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    <div class="p-6 md:p-8 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-6 crm-header">
         <div>
-            <h3 class="text-xl font-black text-white tracking-tight">Pipeline de Vendas</h3>
-            <p class="text-xs text-slate-400 mt-1">Gerencie oportunidades de abordagem comercial.</p>
+            <p class="text-[11px] font-black uppercase tracking-[.2em] text-[#a36d26] mb-2">Mesa comercial</p>
+            <h3 class="text-2xl font-black tracking-tight crm-ink">Pipeline de Vendas</h3>
+            <p class="text-sm crm-muted mt-1">Gerencie oportunidades e faça a abordagem sem perder o ritmo.</p>
             {% if not is_descartados %}
             <p class="inline-flex items-center gap-2 mt-3 text-xs font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-3 py-1">
                 <i class="fa-solid fa-triangle-exclamation"></i> {{ leads_com_site }} leads com site detectado
@@ -71,10 +72,10 @@
     </div>
     
     <!-- Table Wrapper -->
-    <div class="overflow-x-auto w-full max-w-full">
+    <div class="overflow-x-auto w-full max-w-full crm-table-wrap">
         <table class="w-full text-left border-collapse min-w-[800px]">
             <thead>
-                <tr class="bg-[#090d14] text-slate-400 text-[11px] uppercase tracking-wider border-b border-[#222733]">
+                <tr class="crm-table-head text-[11px] uppercase tracking-wider border-b">
                     <th class="px-6 py-3.5 font-bold">Lead</th>
                     <th class="px-6 py-3.5 font-bold">Segmento</th>
                     <th class="px-6 py-3.5 font-bold text-center">Avaliação</th>
@@ -83,12 +84,12 @@
                     <th class="px-6 py-3.5 font-bold text-center">Ações</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-[#222733] bg-[#12151c]">
+            <tbody class="divide-y crm-table-body">
                 {% for lead in leads %}
-                <tr class="hover:bg-[#161b26] transition-colors group">
+                <tr class="crm-row transition-colors group">
                     <td class="px-6 py-4">
-                        <div class="font-bold text-white text-sm">{{ lead.nome }}</div>
-                        <div class="text-xs text-slate-400 mt-1 truncate max-w-[200px]">{{ lead.bairro }}</div>
+                        <div class="font-bold crm-ink text-sm">{{ lead.nome }}</div>
+                        <div class="text-xs crm-muted mt-1 truncate max-w-[200px]">{{ lead.bairro }}</div>
                     </td>
                     <td class="px-6 py-4">
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#1c2230] text-slate-300 border border-[#2a3245]">
@@ -111,9 +112,9 @@
                     </td>
                     <td class="px-6 py-4">
                         {% if lead.whatsapp_link %}
-                        <a href="{{ lead.whatsapp_link }}" target="_blank" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center w-max transition-colors">
+                        <button type="button" onclick="abrirCentralContato(this)" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" class="crm-contact-button px-3 py-2 rounded-xl font-black text-xs flex items-center w-max transition-colors">
                             <i class="fa-brands fa-whatsapp text-sm mr-1.5"></i> Abordar
-                        </a>
+                        </button>
                         {% elif lead.email %}
                         <a href="mailto:{{ lead.email }}" class="bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center w-max transition-colors">
                             <i class="fa-solid fa-envelope text-sm mr-1.5"></i> Email
@@ -154,6 +155,30 @@
             </tbody>
         </table>
     </div>
+</div>
+<style>
+    .crm-workspace { background:#fffdf8; border-color:#e7e1d4; }
+    .crm-header { background:linear-gradient(115deg,#fffaf0 0%,#edf4f7 100%); border-color:#e7e1d4; }
+    .crm-ink { color:#142a43 !important; } .crm-muted { color:#64748b !important; }
+    .crm-table-wrap { background:#fffdf8; } .crm-table-head { background:#f3f6f5; color:#718096; border-color:#e3e8e8; }
+    .crm-table-body { background:#fffdf8; border-color:#edf0ee; } .crm-row:hover { background:#f4f8f7; }
+    .crm-contact-button { background:#e7f6ee; border:1px solid #bde8cf; color:#15744a; } .crm-contact-button:hover { background:#ccefdc; }
+    .crm-workspace input, .crm-workspace select { background:#fff !important; color:#24384f !important; border-color:#d8e0e4 !important; }
+    .crm-workspace .status-select { background:#fff !important; color:#24384f !important; }
+</style>
+
+<div id="central_contato" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
+    <button type="button" aria-label="Fechar central de abordagem" onclick="fecharCentralContato()" class="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"></button>
+    <section class="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col bg-[#fbfaf6] shadow-2xl">
+        <header class="border-b border-[#e7e1d4] px-6 py-6 md:px-8">
+            <div class="flex items-start justify-between gap-4"><div><p class="text-[11px] font-black uppercase tracking-[.18em] text-[#a36d26]">Central de abordagem</p><h3 id="central_nome" class="mt-2 text-2xl font-black text-[#142a43]"></h3><p id="central_canal" class="mt-1 text-sm text-slate-500"></p></div><button type="button" onclick="fecharCentralContato()" class="grid h-10 w-10 place-items-center rounded-full border border-[#d9d4c8] text-slate-500 hover:bg-[#f1eee6]"><i class="fa-solid fa-xmark"></i></button></div>
+        </header>
+        <div class="flex-1 overflow-y-auto px-6 py-7 md:px-8">
+            <div class="rounded-2xl border border-[#e7e1d4] bg-white p-4 shadow-sm"><div class="mb-3 flex items-center justify-between"><p class="text-xs font-black uppercase tracking-[.14em] text-[#607087]">Mensagem pronta</p><button type="button" onclick="copiarCentralContato()" class="text-xs font-black text-[#a36d26] hover:text-[#7f5016]"><i class="fa-regular fa-copy mr-1"></i>Copiar</button></div><textarea id="central_copy" readonly class="min-h-56 w-full resize-none bg-transparent text-sm leading-7 text-[#24384f] outline-none"></textarea></div>
+            <div class="mt-5 rounded-2xl bg-[#eef3f6] p-4 text-sm leading-relaxed text-[#50647a]"><i class="fa-solid fa-lightbulb mr-2 text-[#b87a22]"></i>Copie a mensagem, abra o WhatsApp em outra aba e mantenha esta central aberta para consultar o lead.</div>
+        </div>
+        <footer class="border-t border-[#e7e1d4] px-6 py-5 md:px-8"><div class="grid gap-3 sm:grid-cols-2"><a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center rounded-xl bg-[#1f8b5c] px-4 py-3.5 text-sm font-black text-white hover:bg-[#15744a]"><i class="fa-brands fa-whatsapp mr-2 text-lg"></i>Abrir WhatsApp</a><a id="central_email" href="#" class="hidden items-center justify-center rounded-xl border border-[#cbd7e1] bg-white px-4 py-3.5 text-sm font-black text-[#24425e] hover:bg-[#eef3f6]"><i class="fa-solid fa-envelope mr-2"></i>Enviar e-mail</a></div></footer>
+    </section>
 </div>
 
 <!-- Modal de Detalhes Dark -->
@@ -368,6 +393,48 @@
         }
     }
 
+    function abrirCentralContato(button) {
+        const nome = button.getAttribute('data-nome') || 'Lead';
+        const whatsapp = button.getAttribute('data-whatsapp') || '';
+        const email = button.getAttribute('data-email') || '';
+        const copy = button.getAttribute('data-copy') || 'Nenhum pitch foi gerado para este contato.';
+        document.getElementById('central_nome').textContent = nome;
+        document.getElementById('central_canal').textContent = email ? `WhatsApp e e-mail: ${email}` : 'WhatsApp disponível para abordagem';
+        document.getElementById('central_copy').value = copy;
+        document.getElementById('central_whatsapp').href = whatsapp || '#';
+        const emailButton = document.getElementById('central_email');
+        if (email) {
+            emailButton.href = `mailto:${email}`;
+            emailButton.classList.remove('hidden');
+            emailButton.classList.add('flex');
+        } else {
+            emailButton.classList.add('hidden');
+            emailButton.classList.remove('flex');
+        }
+        const drawer = document.getElementById('central_contato');
+        drawer.classList.remove('hidden');
+        drawer.setAttribute('aria-hidden', 'false');
+    }
+
+    function fecharCentralContato() {
+        const drawer = document.getElementById('central_contato');
+        drawer.classList.add('hidden');
+        drawer.setAttribute('aria-hidden', 'true');
+    }
+
+    async function copiarCentralContato() {
+        const mensagem = document.getElementById('central_copy').value;
+        try {
+            await navigator.clipboard.writeText(mensagem);
+            showAppToast('Mensagem copiada. Agora é só abrir o WhatsApp.');
+        } catch (error) {
+            const campo = document.getElementById('central_copy');
+            campo.select();
+            document.execCommand('copy');
+            showAppToast('Mensagem copiada. Agora é só abrir o WhatsApp.');
+        }
+    }
+
     function abrirDetalhes(btn) {
         document.getElementById('modal_nome').innerText = btn.getAttribute('data-nome');
         document.getElementById('modal_maps').href = btn.getAttribute('data-maps');
@@ -437,7 +504,7 @@
         let textarea = document.getElementById('modal_prompt');
         textarea.select();
         document.execCommand('copy');
-        alert('Mensagem copiada para a área de transferência!');
+        showAppToast('Mensagem copiada para a área de transferência.');
     }
 </script>
 {% endblock %}
