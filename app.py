@@ -291,10 +291,6 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            'gemini-flash-latest',
-            generation_config={"response_mime_type": "application/json"}
-        )
         
         categoria = dados_lead.get('Categoria Maps') or dados_lead.get('Nicho', '')
         resumo = dados_lead.get('Resumo Maps', '')
@@ -351,23 +347,30 @@ Retorne estritamente um objeto JSON com as chaves:
         if is_intl:
             super_prompt += '\n\nIMPORTANTE: Escreva a chave "mensagem" em INGLÊS natural.'
         
-        max_retries = 3
+        modelos_candidatos = [
+            'gemini-3.5-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-3.1-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-flash-latest'
+        ]
         resposta_bruta = ""
-        for attempt in range(max_retries):
+        for m_name in modelos_candidatos:
             try:
+                model = genai.GenerativeModel(
+                    m_name,
+                    generation_config={"response_mime_type": "application/json"}
+                )
                 response = model.generate_content(super_prompt)
-                resposta_bruta = response.text or ""
-                break
+                if response and response.text:
+                    resposta_bruta = response.text
+                    break
             except Exception as e:
-                err_str = str(e)
-                if '429' in err_str or 'quota' in err_str.lower():
-                    print(f'[WORKER] Quota/Rate limit Gemini. Tentativa {attempt+1}/{max_retries}.')
-                    if attempt < max_retries - 1:
-                        time.sleep(15)
-                else:
-                    raise e
-        else:
-            return obter_copy_contingencia(dados_lead, vendedor, motivo="Limite de requisições do Gemini atingido (Erro 429)")
+                print(f"[WORKER] Modelo {m_name} indisponível: {str(e)[:100]}")
+                continue
+
+        if not resposta_bruta:
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Modelos Gemini atingiram limite de quota diária (429)")
 
         resposta_bruta = re.sub(r"^```(?:json)?\s*|\s*```$", "", resposta_bruta.strip(), flags=re.IGNORECASE)
         parsed = json.loads(resposta_bruta)
@@ -586,33 +589,33 @@ def dossie(place_id):
         if possui_site_proprio(lead_original.get("link_inicial"))
         else "A empresa ainda não possui um site institucional próprio cadastrado no Google, o que pode dificultar a conversão de pessoas que já a encontram online."
     )
-    html = f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Auditoria Digital - {lead['nome']}</title><script src="https://cdn.tailwindcss.com"></script></head>
-    <body class="bg-slate-50 text-slate-800 font-sans p-8">
-    <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
-    <div class="flex justify-between items-start mb-6"><div><h1 class="text-3xl font-bold mb-2 text-slate-900">Auditoria de Presenca Digital</h1><h2 class="text-xl text-red-600 font-semibold">Empresa: {lead['nome']}</h2></div><div class="text-right"><span class="inline-block bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide">{lead['nicho']}</span></div></div>
-    <p class="text-slate-600 mb-8 border-b pb-6">Analise detalhada da presenca online na regiao de <strong>{lead['bairro']}</strong>.</p>
-    <div class="grid grid-cols-2 gap-6 mb-8"><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['nota']} ÃƒÂ¢Ã‚Â­Ã‚Â</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-slate-50 border p-6 rounded-xl text-center border-b-4 border-b-emerald-500"><span class="block text-4xl font-black text-slate-800 mb-2">{lead['avaliacoes']}</span><span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Volume de Avaliacoes</span></div></div>
-    <div class="mb-8"><h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Dados Encontrados Publicamente</h3><ul class="space-y-3 text-slate-600"><li><strong>Telefone/WhatsApp:</strong> {lead['telefone'] or 'Nao disponivel'}</li><li><strong>E-mail Publico:</strong> {email_info}</li><li><strong>Instagram:</strong> {instagram_link}</li><li><strong>LinkedIn:</strong> {linkedin_link}</li><li><strong>Link Atual (Google):</strong> {site_link}</li></ul></div>
+    html = f"""<!DOCTYPE html><html lang="pt-BR" class="dark"><head><meta charset="UTF-8"><title>Auditoria Digital - {lead['nome']}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>body{{font-family:'Plus Jakarta Sans',sans-serif;}}</style></head>
+    <body class="bg-[#090a0f] text-[#f0f6fc] p-6 md:p-10 antialiased">
+    <div class="max-w-3xl mx-auto bg-[#12151c] p-8 md:p-10 rounded-2xl shadow-2xl border border-[#222733]">
+    <div class="flex justify-between items-start mb-6 pb-6 border-b border-[#222733]"><div><h1 class="text-2xl md:text-3xl font-black mb-1 text-white">Auditoria de Presença Digital</h1><h2 class="text-lg text-slate-300 font-semibold">{lead['nome']}</h2></div><div class="text-right"><span class="inline-block bg-[#161b26] border border-[#262c3a] text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{lead['nicho']}</span></div></div>
+    <p class="text-slate-400 text-sm mb-8">Análise de presença comercial e captação na região de <strong class="text-white">{lead['bairro']}</strong>.</p>
+    <div class="grid grid-cols-2 gap-4 mb-8"><div class="bg-[#090d14] border border-[#222733] p-5 rounded-xl text-center"><span class="block text-3xl font-black text-white mb-1">{lead['nota']} ★</span><span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Nota no Google Maps</span></div><div class="bg-[#090d14] border border-[#222733] p-5 rounded-xl text-center"><span class="block text-3xl font-black text-white mb-1">{lead['avaliacoes']}</span><span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Avaliações Públicas</span></div></div>
+    <div class="mb-8"><h3 class="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-[#222733] pb-2">Canais de Contato Detectados</h3><ul class="space-y-2.5 text-xs text-slate-300"><li><strong class="text-slate-400">Telefone / WhatsApp:</strong> {lead['telefone'] or 'Não disponível'}</li><li><strong class="text-slate-400">E-mail:</strong> {email_info}</li><li><strong class="text-slate-400">Instagram:</strong> {instagram_link}</li><li><strong class="text-slate-400">LinkedIn:</strong> {linkedin_link}</li><li><strong class="text-slate-400">Website Oficial:</strong> {site_link}</li></ul></div>
     
-    <div class="mb-8 bg-indigo-50 rounded-xl p-6 border border-indigo-100">
-        <h3 class="text-lg font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2"><i class="fa-solid fa-robot mr-2"></i> InteligÃƒÆ’Ã‚Âªncia Artificial SDR</h3>
+    <div class="mb-8 bg-[#090d14] rounded-xl p-5 border border-[#222733]">
+        <h3 class="text-sm font-black text-white uppercase tracking-wider mb-4 border-b border-[#222733] pb-2">Diagnóstico Comercial & Abordagem</h3>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">1. AnÃƒÆ’Ã‚Â¡lise do Lead</h4>
-            <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{analise_ia}</p>
+            <h4 class="font-bold text-slate-400 text-xs uppercase mb-1">1. Diagnóstico do Negócio</h4>
+            <p class="text-slate-200 text-xs bg-[#12151c] p-3 rounded-lg border border-[#222733]">{analise_ia}</p>
         </div>
         <div class="mb-4">
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">2. EstratÃƒÆ’Ã‚Â©gia Adotada</h4>
-            <p class="text-slate-700 text-sm bg-white p-3 rounded border border-indigo-100">{estrategia_ia}</p>
+            <h4 class="font-bold text-slate-400 text-xs uppercase mb-1">2. Ângulo de Venda Recomendado</h4>
+            <p class="text-slate-200 text-xs bg-[#12151c] p-3 rounded-lg border border-[#222733]">{estrategia_ia}</p>
         </div>
         <div>
-            <h4 class="font-bold text-indigo-800 text-sm uppercase mb-1">3. Mensagem Final (Copy)</h4>
-            <div class="text-slate-800 bg-white p-4 rounded-lg border border-indigo-200 shadow-sm whitespace-pre-wrap font-medium">{copy_texto}</div>
+            <h4 class="font-bold text-slate-400 text-xs uppercase mb-1">3. Abordagem WhatsApp</h4>
+            <div class="text-slate-200 bg-[#12151c] p-4 rounded-lg border border-[#222733] text-xs shadow-inner whitespace-pre-wrap">{copy_texto}</div>
         </div>
     </div>
     
-    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8"><h3 class="text-xl font-bold text-red-700 mb-3">Ponto Critico de Conversao Identificado</h3><p class="mb-3">{texto_html_seguro(diagnostico_site)}</p><p>Mesmo possuindo {lead['avaliacoes']} avaliacoes no Google, vale reduzir o atrito entre a busca e o contato comercial.</p></div>
-    <div class="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl"><h3 class="text-xl font-bold text-blue-800 mb-3">Recomendacao Tecnica Imediata</h3><p>Criacao de uma <strong>Pagina de Alta Conversao (Landing Page)</strong> focada em transmitir confianca e direcionar contatos para o WhatsApp.</p></div>
-    <p class="text-center text-xs text-slate-400 mt-12">Relatorio Confidencial gerado via GestaoLead PRO Automation.</p></div></body></html>"""
+    <div class="bg-[#161b26] border border-[#262c3a] p-5 rounded-xl mb-4"><h3 class="text-sm font-bold text-white mb-2">Diagnóstico de Presença</h3><p class="text-xs text-slate-300 leading-relaxed mb-2">{texto_html_seguro(diagnostico_site)}</p><p class="text-xs text-slate-400">Oportunidade para aumentar a taxa de conversão entre quem pesquisa no Google e quem chama no WhatsApp.</p></div>
+    <div class="bg-[#12151c] border border-[#222733] p-5 rounded-xl"><h3 class="text-sm font-bold text-white mb-2">Recomendação Comercial</h3><p class="text-xs text-slate-300 leading-relaxed">Desenvolvimento de uma <strong>Landing Page de Alta Conversão</strong> focada em velocidade mobile e contato direto via WhatsApp.</p></div>
+    <p class="text-center text-[11px] text-slate-500 mt-8">Relatório emitido via GestãoLead PRO &bull; Antigravity Architecture</p></div></body></html>"""
     return html
 
 import urllib.request
@@ -993,32 +996,41 @@ def sugerir_alvos():
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-flash-latest')
                 
                 contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
                 
                 prompt = f"""Atue como um estrategista de vendas B2B.
-Eu prospecto empresas no Google Maps para vender criaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de Sites de Alta ConversÃƒÆ’Ã‚Â£o.
-Preciso que vocÃƒÆ’Ã‚Âª me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
+Eu prospecto empresas no Google Maps para vender criação de Sites de Alta Conversão.
+Preciso que você me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
 
 Regras:
-1. Nichos devem ser muito lucrativos (ex: cirurgia plÃƒÆ’Ã‚Â¡stica, mÃƒÆ’Ã‚Â³veis planejados, arquitetura de luxo, energia solar, clÃƒÆ’Ã‚Â­nicas especializadas).
-2. As cidades DEVEM SER APENAS {contexto_regiao}. NÃƒÆ’Ã‚Â£o misture Brasil com Internacional.
-3. Retorne EXATAMENTE UM JSON vÃƒÆ’Ã‚Â¡lido e mais nada. O formato deve ser:
+1. Nichos devem ser muito lucrativos (ex: cirurgia plástica, móveis planejados, arquitetura de luxo, energia solar, clínicas especializadas).
+2. As cidades DEVEM SER APENAS {contexto_regiao}. Não misture Brasil com Internacional.
+3. Retorne EXATAMENTE UM JSON válido e mais nada. O formato deve ser:
 {{
   "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
   "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
 }}"""
-                response = model.generate_content(prompt)
-                texto = response.text.replace("```json", "").replace("```", "").strip()
-                import json
-                dados_ia = json.loads(texto)
-                return jsonify({
-                    "nichos": dados_ia.get("nichos", [])[:5],
-                    "cidades": dados_ia.get("cidades", [])[:5]
-                })
+                texto = None
+                for m_name in ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest']:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        response = model.generate_content(prompt)
+                        if response and response.text:
+                            texto = response.text.replace("```json", "").replace("```", "").strip()
+                            break
+                    except Exception:
+                        continue
+
+                if texto:
+                    import json
+                    dados_ia = json.loads(texto)
+                    return jsonify({
+                        "nichos": dados_ia.get("nichos", [])[:5],
+                        "cidades": dados_ia.get("cidades", [])[:5]
+                    })
             except Exception as e:
-                print(f"[IA] Erro ao gerar sugestÃƒÆ’Ã‚Âµes: {e}")
+                print(f"[IA] Erro ao gerar sugestões: {e}")
                 # Fallback para o hardcoded se a IA falhar
         
         # Fallback Hardcoded
@@ -1088,18 +1100,48 @@ def descartar_com_site():
 
 @app.route("/api/test_gemini", methods=["POST"])
 def test_gemini():
-    data = request.json
+    data = request.json or {}
     api_key = data.get("key", "").strip()
+    chave_enviada = bool(api_key)
+    
     if not api_key:
-        return jsonify({"success": False, "error": "Chave vazia"})
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip() or load_config().get("gemini_api_key", "").strip()
+        
+    if not api_key:
+        return jsonify({"success": False, "error": "Informe uma API Key para testar."})
+        
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-flash-latest')
-        response = model.generate_content("Diga apenas 'ok'")
-        if response and response.text:
-            return jsonify({"success": True})
-        return jsonify({"success": False, "error": "Sem resposta"})
+        
+        candidatos = [
+            'gemini-3.5-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-3.1-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-flash-latest'
+        ]
+        
+        ultimo_erro = None
+        for m_name in candidatos:
+            try:
+                model = genai.GenerativeModel(m_name)
+                response = model.generate_content("Diga apenas 'ok'")
+                if response and response.text:
+                    if chave_enviada:
+                        cfg = load_config()
+                        cfg["gemini_api_key"] = api_key
+                        save_config(cfg)
+                        os.environ["GEMINI_API_KEY"] = api_key
+                    return jsonify({
+                        "success": True,
+                        "message": f"Conexão bem-sucedida! Modelo ativo: {m_name}"
+                    })
+            except Exception as e:
+                ultimo_erro = e
+                continue
+                
+        return jsonify({"success": False, "error": f"Erro na API do Gemini: {ultimo_erro}"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
