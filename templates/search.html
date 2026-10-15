@@ -1,98 +1,327 @@
 {% extends "layout.html" %}
-{% block header_title %}Nova Prospecção{% endblock %}
+{% block header_title %}Nova Prospecção B2B{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto pb-14">
-    <section class="relative overflow-hidden rounded-[2rem] bg-[#0a0d12] text-white border border-slate-800 shadow-2xl shadow-slate-950/30 mb-7">
-        <div class="absolute -top-24 -right-12 w-72 h-72 rounded-full bg-amber-400/20 blur-3xl"></div>
-        <div class="absolute -bottom-28 left-1/3 w-80 h-80 rounded-full bg-sky-500/15 blur-3xl"></div>
+<div class="max-w-6xl mx-auto pb-14 space-y-7">
+    <!-- Hero Banner Executivo -->
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] text-white border border-[#1E293B] shadow-2xl">
+        <div class="absolute -top-24 -right-12 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl"></div>
+        <div class="absolute -bottom-28 left-1/3 w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl"></div>
         <div class="relative p-6 md:p-10 grid lg:grid-cols-[1fr_auto] gap-7 items-end">
             <div>
-                <p class="text-amber-300 text-[11px] font-black uppercase tracking-[0.24em] mb-3"><i class="fa-solid fa-radar mr-2"></i>Central de prospecção</p>
-                <h1 class="text-3xl md:text-5xl font-black tracking-tight leading-[0.98]">Encontre quem precisa<br>do seu próximo site.</h1>
-                <p class="text-slate-400 mt-4 max-w-2xl text-sm md:text-base leading-relaxed">Escolha nichos, defina a região e deixe o robô filtrar empresas com oportunidade real antes de entrarem no seu CRM.</p>
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    <p class="text-cyan-400 text-[11px] font-black uppercase tracking-[0.24em]"><i class="fa-solid fa-crosshairs mr-1.5"></i>Radar de Prospecção Ativa</p>
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight leading-[1.02]">Encontre empresas com alto potencial que ainda não têm site.</h1>
+                <p class="text-slate-400 mt-4 max-w-2xl text-xs md:text-sm leading-relaxed">Defina nichos estratégicos, filtre por praça de atuação e acione o motor de varredura para captar leads com oportunidade real de venda.</p>
             </div>
-            <div class="grid grid-cols-2 gap-2.5 w-full lg:w-72">
-                <div class="rounded-2xl p-4 bg-white/5 border border-white/10"><i class="fa-solid fa-shield-halved text-amber-300 mb-3"></i><strong class="block text-sm">SEM SITE</strong><span class="text-xs text-slate-400">filtro prioritário</span></div>
-                <div class="rounded-2xl p-4 bg-white/5 border border-white/10"><i class="fa-solid fa-wand-magic-sparkles text-sky-300 mb-3"></i><strong class="block text-sm">PITCH SDR</strong><span class="text-xs text-slate-400">copy por segmento</span></div>
+            <div class="grid grid-cols-2 gap-3 w-full lg:w-72">
+                <div class="rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
+                    <i class="fa-solid fa-shield-halved text-cyan-400 mb-2 block text-base"></i>
+                    <strong class="block text-xs font-black text-white">SEM WEBSITE</strong>
+                    <span class="text-[10px] text-slate-400">Filtro prioritário</span>
+                </div>
+                <div class="rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
+                    <i class="fa-solid fa-bolt-lightning text-blue-400 mb-2 block text-base"></i>
+                    <strong class="block text-xs font-black text-white">PITCH SDR</strong>
+                    <span class="text-[10px] text-slate-400">Copy por segmento</span>
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- Formulário Principal e Checklist -->
     <div class="grid xl:grid-cols-[1fr_310px] gap-6 items-start">
-        <div class="bg-[#10141c] border border-slate-800 rounded-[1.75rem] shadow-xl overflow-hidden">
-            <div class="p-6 md:p-8 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bg-[#0E1422] border border-[#1E293B] rounded-3xl shadow-xl overflow-hidden">
+            <div class="p-6 md:p-8 border-b border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0A0E18]">
                 <div>
-                    <p class="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-black">Passo 01</p>
-                    <h2 class="text-xl font-black text-white mt-1">Defina os alvos</h2>
-                    <p class="text-sm text-slate-400 mt-1">Selecione opções rápidas ou inclua um segmento e cidade próprios.</p>
+                    <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Etapa 01</span>
+                    <h2 class="text-xl font-black text-white mt-0.5">Segmentação & Mercados</h2>
+                    <p class="text-xs text-slate-400 mt-1">Selecione segmentos-alvo e regiões geográficas para prospecção.</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-2">
-                    <select id="mercado" aria-label="Mercado de prospecção" class="rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-sm font-bold px-3 py-3 focus:ring-2 focus:ring-emerald-400 outline-none">
+                    <select id="mercado" aria-label="Mercado de prospecção" class="rounded-xl bg-[#080B12] border border-[#1F2B44] text-slate-200 text-xs font-bold px-3 py-2.5 focus:border-blue-500 outline-none">
                         <option value="br">Brasil</option>
                         <option value="us">Estados Unidos</option>
                         <option value="europa">Europa</option>
                     </select>
-                    <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-bold px-4 py-3 transition-colors">
-                        <i id="icon-ia-sugerir" class="fa-solid fa-sparkles text-amber-300"></i> Sugerir alvos
+                    <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="inline-flex justify-center items-center gap-2 rounded-xl bg-[#131A2B] hover:bg-[#1A2338] border border-[#1F2B44] text-white text-xs font-bold px-4 py-2.5 transition-colors">
+                        <i id="icon-ia-sugerir" class="fa-solid fa-sparkles text-cyan-400"></i> Sugerir Alvos
                     </button>
                 </div>
             </div>
 
-            <div class="p-6 md:p-8 space-y-8">
+            <div class="p-6 md:p-8 space-y-7">
                 <input type="hidden" id="nichos" aria-hidden="true">
                 <input type="hidden" id="bairros" aria-hidden="true">
 
+                <!-- Segmentos / Nichos -->
                 <div>
-                    <div class="flex items-center justify-between gap-4 mb-3"><label for="nicho_input" class="text-sm font-bold text-white"><i class="fa-solid fa-briefcase text-amber-300 mr-2"></i>Segmentos que você quer captar</label><span id="nichos_count" class="text-xs font-bold text-slate-500">0 selecionados</span></div>
-                    <div id="nichos_chips" class="min-h-16 rounded-2xl bg-[#080b10] border border-slate-700 p-2 flex flex-wrap gap-2 items-center focus-within:border-amber-300 transition-colors"><input id="nicho_input" type="text" class="flex-1 min-w-36 bg-transparent text-sm text-white placeholder:text-slate-600 outline-none px-2 py-2" placeholder="Digite e pressione Enter"></div>
-                    <div class="flex flex-wrap gap-2 mt-3" id="nichos_presets"></div>
+                    <div class="flex items-center justify-between gap-4 mb-2">
+                        <label for="nicho_input" class="text-xs font-bold text-white flex items-center">
+                            <i class="fa-solid fa-briefcase text-cyan-400 mr-2"></i>Segmentos Comerciais Desejados
+                        </label>
+                        <span id="nichos_count" class="text-[11px] font-bold text-slate-500">0 selecionados</span>
+                    </div>
+                    <div id="nichos_chips" class="min-h-14 rounded-2xl bg-[#080B12] border border-[#1F2B44] p-2.5 flex flex-wrap gap-2 items-center focus-within:border-blue-500 transition-colors">
+                        <input id="nicho_input" type="text" class="flex-1 min-w-36 bg-transparent text-xs text-white placeholder:text-slate-600 outline-none px-2 py-1.5" placeholder="Digite o segmento e pressione Enter">
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-2.5" id="nichos_presets"></div>
                 </div>
 
+                <!-- Cidades / Regiões -->
                 <div>
-                    <div class="flex items-center justify-between gap-4 mb-3"><label for="cidade_input" class="text-sm font-bold text-white"><i class="fa-solid fa-location-dot text-sky-300 mr-2"></i>Cidades ou regiões</label><span id="bairros_count" class="text-xs font-bold text-slate-500">0 selecionadas</span></div>
-                    <div id="bairros_chips" class="min-h-16 rounded-2xl bg-[#080b10] border border-slate-700 p-2 flex flex-wrap gap-2 items-center focus-within:border-sky-300 transition-colors"><input id="cidade_input" type="text" class="flex-1 min-w-36 bg-transparent text-sm text-white placeholder:text-slate-600 outline-none px-2 py-2" placeholder="Ex.: Moema - São Paulo"></div>
-                    <div class="flex flex-wrap gap-2 mt-3" id="bairros_presets"></div>
+                    <div class="flex items-center justify-between gap-4 mb-2">
+                        <label for="cidade_input" class="text-xs font-bold text-white flex items-center">
+                            <i class="fa-solid fa-location-dot text-blue-400 mr-2"></i>Cidades, Bairros ou Estados
+                        </label>
+                        <span id="bairros_count" class="text-[11px] font-bold text-slate-500">0 selecionadas</span>
+                    </div>
+                    <div id="bairros_chips" class="min-h-14 rounded-2xl bg-[#080B12] border border-[#1F2B44] p-2.5 flex flex-wrap gap-2 items-center focus-within:border-blue-500 transition-colors">
+                        <input id="cidade_input" type="text" class="flex-1 min-w-36 bg-transparent text-xs text-white placeholder:text-slate-600 outline-none px-2 py-1.5" placeholder="Ex.: Moema - São Paulo">
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-2.5" id="bairros_presets"></div>
                 </div>
 
+                <!-- Filtros de Qualidade -->
                 <section class="pt-2">
-                    <div class="flex items-center justify-between mb-4"><div><p class="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-black">Passo 02</p><h3 class="text-lg font-black text-white mt-1">Qualidade do lead</h3></div><span class="text-xs text-slate-500">Clique para ativar</span></div>
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Etapa 02</span>
+                            <h3 class="text-base font-black text-white mt-0.5">Critérios de Qualificação</h3>
+                        </div>
+                        <span class="text-[11px] text-slate-500">Filtros dinâmicos</span>
+                    </div>
                     <div class="grid sm:grid-cols-2 gap-3">
-                        <label class="filter-card border-amber-400/60 bg-amber-400/10"><input type="checkbox" id="strict_no_socials" checked class="peer sr-only"><span class="filter-check"><i class="fa-solid fa-shield-halved"></i></span><span><strong>Excluir quem já tem site</strong><small>Principal filtro para encontrar oportunidade.</small></span></label>
-                        <label class="filter-card"><input type="checkbox" id="req_whatsapp" class="peer sr-only"><span class="filter-check"><i class="fa-brands fa-whatsapp"></i></span><span><strong>WhatsApp disponível</strong><small>Prioriza contato imediato.</small></span></label>
-                        <label class="filter-card"><input type="checkbox" id="req_email" class="peer sr-only"><span class="filter-check"><i class="fa-solid fa-envelope"></i></span><span><strong>E-mail encontrado</strong><small>Obrigatório por padrão fora do Brasil.</small></span></label>
-                        <label class="filter-card"><input type="checkbox" id="strict_mobile" class="peer sr-only"><span class="filter-check"><i class="fa-solid fa-mobile-screen-button"></i></span><span><strong>Apenas celular</strong><small>Evita telefones fixos.</small></span></label>
-                        <label class="filter-card"><input type="checkbox" id="anti_franchise" class="peer sr-only"><span class="filter-check"><i class="fa-solid fa-ban"></i></span><span><strong>Ignorar grandes redes</strong><small>Foco em decisão local.</small></span></label>
-                        <label class="filter-card sm:col-span-2"><input type="checkbox" id="strict_bairro" class="peer sr-only"><span class="filter-check"><i class="fa-solid fa-map-pin"></i></span><span><strong>Correspondência exata da região</strong><small>Salva apenas empresas cujo endereço corresponda à cidade ou bairro pesquisado.</small></span></label>
+                        <label class="filter-card">
+                            <input type="checkbox" id="strict_no_socials" checked class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-shield-halved"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Excluir quem já tem site</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Identifica oportunidades de construção de novo site.</small>
+                            </div>
+                        </label>
+                        
+                        <label class="filter-card">
+                            <input type="checkbox" id="req_whatsapp" class="peer sr-only">
+                            <span class="filter-check"><i class="fa-brands fa-whatsapp"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">WhatsApp disponível</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Prioriza canais com contato direto ativo.</small>
+                            </div>
+                        </label>
+
+                        <label class="filter-card">
+                            <input type="checkbox" id="req_email" class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-envelope"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">E-mail identificado</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Recomendado para campanhas B2B internacionais.</small>
+                            </div>
+                        </label>
+
+                        <label class="filter-card">
+                            <input type="checkbox" id="strict_mobile" class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-mobile-screen"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Apenas celular / mobile</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Evita números de linha fixa.</small>
+                            </div>
+                        </label>
+
+                        <label class="filter-card">
+                            <input type="checkbox" id="anti_franchise" class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-ban"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Ignorar grandes redes / franquias</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Foca em negócios locais e tomadores de decisão.</small>
+                            </div>
+                        </label>
+
+                        <label class="filter-card sm:col-span-2">
+                            <input type="checkbox" id="strict_bairro" class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-map-pin"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Correspondência exata da região</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Salva apenas empresas que estejam exatamente no endereço pesquisado.</small>
+                            </div>
+                        </label>
                     </div>
                 </section>
 
-                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-[#080b10] border border-slate-800"><div><label for="min_nota" class="text-sm font-bold text-white">Nota mínima no Google</label><p class="text-xs text-slate-500 mt-1">Use uma nota maior para priorizar negócios com boa reputação.</p></div><div class="flex items-center gap-3"><i class="fa-solid fa-star text-amber-300"></i><input type="number" id="min_nota" value="3.0" step="0.1" min="0" max="5" class="w-24 rounded-xl bg-[#151b25] border border-slate-700 text-white text-center font-black px-3 py-3 outline-none focus:border-amber-300"></div></div>
+                <!-- Avaliação Mínima Google -->
+                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-[#080B12] border border-[#1F2B44]">
+                    <div>
+                        <label for="min_nota" class="text-xs font-bold text-white block">Avaliação Mínima no Google Maps</label>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Priorize empresas com boa reputação e clientela ativa.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-star text-cyan-400 text-sm"></i>
+                        <input type="number" id="min_nota" value="3.0" step="0.1" min="0" max="5" class="w-24 rounded-xl bg-[#111728] border border-[#1F2B44] text-white text-center font-black px-3 py-2 text-xs outline-none focus:border-blue-500">
+                    </div>
+                </div>
 
-                <label class="flex items-center gap-4 rounded-2xl p-4 bg-sky-500/10 border border-sky-400/20 cursor-pointer"><input type="checkbox" id="ai_copy" checked class="sr-only peer"><span class="w-11 h-6 rounded-full bg-slate-700 relative transition-colors peer-checked:bg-sky-400 after:content-[''] after:absolute after:w-5 after:h-5 after:bg-white after:rounded-full after:top-0.5 after:left-0.5 after:transition-transform peer-checked:after:translate-x-5"></span><span><strong class="text-sm text-white">Gerar pitch comercial com IA</strong><small class="block text-xs text-sky-100/70 mt-1">Cria uma abordagem personalizada dizendo claramente que sua proposta é um site.</small></span></label>
+                <!-- Toggle IA Copy -->
+                <label class="flex items-center gap-4 rounded-2xl p-4 bg-blue-500/10 border border-blue-500/25 cursor-pointer hover:border-blue-500/40 transition-colors">
+                    <input type="checkbox" id="ai_copy" checked class="sr-only peer">
+                    <span class="w-11 h-6 rounded-full bg-slate-800 relative transition-colors peer-checked:bg-blue-600 after:content-[''] after:absolute after:w-5 after:h-5 after:bg-white after:rounded-full after:top-0.5 after:left-0.5 after:transition-transform peer-checked:after:translate-x-5"></span>
+                    <div>
+                        <strong class="text-xs text-white block">Gerar Pitch Comercial Automatizado com IA</strong>
+                        <small class="block text-[11px] text-blue-200/80 mt-0.5">Diagnostica a ausência de site e gera abordagem personalizada para WhatsApp.</small>
+                    </div>
+                </label>
 
-                <button id="btn_search" class="w-full rounded-2xl bg-amber-300 hover:bg-amber-200 text-slate-950 font-black py-4 px-6 shadow-lg shadow-amber-400/10 transition-all hover:-translate-y-0.5 text-base md:text-lg"><i class="fa-solid fa-crosshairs mr-3"></i>INICIAR CAÇA DE LEADS</button>
+                <!-- Botão de Ação Primária -->
+                <button id="btn_search" class="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-4 px-6 shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-0.5 text-sm md:text-base flex items-center justify-center gap-3 active:scale-[0.99]">
+                    <i class="fa-solid fa-crosshairs text-base"></i>
+                    <span>INICIAR CAÇA DE LEADS</span>
+                </button>
             </div>
         </div>
 
+        <!-- Checklist Lateral -->
         <aside class="xl:sticky xl:top-24 space-y-4">
-            <div class="rounded-[1.75rem] bg-slate-950 border border-slate-800 p-6 text-white"><p class="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-black">Checklist rápido</p><ol class="mt-5 space-y-4 text-sm"><li class="flex gap-3"><span class="step">1</span><span><strong>Escolha os nichos</strong><small>Misture vários segmentos na mesma busca.</small></span></li><li class="flex gap-3"><span class="step dark">2</span><span><strong>Defina as regiões</strong><small>Adicione bairros, cidades ou países.</small></span></li><li class="flex gap-3"><span class="step dark">3</span><span><strong>Revise o CRM</strong><small>Leads com site ficam fora da base ativa.</small></span></li></ol></div>
-            <div class="rounded-2xl border border-slate-800 bg-[#10141c] p-5 text-sm text-slate-400 leading-relaxed"><i class="fa-solid fa-circle-info text-sky-300 mr-2"></i>Redes sociais não contam como site próprio. Isso mantém oportunidades que precisam de uma página profissional.</div>
+            <div class="rounded-3xl bg-[#0A0E18] border border-[#1E293B] p-6 text-white shadow-xl">
+                <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black block mb-4">Protocolo de Operação</span>
+                <ol class="space-y-4 text-xs">
+                    <li class="flex gap-3">
+                        <span class="step">1</span>
+                        <div>
+                            <strong class="block text-white">Escolha os nichos</strong>
+                            <small class="text-slate-400">Combine segmentos com alto ticket médio.</small>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="step">2</span>
+                        <div>
+                            <strong class="block text-white">Defina as regiões</strong>
+                            <small class="text-slate-400">Insira bairros nobres e cidades pólo.</small>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="step">3</span>
+                        <div>
+                            <strong class="block text-white">Aborde no CRM</strong>
+                            <small class="text-slate-400">Acesse a mesa comercial e envie o pitch.</small>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+            
+            <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 text-xs text-slate-400 leading-relaxed shadow-lg">
+                <div class="flex items-center gap-2 text-cyan-300 font-bold mb-1">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Precisão Técnica</span>
+                </div>
+                Redes sociais como Instagram e Facebook não contam como website institucional próprio. Isso preserva empresas com grande poder de investimento que precisam de presença web profissional.
+            </div>
         </aside>
     </div>
 
-    <section id="status_panel" class="hidden mt-6 rounded-[1.75rem] bg-slate-950 border border-slate-800 text-white p-6 md:p-8 shadow-2xl"><div class="flex items-center justify-between gap-4 mb-5"><div><p class="text-[11px] uppercase tracking-[0.18em] text-amber-300 font-black">Operação ao vivo</p><h3 class="text-xl font-black mt-1">Radar de busca</h3></div><div class="flex items-center gap-3"><button id="btn_cancel_search" type="button" class="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-300 hover:bg-rose-500/20"><i class="fa-solid fa-stop mr-1.5"></i>Cancelar busca</button><span class="loader"></span></div></div><p id="log_text" class="text-sm text-slate-300 mb-5">Preparando o robô...</p><div id="status_metrics" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div></section>
+    <!-- Painel de Radar em Tempo Real -->
+    <section id="status_panel" class="hidden rounded-3xl bg-[#0A0E18] border border-[#1E293B] text-white p-6 md:p-8 shadow-2xl">
+        <div class="flex items-center justify-between gap-4 mb-5">
+            <div>
+                <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Operação em Andamento</span>
+                <h3 class="text-lg font-black mt-0.5">Radar de Extração Ativo</h3>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="btn_cancel_search" type="button" class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-black text-rose-300 hover:bg-rose-500/20 transition-colors">
+                    <i class="fa-solid fa-stop mr-1.5"></i>Cancelar busca
+                </button>
+                <span class="loader"></span>
+            </div>
+        </div>
+        <p id="log_text" class="text-xs text-slate-300 mb-5 font-medium">Iniciando motor de busca...</p>
+        <div id="status_metrics" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+    </section>
 </div>
 
 <style>
-    .filter-card { display:flex; align-items:center; gap:.8rem; padding:1rem; border:1px solid #293243; border-radius:1rem; background:#080b10; color:#cbd5e1; cursor:pointer; transition:.18s ease; }
-    .filter-card:hover { border-color:#64748b; transform:translateY(-1px); }
-    .filter-card strong { display:block; color:#f8fafc; font-size:.875rem; } .filter-card small, .step + span small { display:block; color:#64748b; font-size:.72rem; margin-top:.15rem; }
-    .filter-check { display:grid; place-items:center; width:2rem; height:2rem; border-radius:.7rem; background:#151b25; color:#94a3b8; flex-shrink:0; }
-    .filter-card:has(input:checked) { border-color:#fbbf24; background:rgba(251,191,36,.08); } .filter-card:has(input:checked) .filter-check { color:#0f172a; background:#fbbf24; }
-    .preset-chip { border:1px solid #334155; background:#151b25; color:#cbd5e1; border-radius:999px; padding:.45rem .75rem; font-size:.75rem; font-weight:700; transition:.18s ease; } .preset-chip:hover { color:#0f172a; background:#fbbf24; border-color:#fbbf24; }
-    .selected-chip { display:inline-flex; align-items:center; gap:.5rem; border-radius:999px; background:#fbbf24; color:#0f172a; padding:.4rem .65rem .4rem .8rem; font-size:.78rem; font-weight:800; } .selected-chip button { font-size:.85rem; line-height:1; opacity:.7; } .selected-chip button:hover { opacity:1; }
-    .step { width:1.5rem; height:1.5rem; border-radius:999px; background:#fbbf24; color:#0f172a; font-weight:900; font-size:.72rem; display:grid; place-items:center; flex-shrink:0; } .step.dark { background:#1e293b; color:#fff; }
+    .filter-card {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.9rem;
+        border: 1px solid #1F2B44;
+        border-radius: 1rem;
+        background: #080B12;
+        color: #cbd5e1;
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .filter-card:hover {
+        border-color: #3B82F6;
+        transform: translateY(-1px);
+    }
+    .filter-check {
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.7rem;
+        background: #111728;
+        color: #64748b;
+        flex-shrink: 0;
+        font-size: 0.85rem;
+        transition: all 0.18s ease;
+    }
+    .filter-card:has(input:checked) {
+        border-color: #2563EB;
+        background: rgba(37, 99, 235, 0.1);
+    }
+    .filter-card:has(input:checked) .filter-check {
+        color: #ffffff;
+        background: linear-gradient(135deg, #2563EB, #06B6D4);
+    }
+    .preset-chip {
+        border: 1px solid #1F2B44;
+        background: #0B101C;
+        color: #94A3B8;
+        border-radius: 9999px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        transition: all 0.18s ease;
+    }
+    .preset-chip:hover {
+        color: #ffffff;
+        background: #1E293B;
+        border-color: #38BDF8;
+    }
+    .selected-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 9999px;
+        background: linear-gradient(135deg, #2563EB, #0284C7);
+        color: #ffffff;
+        padding: 0.35rem 0.65rem 0.35rem 0.85rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    .selected-chip button {
+        font-size: 0.9rem;
+        line-height: 1;
+        opacity: 0.75;
+    }
+    .selected-chip button:hover {
+        opacity: 1;
+    }
+    .step {
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 9999px;
+        background: linear-gradient(135deg, #2563EB, #06B6D4);
+        color: #ffffff;
+        font-weight: 900;
+        font-size: 0.7rem;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+    }
 </style>
 {% endblock %}
 
@@ -105,7 +334,7 @@
         us: { nichos: ['Med Spa', 'Personal Injury Lawyer', 'Cosmetic Dentist', 'Luxury Realtor', 'Roofing Company', 'Solar Installer', 'Custom Home Builder'], bairros: ['Miami - FL', 'Boca Raton - FL', 'Scottsdale - AZ', 'Austin - TX', 'Beverly Hills - CA'] },
         europa: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Imobiliária de Luxo', 'Arquitetura', 'Energia Solar', 'Contabilidade'], bairros: ['London - UK', 'Lisbon - Portugal', 'Madrid - Spain', 'Amsterdam - Netherlands', 'Milan - Italy'] }
     };
-    if (localStorage.getItem('search_preferences_version') !== '5') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('search_preferences_version', '5'); }
+    if (localStorage.getItem('search_preferences_version') !== '6') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('search_preferences_version', '6'); }
     function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function loadPreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); const saved = localStorage.getItem(`pref_${id}`); if (!field || saved === null) return; field.type === 'checkbox' ? field.checked = saved === 'true' : field.value = saved; }); }
     function savePreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); if (field) localStorage.setItem(`pref_${id}`, field.type === 'checkbox' ? field.checked : field.value); }); }
@@ -117,7 +346,7 @@
     function aplicarMercado() { const internacional = document.getElementById('mercado').value !== 'br'; document.getElementById('req_email').checked = internacional; document.getElementById('req_whatsapp').checked = false; document.getElementById('strict_mobile').checked = false; renderPresets('nichos'); renderPresets('bairros'); savePreferences(); }
     loadPreferences(); setupPicker('nichos'); setupPicker('bairros'); renderPresets('nichos'); renderPresets('bairros'); preferenceIds.filter(id => !['nichos', 'bairros'].includes(id)).forEach(id => document.getElementById(id)?.addEventListener('change', savePreferences)); document.getElementById('mercado').addEventListener('change', aplicarMercado);
     const btn = document.getElementById('btn_search'); const panel = document.getElementById('status_panel'); const log = document.getElementById('log_text'); const metrics = document.getElementById('status_metrics'); const cancelBtn = document.getElementById('btn_cancel_search'); let timer = null;
-    function renderMetrics(data) { const source = data.metricas || {}; const items = [['Encontrados', source.encontrados || 0], ['Analisados', source.analisados || 0], ['Salvos', source.salvos || data.leads_salvos || 0], ['Com site', source.com_site || 0], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value]) => `<div class="rounded-xl bg-white/5 border border-white/10 p-3"><span class="block text-[10px] uppercase tracking-wider text-slate-500 font-black">${label}</span><strong class="text-xl text-white">${value}</strong></div>`).join(''); }
+    function renderMetrics(data) { const source = data.metricas || {}; const items = [['Encontrados', source.encontrados || 0], ['Analisados', source.analisados || 0], ['Salvos', source.salvos || data.leads_salvos || 0], ['Com site', source.com_site || 0], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value]) => `<div class="rounded-xl bg-[#111728] border border-[#1F2B44] p-3 text-center"><span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">${label}</span><strong class="text-lg text-white font-black">${value}</strong></div>`).join(''); }
     function setRunningState() { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>CAÇANDO LEADS...'; panel.classList.remove('hidden'); }
     function setIdleState() { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i>INICIAR CAÇA DE LEADS'; }
     async function verificarStatus() { try { const response = await fetch('/api/status'); const data = await response.json(); renderMetrics(data); if (data.rodando) { setRunningState(); log.textContent = data.mensagem || 'Buscando alvos...'; cancelBtn.disabled = Boolean(data.cancelamento_solicitado); cancelBtn.classList.toggle('opacity-50', Boolean(data.cancelamento_solicitado)); } else if (timer) { log.textContent = data.mensagem || 'Operação concluída.'; setIdleState(); clearInterval(timer); timer = null; } } catch (error) { log.textContent = 'Não foi possível atualizar o radar.'; } }
@@ -125,6 +354,6 @@
     verificarStatus();
     btn.addEventListener('click', async () => { const payload = Object.fromEntries(preferenceIds.map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); if (!payload.nichos.trim() || !payload.bairros.trim()) return alert('Selecione pelo menos um segmento e uma cidade ou região.'); savePreferences(); setRunningState(); log.textContent = 'Disparando o robô de busca...'; try { const response = await fetch('/api/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Falha ao iniciar a busca.'); iniciarRadar(); } catch (error) { alert(error.message || 'Erro de conexão.'); setIdleState(); } });
     cancelBtn.addEventListener('click', async () => { const confirmed = await showAppConfirm({ title: 'Cancelar esta busca?', message: 'O robô vai concluir a análise atual e parar. Os leads já salvos permanecerão no CRM.', confirmLabel: 'Cancelar busca', danger: true }); if (!confirmed) return; cancelBtn.disabled = true; try { const response = await fetch('/api/cancelar_busca', { method: 'POST' }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível cancelar a busca.'); showAppToast(data.message); verificarStatus(); } catch (error) { cancelBtn.disabled = false; showAppToast(error.message, 'error'); } });
-    async function sugerirAlvosIA() { const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value; button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-amber-300'; try { const response = await fetch('/api/sugerir_alvos?regiao=' + encodeURIComponent(mercado)); const data = await response.json(); if (!data.nichos || !data.cidades) throw new Error(); pickerState.nichos = []; pickerState.bairros = []; data.nichos.forEach(value => addPickerValue('nichos', value)); data.cidades.forEach(value => addPickerValue('bairros', value)); aplicarMercado(); } catch (error) { alert('Não foi possível gerar sugestões automáticas.'); } finally { button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-sparkles text-amber-300'; } }
+    async function sugerirAlvosIA() { const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value; button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-cyan-400'; try { const response = await fetch('/api/sugerir_alvos?regiao=' + encodeURIComponent(mercado)); const data = await response.json(); if (!data.nichos || !data.cidades) throw new Error(); pickerState.nichos = []; pickerState.bairros = []; data.nichos.forEach(value => addPickerValue('nichos', value)); data.cidades.forEach(value => addPickerValue('bairros', value)); aplicarMercado(); } catch (error) { alert('Não foi possível gerar sugestões automáticas.'); } finally { button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-sparkles text-cyan-400'; } }
 </script>
 {% endblock %}

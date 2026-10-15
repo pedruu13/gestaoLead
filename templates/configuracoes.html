@@ -36,15 +36,15 @@
 
             <div>
                 <h3 class="text-lg font-black text-white flex items-center mb-2">
-                    <i class="fa-solid fa-microchip text-slate-400 mr-3"></i> Inteligência Artificial (Google Gemini)
+                    <i class="fa-solid fa-microchip text-cyan-400 mr-3"></i> Inteligência Artificial (Google Gemini)
                 </h3>
                 <p class="text-slate-400 text-xs mb-4">Insira sua API Key do Google Gemini para ativar o motor de inteligência artificial avançado.</p>
                 <div class="space-y-6">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Google Gemini API Key</label>
                         <div class="flex gap-2">
-                            <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="{% if config.get('gemini_configurada') %}Chave já configurada no servidor &bull; informe outra apenas para trocar{% else %}AIzaSy...{% endif %}" class="w-full bg-[#090d14] border border-[#262c3a] text-white rounded-xl px-4 py-3 text-sm focus:border-white focus:ring-1 focus:ring-white outline-none transition-all shadow-inner">
-                            <button type="button" onclick="testarAPI()" class="bg-white hover:bg-slate-200 text-slate-950 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap shadow-md">
+                            <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="{% if config.get('gemini_configurada') %}Chave já configurada no servidor &bull; informe outra apenas para trocar{% else %}AIzaSy...{% endif %}" class="w-full bg-[#080B12] border border-[#1F2B44] text-white rounded-xl px-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner">
+                            <button type="button" onclick="testarAPI()" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap shadow-lg shadow-blue-500/20 active:scale-[0.98]">
                                 <i class="fa-solid fa-vial mr-1.5"></i> Testar
                             </button>
                         </div>
@@ -52,9 +52,9 @@
                         <p class="text-[11px] text-slate-500 mt-2">A chave não é exibida na tela por segurança. O sistema testa automaticamente com fallback multi-modelo.</p>
                     </div>
 
-                    <div class="bg-[#090d14] p-4 rounded-xl border border-[#222733]">
+                    <div class="bg-[#080B12] p-4 rounded-xl border border-[#1E293B]">
                         <h4 class="text-xs font-bold text-white mb-1 flex items-center">
-                            <i class="fa-solid fa-crosshairs text-slate-400 mr-2"></i> Motor de Abordagem Comercial Ativado
+                            <i class="fa-solid fa-crosshairs text-cyan-400 mr-2"></i> Motor de Abordagem Comercial Ativado
                         </h4>
                         <p class="text-xs text-slate-400 leading-relaxed">
                             O sistema cruza Segmento, Avaliações, Localização e Presença Digital (site) para gerar:<br>
@@ -65,16 +65,16 @@
                 </div>
             </div>
 
-            <hr class="border-[#222733]">
+            <hr class="border-[#1E293B]">
 
             <div>
                 <h3 class="text-lg font-black text-white flex items-center mb-4">
-                    <i class="fa-solid fa-sliders text-slate-400 mr-3"></i> Comportamento do Motor de Busca
+                    <i class="fa-solid fa-sliders text-cyan-400 mr-3"></i> Comportamento do Motor de Busca
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Velocidade de Extração</label>
-                        <select name="velocidade" class="w-full bg-[#090d14] border border-[#262c3a] text-white rounded-xl px-4 py-3 text-sm focus:border-white focus:outline-none appearance-none cursor-pointer">
+                        <select name="velocidade" class="w-full bg-[#080B12] border border-[#1F2B44] text-white rounded-xl px-4 py-3 text-sm focus:border-blue-500 focus:outline-none appearance-none cursor-pointer">
                             <option value="lento" {% if config.get('velocidade') == 'lento' %}selected{% endif %}>🐢 Lento (Muito Seguro, anti-ban)</option>
                             <option value="normal" {% if config.get('velocidade') == 'normal' %}selected{% endif %}>🚶‍♂️ Normal (Recomendado)</option>
                             <option value="rapido" {% if config.get('velocidade') == 'rapido' %}selected{% endif %}>🚀 Rápido (Agressivo)</option>
@@ -85,7 +85,7 @@
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Ocultar Navegador (Headless)</label>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" name="headless" value="True" class="sr-only peer" {% if config.get('headless', True) %}checked{% endif %}>
-                            <div class="w-11 h-6 bg-[#222733] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-white"></div>
+                            <div class="w-11 h-6 bg-[#1A2338] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                             <span class="ml-3 text-xs font-medium text-slate-300">Rodar Invisível (Mais rápido)</span>
                         </label>
                         <p class="text-[11px] text-slate-500 mt-2">No servidor na nuvem, deve permanecer ativado.</p>
@@ -94,7 +94,7 @@
             </div>
 
             <div class="pt-4">
-                <button type="submit" class="w-full bg-white hover:bg-slate-200 text-slate-950 font-black py-4 px-6 rounded-xl shadow-xl transition-all flex justify-center items-center gap-2 text-sm tracking-wide">
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 transition-all flex justify-center items-center gap-2 text-sm tracking-wide active:scale-[0.99]">
                     <i class="fa-solid fa-floppy-disk text-base"></i> SALVAR CONFIGURAÇÕES
                 </button>
             </div>

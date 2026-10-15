@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entrar &bull; GestãoLead PRO</title>
+    <title>Entrar &bull; GestãoLead PRO Enterprise</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Plus Jakarta Sans -->
@@ -14,40 +14,42 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #090a0f;
-            color: #f0f6fc;
+            background: radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.12) 0%, transparent 40%),
+                        radial-gradient(circle at 85% 90%, rgba(6, 182, 212, 0.08) 0%, transparent 35%),
+                        #080B11;
+            color: #F1F5F9;
         }
         .bg-subtle-grid {
-            background-size: 32px 32px;
+            background-size: 36px 36px;
             background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-subtle-grid antialiased">
 
     <div class="w-full max-w-md relative z-10">
-        <!-- Logo e Cabeçalho Superior Minimalista Preto -->
+        <!-- Logo e Cabeçalho Superior Executivo -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#12151c] border border-[#262c3a] shadow-2xl mb-4">
-                <i class="fa-solid fa-crosshairs text-2xl text-white"></i>
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 text-white shadow-xl shadow-blue-500/25 mb-4">
+                <i class="fa-solid fa-crosshairs text-2xl"></i>
             </div>
             <h1 class="text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-                Gestão<span class="text-slate-400">Lead</span>
-                <span class="text-[10px] tracking-widest uppercase font-black bg-white/10 text-white border border-white/20 px-2 py-0.5 rounded-md">PRO</span>
+                Gestão<span class="text-blue-400">Lead</span>
+                <span class="text-[9px] tracking-widest uppercase font-black bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-2 py-0.5 rounded-md">PRO</span>
             </h1>
-            <p class="text-slate-400 text-sm mt-2 font-medium">Terminal Comercial & Prospecção Ativa</p>
+            <p class="text-slate-400 text-xs mt-1.5 font-medium">Terminal Comercial & Inteligência de Prospecção</p>
         </div>
 
-        <!-- Card de Login Antigravity Dark -->
-        <div class="bg-[#12151c] border border-[#222733] rounded-2xl p-7 md:p-8 shadow-2xl">
+        <!-- Card de Login Executivo -->
+        <div class="bg-[#0E1524] border border-[#1E293B] rounded-3xl p-7 md:p-8 shadow-2xl">
             
             {% if erro %}
-            <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 text-sm">
-                <i class="fa-solid fa-circle-exclamation text-rose-400 text-base mt-0.5 shrink-0"></i>
+            <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 text-xs leading-relaxed">
+                <i class="fa-solid fa-circle-exclamation text-rose-400 text-sm mt-0.5 shrink-0"></i>
                 <div>
-                    <span class="font-bold block">Erro de autenticação</span>
+                    <span class="font-bold block text-rose-200">Acesso Recusado</span>
                     <span>{{ erro }}</span>
                 </div>
             </div>
@@ -60,11 +62,11 @@
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                            <i class="fa-solid fa-user text-sm"></i>
+                            <i class="fa-solid fa-user text-xs"></i>
                         </div>
                         <input type="text" id="username" name="username" required autofocus autocomplete="username"
                             placeholder="Digite seu usuário"
-                            class="w-full bg-[#090d14] border border-[#262c3a] rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 text-sm font-medium focus:ring-1 focus:ring-white focus:border-white focus:outline-none transition-all">
+                            class="w-full bg-[#080B12] border border-[#1F2B44] rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all">
                     </div>
                 </div>
 
@@ -76,13 +78,13 @@
                     </div>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                            <i class="fa-solid fa-lock text-sm"></i>
+                            <i class="fa-solid fa-lock text-xs"></i>
                         </div>
                         <input type="password" id="password" name="password" required autocomplete="current-password"
                             placeholder="••••••••••••"
-                            class="w-full bg-[#090d14] border border-[#262c3a] rounded-xl pl-10 pr-11 py-3 text-white placeholder-slate-500 text-sm font-medium focus:ring-1 focus:ring-white focus:border-white focus:outline-none transition-all">
+                            class="w-full bg-[#080B12] border border-[#1F2B44] rounded-xl pl-10 pr-11 py-3 text-white placeholder-slate-600 text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all">
                         <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-white transition-colors focus:outline-none" title="Exibir/Ocultar senha">
-                            <i id="eye-icon" class="fa-solid fa-eye text-sm"></i>
+                            <i id="eye-icon" class="fa-solid fa-eye text-xs"></i>
                         </button>
                     </div>
                 </div>
@@ -90,27 +92,27 @@
                 <div class="flex items-center justify-between pt-1">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
                         <input type="checkbox" name="remember" checked
-                            class="w-4 h-4 rounded bg-[#090d14] border-[#262c3a] text-white focus:ring-white cursor-pointer accent-white">
-                        <span class="text-xs font-medium text-slate-400">Lembrar neste navegador (60 dias)</span>
+                            class="w-4 h-4 rounded bg-[#080B12] border-[#1F2B44] text-blue-500 focus:ring-blue-500 cursor-pointer accent-blue-600">
+                        <span class="text-xs font-medium text-slate-400">Permanecer conectado (60 dias)</span>
                     </label>
                 </div>
 
                 <button type="submit" id="submit-btn"
-                    class="w-full mt-2 bg-white hover:bg-slate-200 text-slate-950 font-black py-3.5 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm tracking-wide">
-                    <i class="fa-solid fa-arrow-right-to-bracket text-base"></i>
+                    class="w-full mt-2 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-3.5 px-4 rounded-xl shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2 text-xs tracking-wider active:scale-[0.99]">
+                    <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>
                     <span>ENTRAR NO SISTEMA</span>
                 </button>
             </form>
 
-            <div class="mt-6 pt-5 border-t border-[#222733] flex items-center justify-center gap-2 text-xs text-slate-400">
-                <i class="fa-solid fa-shield-halved text-slate-300"></i>
-                <span>Acesso Seguro &bull; Sessão Ativa</span>
+            <div class="mt-6 pt-5 border-t border-[#1E293B] flex items-center justify-center gap-2 text-xs text-slate-400">
+                <i class="fa-solid fa-shield-halved text-cyan-400"></i>
+                <span>Acesso Seguro com Criptografia</span>
             </div>
         </div>
 
         <!-- Rodapé externo -->
-        <p class="text-center text-xs text-slate-500 mt-6 font-medium">
-            GestãoLead PRO &bull; Antigravity Architecture &copy; 2026
+        <p class="text-center text-xs text-slate-400 mt-6 font-medium">
+            GestãoLead Enterprise &bull; Direção Executiva &copy; 2026
         </p>
     </div>
 
@@ -134,7 +136,7 @@
         form.addEventListener('submit', () => {
             btn.disabled = true;
             btn.classList.add('opacity-70', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-base"></i><span>Autenticando...</span>';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-sm"></i><span>Autenticando...</span>';
         });
     </script>
 </body>

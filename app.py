@@ -531,7 +531,34 @@ def estatisticas():
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
     em_negociacao = sum(1 for l in leads if l.get("status") == "Em Negociação")
-    return render_template("estatisticas.html", total=total_leads, whats=com_whats, fechados=fechados, em_negociacao=em_negociacao, leads=leads)
+    contato_feito = sum(1 for l in leads if l.get("status") == "Contato Feito")
+    descartados = sum(1 for l in leads if l.get("status") == "Descartado")
+    novos = sum(1 for l in leads if l.get("status") in ("Novo", None, ""))
+    sem_site = sum(1 for l in leads if not possui_site_proprio(l.get("link_inicial")))
+    com_site = total_leads - sem_site
+    com_email = sum(1 for l in leads if l.get("email"))
+
+    taxa_sem_site = round((sem_site / total_leads * 100), 1) if total_leads > 0 else 0
+    taxa_whats = round((com_whats / total_leads * 100), 1) if total_leads > 0 else 0
+    taxa_fechamento = round((fechados / total_leads * 100), 1) if total_leads > 0 else 0
+
+    return render_template(
+        "estatisticas.html",
+        total=total_leads,
+        whats=com_whats,
+        fechados=fechados,
+        em_negociacao=em_negociacao,
+        contato_feito=contato_feito,
+        descartados=descartados,
+        novos=novos,
+        sem_site=sem_site,
+        com_site=com_site,
+        com_email=com_email,
+        taxa_sem_site=taxa_sem_site,
+        taxa_whats=taxa_whats,
+        taxa_fechamento=taxa_fechamento,
+        leads=leads,
+    )
 
 @app.route("/configuracoes", methods=["GET", "POST"])
 def configuracoes():

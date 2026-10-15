@@ -1,64 +1,208 @@
 {% extends "layout.html" %}
 {% set active_page = "estatisticas" %}
-{% block header_title %}Estatísticas & Performance{% endblock %}
+{% block header_title %}Performance & Inteligência de Mercado{% endblock %}
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- KPI Cards Dark Antigravity -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6 flex flex-col justify-between">
-        <div class="flex justify-between items-start mb-4">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Prospectado</span>
-            <div class="w-8 h-8 rounded-lg bg-[#161b26] border border-[#262c3a] flex items-center justify-center text-slate-300"><i class="fa-solid fa-users text-xs"></i></div>
+<div class="space-y-8 pb-12">
+    <!-- Topo Executivo do Dashboard -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] border border-[#1E293B] shadow-xl">
+        <div class="space-y-1">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                <span class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Terminal Analítico em Tempo Real</span>
+            </div>
+            <h1 class="text-2xl font-black text-white tracking-tight">Métricas de Prospecção & Conversão</h1>
+            <p class="text-xs text-slate-400">Visão consolidada da base comercial, oportunidades sem site e tração do funil.</p>
         </div>
-        <span class="text-4xl font-black text-white">{{ total }}</span>
-    </div>
-    
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6 flex flex-col justify-between">
-        <div class="flex justify-between items-start mb-4">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Leads c/ WhatsApp</span>
-            <div class="w-8 h-8 rounded-lg bg-[#161b26] border border-[#262c3a] flex items-center justify-center text-slate-300"><i class="fa-brands fa-whatsapp text-xs"></i></div>
+        <div class="flex items-center gap-3">
+            <div class="px-4 py-2 rounded-xl bg-[#131A2B] border border-[#1F2B44] text-right">
+                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Taxa de Oportunidade</span>
+                <span class="text-base font-black text-cyan-300">{{ taxa_sem_site }}% sem site</span>
+            </div>
+            <a href="/export/csv" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg shadow-blue-500/20 transition-all">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Exportar Dados
+            </a>
         </div>
-        <span class="text-4xl font-black text-white">{{ whats }}</span>
     </div>
-    
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6 flex flex-col justify-between">
-        <div class="flex justify-between items-start mb-4">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Em Negociação</span>
-            <div class="w-8 h-8 rounded-lg bg-[#161b26] border border-[#262c3a] flex items-center justify-center text-amber-400"><i class="fa-solid fa-handshake text-xs"></i></div>
-        </div>
-        <span class="text-4xl font-black text-amber-400">{{ em_negociacao }}</span>
-    </div>
-    
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6 flex flex-col justify-between">
-        <div class="flex justify-between items-start mb-4">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Vendas Fechadas</span>
-            <div class="w-8 h-8 rounded-lg bg-[#161b26] border border-[#262c3a] flex items-center justify-center text-white"><i class="fa-solid fa-trophy text-xs"></i></div>
-        </div>
-        <span class="text-4xl font-black text-white">{{ fechados }}</span>
-    </div>
-</div>
 
-<!-- Charts Area Dark -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <!-- Doughnut Chart: Nichos -->
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6">
-        <h3 class="text-sm font-bold text-white mb-6 flex items-center uppercase tracking-wider">
-            <i class="fa-solid fa-chart-pie text-slate-400 mr-2.5"></i> Distribuição por Nicho
-        </h3>
-        <div class="relative h-64 w-full flex justify-center">
-            <canvas id="chartNicho"></canvas>
+    <!-- 4 KPI Cards Executivos -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- KPI 1: Base Total -->
+        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Base Mapeada</span>
+                    <span class="text-3xl font-black text-white mt-1 block">{{ total }}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                    <i class="fa-solid fa-database text-sm"></i>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
+                <span class="text-slate-400">Ativos no funil</span>
+                <span class="font-bold text-slate-200">{{ total - descartados }} empresas</span>
+            </div>
+            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- KPI 2: Alvo Puro Sem Site -->
+        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Alvos Sem Site</span>
+                    <span class="text-3xl font-black text-cyan-300 mt-1 block">{{ sem_site }}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                    <i class="fa-solid fa-bullseye text-sm"></i>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
+                <span class="text-slate-400">Penetração de Oportunidade</span>
+                <span class="font-bold text-cyan-400">{{ taxa_sem_site }}% da base</span>
+            </div>
+            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
+                <div class="bg-cyan-400 h-full rounded-full" style="width: {{ taxa_sem_site }}%"></div>
+            </div>
+        </div>
+
+        <!-- KPI 3: Contato Imediato WhatsApp -->
+        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Canais c/ WhatsApp</span>
+                    <span class="text-3xl font-black text-white mt-1 block">{{ whats }}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                    <i class="fa-solid fa-comment-dots text-sm"></i>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
+                <span class="text-slate-400">Eficiência de Contato</span>
+                <span class="font-bold text-blue-300">{{ taxa_whats }}% elegíveis</span>
+            </div>
+            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full" style="width: {{ taxa_whats }}%"></div>
+            </div>
+        </div>
+
+        <!-- KPI 4: Conversão em Negociação & Fechamento -->
+        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Negociações & Fechados</span>
+                    <span class="text-3xl font-black text-white mt-1 block">{{ em_negociacao + fechados }}</span>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-cyan-300 shrink-0">
+                    <i class="fa-solid fa-handshake-simple text-sm"></i>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
+                <span class="text-slate-400">Fechados Definidos</span>
+                <span class="font-bold text-cyan-300">{{ fechados }} contratos</span>
+            </div>
+            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full" style="width: {{ taxa_fechamento }}%"></div>
+            </div>
         </div>
     </div>
-    
-    <!-- Bar Chart: Funil -->
-    <div class="bg-[#12151c] rounded-2xl shadow-xl border border-[#222733] p-6">
-        <h3 class="text-sm font-bold text-white mb-6 flex items-center uppercase tracking-wider">
-            <i class="fa-solid fa-filter text-slate-400 mr-2.5"></i> Funil de Vendas
-        </h3>
-        <div class="relative h-64 w-full">
-            <canvas id="chartFunil"></canvas>
+
+    <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Gráfico 1: Funil de Conversão Comercial -->
+        <div class="p-6 rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-filter-circle-dollar text-cyan-400"></i> Funil Comercial & Pipeline
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Evolução dos leads ao longo das etapas de abordagem e fechamento.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-cyan-300 border border-blue-500/20 text-[10px] font-bold">Volume Ativo</span>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="chartFunil"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Penetração de Mercado por Segmento -->
+        <div class="p-6 rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-cyan-400"></i> Penetração por Segmento / Nicho
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Participação percentual de cada mercado prospectado na base.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-cyan-300 border border-blue-500/20 text-[10px] font-bold">Top Nichos</span>
+            </div>
+            <div class="relative h-72 w-full flex items-center justify-center">
+                <canvas id="chartNicho"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico 3: Matriz de Qualidade de Leads -->
+        <div class="p-6 rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-cyan-400"></i> Matriz de Qualidade de Leads
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Comparativo de viabilidade técnica: Sem Site vs WhatsApp vs E-mail.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-cyan-300 border border-blue-500/20 text-[10px] font-bold">Audit Pro</span>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="chartQualidade"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico 4: Concentração Regional -->
+        <div class="p-6 rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-location-crosshairs text-cyan-400"></i> Densidade Regional / Bairros
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Concentração geográfica de empresas prospectadas por localidade.</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-cyan-300 border border-blue-500/20 text-[10px] font-bold">Geolocalização</span>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="chartRegiao"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Inteligência Comercial por Nicho -->
+    <div class="p-6 rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-cyan-400"></i> Resumo de Eficiência por Segmento
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Visão analítica dos segmentos com maior concentração de oportunidade sem site.</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-[#1E293B] text-slate-400 uppercase tracking-wider text-[10px]">
+                        <th class="py-3 px-4 font-bold">Segmento / Nicho</th>
+                        <th class="py-3 px-4 font-bold text-center">Volume Total</th>
+                        <th class="py-3 px-4 font-bold text-center">Sem Site (Alvos)</th>
+                        <th class="py-3 px-4 font-bold text-center">Taxa de Oportunidade</th>
+                        <th class="py-3 px-4 font-bold text-center">Com WhatsApp</th>
+                        <th class="py-3 px-4 font-bold text-right">Potencial Comercial</th>
+                    </tr>
+                </thead>
+                <tbody id="table-intelligence-body" class="divide-y divide-[#1E293B] text-slate-300">
+                    <!-- Gerado dinamicamente via JS -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -67,65 +211,85 @@
 {% block scripts %}
 <script>
     const leadsData = {{ leads | tojson | safe }};
-    
+
+    // Agregações de Dados
     const nichoCounts = {};
+    const nichoSemSiteCounts = {};
+    const nichoWhatsCounts = {};
+    const regiaoCounts = {};
     const statusCounts = {'Novo': 0, 'Contato Feito': 0, 'Em Negociação': 0, 'Fechado': 0, 'Descartado': 0};
-    
+
+    let semSiteTotal = 0;
+    let whatsTotal = 0;
+    let emailTotal = 0;
+
     leadsData.forEach(lead => {
-        let n = lead.nicho || 'Outros';
+        // Nicho
+        let n = (lead.nicho || 'Geral').trim();
         n = n.charAt(0).toUpperCase() + n.slice(1);
         nichoCounts[n] = (nichoCounts[n] || 0) + 1;
-        
+
+        // Sem site
+        let link = (lead.link_inicial || '').toLowerCase();
+        let temSite = link.includes('http') && !link.includes('instagram.com') && !link.includes('facebook.com') && !link.includes('wa.me') && !link.includes('whatsapp.com');
+        if (!temSite) {
+            semSiteTotal++;
+            nichoSemSiteCounts[n] = (nichoSemSiteCounts[n] || 0) + 1;
+        }
+
+        // WhatsApp
+        if (lead.whatsapp_link) {
+            whatsTotal++;
+            nichoWhatsCounts[n] = (nichoWhatsCounts[n] || 0) + 1;
+        }
+
+        // Email
+        if (lead.email) {
+            emailTotal++;
+        }
+
+        // Região / Bairro
+        let b = (lead.bairro || 'Não informado').split(',')[0].split('-')[0].trim();
+        if (b && b.length > 2) {
+            regiaoCounts[b] = (regiaoCounts[b] || 0) + 1;
+        }
+
+        // Status
         let s = lead.status || 'Novo';
-        if(statusCounts[s] !== undefined) {
+        if (statusCounts[s] !== undefined) {
             statusCounts[s]++;
         } else {
             statusCounts['Novo']++;
         }
     });
 
-    const ctxNicho = document.getElementById('chartNicho').getContext('2d');
-    new Chart(ctxNicho, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(nichoCounts),
-            datasets: [{
-                data: Object.values(nichoCounts),
-                backgroundColor: ['#FFFFFF', '#94A3B8', '#64748B', '#475569', '#334155', '#1E293B', '#CBD5E1'],
-                borderColor: '#12151c',
-                borderWidth: 2,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: {
-                legend: { 
-                    position: 'right', 
-                    labels: { 
-                        color: '#94A3B8',
-                        usePointStyle: true, 
-                        boxWidth: 8,
-                        font: { family: 'Plus Jakarta Sans', size: 11 }
-                    } 
-                }
-            }
-        }
-    });
+    // Paleta Executiva Sapphire & Cyan
+    const sapphirePalette = ['#3B82F6', '#06B6D4', '#2563EB', '#38BDF8', '#1D4ED8', '#60A5FA', '#0284C7', '#475569'];
 
+    // 1. Gráfico Funil
     const ctxFunil = document.getElementById('chartFunil').getContext('2d');
     new Chart(ctxFunil, {
         type: 'bar',
         data: {
-            labels: ['Novo', 'Contato Feito', 'Em Negociação', 'Fechado', 'Descartado'],
+            labels: ['Novos Alvos', 'Contato Feito', 'Em Negociação', 'Fechados', 'Descartados'],
             datasets: [{
                 label: 'Leads',
-                data: [statusCounts['Novo'], statusCounts['Contato Feito'], statusCounts['Em Negociação'], statusCounts['Fechado'], statusCounts['Descartado']],
-                backgroundColor: ['#334155', '#64748B', '#F59E0B', '#FFFFFF', '#EF4444'],
-                borderRadius: 6,
-                barPercentage: 0.6
+                data: [
+                    statusCounts['Novo'],
+                    statusCounts['Contato Feito'],
+                    statusCounts['Em Negociação'],
+                    statusCounts['Fechado'],
+                    statusCounts['Descartado']
+                ],
+                backgroundColor: [
+                    '#2563EB',
+                    '#3B82F6',
+                    '#06B6D4',
+                    '#38BDF8',
+                    '#F43F5E'
+                ],
+                borderRadius: 8,
+                barPercentage: 0.65
             }]
         },
         options: {
@@ -133,20 +297,209 @@
             maintainAspectRatio: false,
             indexAxis: 'y',
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0F1524',
+                    borderColor: '#1E293B',
+                    borderWidth: 1,
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#94A3B8',
+                    padding: 10,
+                    cornerRadius: 8
+                }
             },
             scales: {
-                x: { 
-                    beginAtZero: true, 
-                    grid: { color: '#1E293B' },
-                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                x: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(30, 41, 59, 0.4)' },
+                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
                 },
-                y: { 
+                y: {
                     grid: { display: false },
-                    ticks: { color: '#CBD5E1', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
                 }
             }
         }
+    });
+
+    // 2. Gráfico Donut de Nichos
+    const sortedNichos = Object.entries(nichoCounts).sort((a, b) => b[1] - a[1]);
+    const topNichos = sortedNichos.slice(0, 6);
+    const outrosNichoCount = sortedNichos.slice(6).reduce((acc, curr) => acc + curr[1], 0);
+
+    const labelsNicho = topNichos.map(n => n[0]);
+    const dataNicho = topNichos.map(n => n[1]);
+    if (outrosNichoCount > 0) {
+        labelsNicho.push('Outros');
+        dataNicho.push(outrosNichoCount);
+    }
+
+    const ctxNicho = document.getElementById('chartNicho').getContext('2d');
+    new Chart(ctxNicho, {
+        type: 'doughnut',
+        data: {
+            labels: labelsNicho,
+            datasets: [{
+                data: dataNicho,
+                backgroundColor: sapphirePalette.slice(0, labelsNicho.length),
+                borderColor: '#0E1422',
+                borderWidth: 3,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '72%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: '#CBD5E1',
+                        usePointStyle: true,
+                        boxWidth: 8,
+                        padding: 12,
+                        font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0F1524',
+                    borderColor: '#1E293B',
+                    borderWidth: 1,
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#94A3B8',
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            }
+        }
+    });
+
+    // 3. Gráfico Matriz de Qualidade
+    const ctxQualidade = document.getElementById('chartQualidade').getContext('2d');
+    new Chart(ctxQualidade, {
+        type: 'bar',
+        data: {
+            labels: ['Sem Site (Oportunidade)', 'Com Site Detectado', 'WhatsApp Válido', 'E-mail Identificado'],
+            datasets: [{
+                label: 'Total de Empresas',
+                data: [
+                    semSiteTotal,
+                    leadsData.length - semSiteTotal,
+                    whatsTotal,
+                    emailTotal
+                ],
+                backgroundColor: [
+                    '#06B6D4',
+                    '#334155',
+                    '#3B82F6',
+                    '#6366F1'
+                ],
+                borderRadius: 8,
+                barPercentage: 0.55
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0F1524',
+                    borderColor: '#1E293B',
+                    borderWidth: 1,
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#94A3B8',
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(30, 41, 59, 0.4)' },
+                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                }
+            }
+        }
+    });
+
+    // 4. Gráfico de Concentração Regional
+    const sortedRegioes = Object.entries(regiaoCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const ctxRegiao = document.getElementById('chartRegiao').getContext('2d');
+    new Chart(ctxRegiao, {
+        type: 'bar',
+        data: {
+            labels: sortedRegioes.map(r => r[0]),
+            datasets: [{
+                label: 'Empresas',
+                data: sortedRegioes.map(r => r[1]),
+                backgroundColor: '#2563EB',
+                borderRadius: 8,
+                barPercentage: 0.55
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0F1524',
+                    borderColor: '#1E293B',
+                    borderWidth: 1,
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#94A3B8',
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(30, 41, 59, 0.4)' },
+                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 10, weight: 'bold' } }
+                }
+            }
+        }
+    });
+
+    // 5. Montagem da Tabela de Inteligência por Nicho
+    const tbody = document.getElementById('table-intelligence-body');
+    sortedNichos.slice(0, 8).forEach(([nicho, vol]) => {
+        let sem = nichoSemSiteCounts[nicho] || 0;
+        let w = nichoWhatsCounts[nicho] || 0;
+        let pct = vol > 0 ? ((sem / vol) * 100).toFixed(0) : 0;
+        let potencial = sem >= 5 ? 'Alto Retorno' : (sem >= 2 ? 'Médio' : 'Estratégico');
+        let badgeColor = sem >= 5 ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' : 'bg-blue-500/15 text-blue-300 border-blue-500/30';
+
+        let tr = document.createElement('tr');
+        tr.className = 'hover:bg-[#131A2B] transition-colors';
+        tr.innerHTML = `
+            <td class="py-3.5 px-4 font-bold text-white">${nicho}</td>
+            <td class="py-3.5 px-4 text-center font-bold text-slate-300">${vol}</td>
+            <td class="py-3.5 px-4 text-center font-bold text-cyan-400">${sem}</td>
+            <td class="py-3.5 px-4 text-center">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black ${pct > 60 ? 'bg-cyan-500/20 text-cyan-300' : 'bg-slate-700/50 text-slate-300'}">
+                    ${pct}%
+                </span>
+            </td>
+            <td class="py-3.5 px-4 text-center font-bold text-blue-300">${w}</td>
+            <td class="py-3.5 px-4 text-right">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-lg border text-[10px] font-black ${badgeColor}">
+                    ${potencial}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(tr);
     });
 </script>
 {% endblock %}
