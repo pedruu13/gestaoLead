@@ -216,7 +216,14 @@ def mensagem_parece_personalizada(mensagem, nome_empresa):
     menciona_site = "site" in mensagem.casefold() or "website" in mensagem.casefold()
     return menciona_marca and menciona_site
 
-def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
+def adicionar_triagem_responsavel(mensagem, is_intl=False):
+    if is_intl:
+        abertura = "Hi! Could you please confirm whether this is the contact for the person responsible for marketing or commercial decisions? If this number is used for appointments or reception, could you kindly forward this message to the right person?"
+    else:
+        abertura = "Olá! Este contato é da pessoa responsável pelo comercial ou marketing? Se este número for de agendamento ou recepção, poderia encaminhar esta mensagem para quem cuida dessa área, por favor?"
+    return f"{abertura}\n\n{mensagem}"
+
+def obter_copy_contingencia(dados_lead, vendedor, motivo="", is_intl=False):
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
     nicho = " ".join([
         dados_lead.get('Categoria Maps', ''),
@@ -268,6 +275,7 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo=""):
         msg = msg.replace(
             " Posso", " A sugestão é para um site pensado para esse atendimento. Posso", 1
         )
+    msg = adicionar_triagem_responsavel(msg, is_intl)
 
     aviso_motivo = f" [Alerta: {motivo}]" if motivo else ""
     return {
@@ -287,7 +295,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get('gemini_api_key', '').strip()
     
     if not api_key:
-        return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada")
+        return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada", is_intl=is_intl)
         
     try:
         genai.configure(api_key=api_key)
@@ -328,13 +336,16 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
    - Gastronomia/Comércio: Praticidade mobile, cardápio rápido e pedidos/reservas.
 3. ESTILO DE REDAÇÃO:
    - Tom natural, humano, direto e profissional.
-   - Tamanho ideal para WhatsApp: entre 350 e 700 caracteres.
+   - A parte comercial deve ter entre 220 e 480 caracteres, pois uma abertura de triagem será incluída pelo sistema.
    - NUNCA use clichês como: "próximo nível", "potencialize sua presença", "transforme sua presença", "solução personalizada", "alavanque resultados".
    - CTA (Chamada de Ação) de baixíssima fricção no final: "Posso te mandar uma imagem para você ver?", "Quer que eu te envie para dar uma olhada?", "Posso te mostrar o que preparei?".
    - Nunca pergunte "vamos marcar reunião" ou "posso enviar proposta comercial". O objetivo é apenas conseguir a permissão para mostrar a demonstração.
     - Diga explicitamente que a sugestão é de um SITE. A palavra "site" deve aparecer naturalmente na mensagem; não use apenas "página", "presença digital" ou "layout" de forma vaga.
     - Se o Nicho de Busca contrariar a Categoria Real ou o conteúdo do Site, use a Categoria Real e o conteúdo do Site. Nunca escreva uma abordagem de estética para uma empresa jurídica, por exemplo.
     - Cite apenas um detalhe que esteja nos dados reais acima. Se não houver detalhe confiável, use uma abordagem neutra do segmento, sem inventar serviços.
+4. CONTATO DE RECEPÇÃO/AGENDAMENTO:
+   - O número do Google Maps pode ser de recepção, agendamento ou atendimento. Não assuma que a pessoa é dona da empresa.
+   - Escreva apenas a parte comercial da mensagem. O sistema adicionará antes uma pergunta educada pedindo o responsável por marketing/comercial e solicitando encaminhamento caso seja recepção ou agendamento.
 
 ### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 Retorne estritamente um objeto JSON com as chaves:
@@ -370,7 +381,7 @@ Retorne estritamente um objeto JSON com as chaves:
                 continue
 
         if not resposta_bruta:
-            return obter_copy_contingencia(dados_lead, vendedor, motivo="Modelos Gemini atingiram limite de quota diária (429)")
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Modelos Gemini atingiram limite de quota diária (429)", is_intl=is_intl)
 
         resposta_bruta = re.sub(r"^```(?:json)?\s*|\s*```$", "", resposta_bruta.strip(), flags=re.IGNORECASE)
         parsed = json.loads(resposta_bruta)
@@ -379,7 +390,8 @@ Retorne estritamente um objeto JSON com as chaves:
         estrategia = parsed.get("estrategia", "").strip()
         
         if not mensagem_parece_personalizada(mensagem, nome_curto):
-            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta da IA sem personalização suficiente")
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta da IA sem personalização suficiente", is_intl=is_intl)
+        mensagem = adicionar_triagem_responsavel(mensagem, is_intl)
 
         return {
             'analise': f"DIAGNÓSTICO:\n{diagnostico}" if diagnostico else "Análise concluída via IA.",
@@ -390,7 +402,7 @@ Retorne estritamente um objeto JSON com as chaves:
         
     except Exception as e:
         print(f'[WORKER] Erro AI: {e}')
-        return obter_copy_contingencia(dados_lead, vendedor, motivo=f"Erro na execução da IA: {e}")
+        return obter_copy_contingencia(dados_lead, vendedor, motivo=f"Erro na execução da IA: {e}", is_intl=is_intl)
 
 
 
