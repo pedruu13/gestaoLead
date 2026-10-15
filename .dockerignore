@@ -1,0 +1,15 @@
+.git
+.env
+config.json
+*.db
+*.sqlite3
+__pycache__/
+*.py[cod]
+check_*.py
+test_*.py
+fix_*.py
+regen*.py
+patch*.py
+patch*.txt
+update_*.py
+README.md

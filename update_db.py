@@ -1,7 +1,7 @@
 ﻿import sqlite3
 
 def update():
-    conn = sqlite3.connect('leads.db')
+    conn = sqlite3.connect('gestao_leads.db')
     c = conn.cursor()
     columns_to_add = [
         ('copy_texto', 'TEXT'),

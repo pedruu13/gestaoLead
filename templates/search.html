@@ -3,9 +3,19 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto pb-12">
-    <div class="mb-8">
-        <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Encontrar Novos Leads</h1>
-        <p class="text-slate-500 mt-2">Configure os parâmetros da IA para acionar os motores de busca e encontrar os melhores clientes.</p>
+    <div class="mb-8 rounded-3xl bg-slate-950 text-white overflow-hidden relative shadow-2xl shadow-slate-900/20">
+        <div class="absolute inset-0 opacity-40" style="background-image: radial-gradient(circle at 85% 20%, #f59e0b 0, transparent 25%), radial-gradient(circle at 10% 100%, #0ea5e9 0, transparent 32%);"></div>
+        <div class="relative p-7 md:p-9 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <div>
+                <p class="text-amber-300 text-xs font-black uppercase tracking-[0.22em] mb-3"><i class="fa-solid fa-radar mr-2"></i>Modo Caçador</p>
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight">Encontre empresas que<br>precisam de um site.</h1>
+                <p class="text-slate-300 mt-3 max-w-xl">Pesquise, elimine quem já tem site próprio e deixe na base apenas oportunidades reais de abordagem.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 min-w-[250px]">
+                <div class="bg-white/10 border border-white/15 rounded-2xl p-3 backdrop-blur"><span class="block text-amber-300 text-lg font-black">SEM SITE</span><span class="text-[11px] text-slate-300 font-semibold">filtro padrão</span></div>
+                <div class="bg-white/10 border border-white/15 rounded-2xl p-3 backdrop-blur"><span class="block text-sky-300 text-lg font-black">IA SDR</span><span class="text-[11px] text-slate-300 font-semibold">copy por segmento</span></div>
+            </div>
+        </div>
     </div>
 
     <div class="space-y-6">
@@ -73,11 +83,11 @@
                 <!-- Target Filter -->
                 <div class="md:col-span-2 mt-2">
                     <div class="flex items-center group bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
-                        <input type="checkbox" id="strict_no_socials" class="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer">
+                        <input type="checkbox" id="strict_no_socials" checked class="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500 cursor-pointer">
                         <label class="ml-3 text-sm text-indigo-900 font-bold cursor-pointer" for="strict_no_socials">
-                            Filtrar somente empresas sem site
+                            Excluir empresas com site próprio
                             <span class="block font-normal text-xs text-indigo-700 mt-1 opacity-80">
-                                Quando ativado, empresas com site próprio serão descartadas.
+                                Recomendado: o robô descarta qualquer empresa cujo site esteja visível no Google Maps. Instagram, Facebook e diretórios continuam permitidos.
                             </span>
                         </label>
                     </div>
@@ -106,8 +116,8 @@
                 </label>
             </div>
             
-            <button id="btn_search" class="w-full gradient-btn text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-indigo-500/30 transition-all flex justify-center items-center text-lg hover:-translate-y-1">
-                <i class="fa-solid fa-rocket mr-3"></i> INICIAR EXTRAÇÃO DE LEADS
+            <button id="btn_search" class="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-4 px-6 rounded-xl shadow-lg shadow-amber-500/30 transition-all flex justify-center items-center text-lg hover:-translate-y-1">
+                <i class="fa-solid fa-crosshairs mr-3"></i> CAÇAR LEADS SEM SITE
             </button>
         </div>
         
@@ -136,9 +146,9 @@
     // Campos de preferências
     const inputs = ['nichos', 'bairros', 'min_nota', 'req_whatsapp', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
 
-    if (localStorage.getItem('search_preferences_version') !== '2') {
-        localStorage.setItem('pref_strict_no_socials', 'false');
-        localStorage.setItem('search_preferences_version', '2');
+    if (localStorage.getItem('search_preferences_version') !== '3') {
+        localStorage.setItem('pref_strict_no_socials', 'true');
+        localStorage.setItem('search_preferences_version', '3');
     }
 
     function escapeHtml(value) {
@@ -191,7 +201,7 @@
     function setRunningState() {
         btn.disabled = true;
         btn.classList.add('opacity-70', 'cursor-not-allowed');
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> EXTRAINDO...';
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> CAÇANDO LEADS...';
         panel.classList.remove('hidden');
     }
 
@@ -214,7 +224,7 @@
                     panel.classList.add('hidden');
                     btn.disabled = false;
                     btn.classList.remove('opacity-70', 'cursor-not-allowed');
-                    btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> INICIAR EXTRAÇÃO DE LEADS';
+                    btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i> CAÇAR LEADS SEM SITE';
                 }
             }
         } catch (err) {
@@ -269,13 +279,13 @@
                 log.innerHTML = "<span class='text-red-400'>Falha ao iniciar: " + data.error + "</span>";
                 btn.disabled = false;
                 btn.classList.remove('opacity-70', 'cursor-not-allowed');
-                btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> TENTAR NOVAMENTE';
+                btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i> TENTAR NOVAMENTE';
             }
         } catch (e) {
             log.innerHTML = "<span class='text-red-400'>Erro de conexão com o servidor.</span>";
             btn.disabled = false;
             btn.classList.remove('opacity-70', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-rocket mr-3"></i> TENTAR NOVAMENTE';
+            btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i> TENTAR NOVAMENTE';
         }
     });
     async function sugerirAlvosIA() {

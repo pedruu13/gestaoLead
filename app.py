@@ -6,9 +6,12 @@ import re
 import urllib.parse
 import sqlite3
 import multiprocessing
+import hmac
+import threading
 import psutil
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response
+from markupsafe import escape
 import google.generativeai as genai
 
 # NOTA: sync_playwright ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© importado DENTRO de extrator_worker para evitar
@@ -20,12 +23,6 @@ from dotenv import load_dotenv
 
 # Carrega ou cria .env para variÃƒÆ’Ã‚Â¡veis de ambiente seguras
 env_path = os.path.join(os.path.dirname(__file__), '.env')
-if not os.path.exists(env_path):
-    import secrets
-    with open(env_path, "w") as f:
-        f.write(f"FLASK_SECRET_KEY={secrets.token_hex(24)}\n")
-        f.write("APP_USER=admin\n")
-        f.write("APP_PASS=123456\n") # Mude a senha no arquivo .env
 load_dotenv(env_path)
 
 app = Flask(__name__)
@@ -45,7 +42,16 @@ def save_config(data):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
+def config_publica(config):
+    config_segura = dict(config)
+    config_segura["gemini_configurada"] = bool(
+        os.environ.get("GEMINI_API_KEY") or config_segura.get("gemini_api_key")
+    )
+    config_segura.pop("gemini_api_key", None)
+    return config_segura
+
 STATUS_FILE = "search_status.json"
+SEARCH_LOCK = threading.Lock()
 
 def atualizar_status(dados):
     try:
@@ -84,6 +90,8 @@ def init_db():
         except: pass
     conn.commit()
     conn.close()
+
+init_db()
 
 def load_leads():
     conn = sqlite3.connect(DB_NAME)
@@ -272,7 +280,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
     vendedor = config.get('vendedor_nome', '').strip() or 'aqui'
-    api_key = config.get('gemini_api_key', '').strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get('gemini_api_key', '').strip()
     
     if not api_key:
         return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada")
@@ -412,13 +420,15 @@ def extrair_avaliacoes(page):
     return nota, qtd
 
 def check_auth(username, password):
-    valid_user = os.environ.get("APP_USER", "admin")
-    valid_pass = os.environ.get("APP_PASS", "123456")
-    return username == valid_user and password == valid_pass
+    valid_user = os.environ.get("APP_USER", "")
+    valid_pass = os.environ.get("APP_PASS", "")
+    return bool(valid_user and valid_pass and username and password) and (
+        hmac.compare_digest(username, valid_user) and hmac.compare_digest(password, valid_pass)
+    )
 
 def authenticate():
     return Response(
-        "Login necessario para acessar o CRM.\nUse admin e 123456 se nao tiver alterado as credenciais.", 401,
+        "Autenticação necessária.", 401,
         {"WWW-Authenticate": 'Basic realm="GestaoLead Login"'})
 
 @app.before_request
@@ -427,6 +437,20 @@ def require_login():
     auth = request.authorization
     if not auth or not check_auth(auth.username, auth.password):
         return authenticate()
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        origin = request.headers.get("Origin")
+        if origin and urllib.parse.urlparse(origin).netloc != request.host:
+            return jsonify({"success": False, "error": "Origem da requisição não permitida"}), 403
+
+@app.after_request
+def aplicar_cabecalhos_seguranca(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.headers.get("X-Forwarded-Proto") == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 @app.route("/")
 def index():
@@ -436,13 +460,14 @@ def index():
 def crm():
     todos = load_leads()
     ativos = [l for l in todos if l.get("status") != "Descartado"]
-    return render_template("crm.html", leads=ativos, is_descartados=False)
+    leads_com_site = sum(1 for lead in ativos if possui_site_proprio(lead.get("link_inicial")))
+    return render_template("crm.html", leads=ativos, leads_com_site=leads_com_site, is_descartados=False)
 
 @app.route("/crm/descartados")
 def crm_descartados():
     todos = load_leads()
     descartados = [l for l in todos if l.get("status") == "Descartado"]
-    return render_template("crm.html", leads=descartados, is_descartados=True)
+    return render_template("crm.html", leads=descartados, leads_com_site=0, is_descartados=True)
 
 @app.route("/estatisticas")
 def estatisticas():
@@ -456,11 +481,16 @@ def estatisticas():
 @app.route("/configuracoes", methods=["GET", "POST"])
 def configuracoes():
     if request.method == "POST":
-        data = request.form.to_dict()
-        data["headless"] = "headless" in data
+        data = load_config()
+        nova_configuracao = request.form.to_dict()
+        api_key = nova_configuracao.pop("gemini_api_key", "").strip()
+        data.update(nova_configuracao)
+        if api_key:
+            data["gemini_api_key"] = api_key
+        data["headless"] = "headless" in nova_configuracao
         save_config(data)
-        return render_template("configuracoes.html", config=data, success=True)
-    return render_template("configuracoes.html", config=load_config(), success=False)
+        return render_template("configuracoes.html", config=config_publica(data), success=True)
+    return render_template("configuracoes.html", config=config_publica(load_config()), success=False)
 
 @app.route("/api/update_status", methods=["POST"])
 def update_status():
@@ -497,15 +527,25 @@ def dossie(place_id):
     lead = c.fetchone()
     conn.close()
     if not lead: return "Lead nao encontrado", 404
-    instagram_link = f"<a href='{lead['instagram']}' class='text-blue-500 underline' target='_blank'>Acessar Perfil</a>" if lead["instagram"] else "<span class='text-orange-500'>Nao localizado</span>"
-    linkedin_link = f"<a href='{lead['linkedin']}' class='text-blue-500 underline' target='_blank'>Acessar Perfil</a>" if lead["linkedin"] else "Nao localizado"
-    site_link = f"<a href='{lead['link_inicial']}' class='text-blue-500 underline' target='_blank'>Visualizar</a>" if lead["link_inicial"] else "<span class='text-red-500 font-bold'>Nenhum link cadastrado no Google!</span>"
+    lead_original = dict(lead)
+    instagram_url = extrair_destino_externo(lead_original.get("instagram"))
+    linkedin_url = extrair_destino_externo(lead_original.get("linkedin"))
+    site_url = extrair_destino_externo(lead_original.get("link_inicial"))
+    lead = {campo: texto_html_seguro(valor) for campo, valor in lead_original.items()}
+    instagram_link = f"<a href='{texto_html_seguro(instagram_url)}' class='text-blue-500 underline' target='_blank' rel='noopener noreferrer'>Acessar Perfil</a>" if instagram_url else "<span class='text-orange-500'>Nao localizado</span>"
+    linkedin_link = f"<a href='{texto_html_seguro(linkedin_url)}' class='text-blue-500 underline' target='_blank' rel='noopener noreferrer'>Acessar Perfil</a>" if linkedin_url else "Nao localizado"
+    site_link = f"<a href='{texto_html_seguro(site_url)}' class='text-blue-500 underline' target='_blank' rel='noopener noreferrer'>Visualizar</a>" if site_url else "<span class='text-red-500 font-bold'>Nenhum link cadastrado no Google!</span>"
     email_info = lead["email"] or "<span class='text-red-500 font-bold'>Vazamento: Nenhum e-mail de contato encontrado.</span>"
     
     analise_ia = lead['analise_ia'] if 'analise_ia' in lead.keys() and lead['analise_ia'] else 'N/A'
     estrategia_ia = lead['estrategia_ia'] if 'estrategia_ia' in lead.keys() and lead['estrategia_ia'] else 'N/A'
     copy_texto = lead['copy_texto'] if 'copy_texto' in lead.keys() and lead['copy_texto'] else 'N/A'
     
+    diagnostico_site = (
+        "A empresa já possui um site cadastrado no Google. A oportunidade é melhorar como ele apresenta serviços e converte visitas em contatos."
+        if possui_site_proprio(lead_original.get("link_inicial"))
+        else "A empresa ainda não possui um site institucional próprio cadastrado no Google, o que pode dificultar a conversão de pessoas que já a encontram online."
+    )
     html = f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Auditoria Digital - {lead['nome']}</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-50 text-slate-800 font-sans p-8">
     <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl border-t-8 border-red-500">
@@ -530,7 +570,7 @@ def dossie(place_id):
         </div>
     </div>
     
-    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8"><h3 class="text-xl font-bold text-red-700 mb-3">Ponto Critico de Conversao Identificado</h3><p class="mb-3">Constatamos que a <strong>{lead['nome']}</strong> atualmente <strong>nao possui um site institucional oficial e profissional</strong>.</p><p>Mesmo possuindo {lead['avaliacoes']} avaliacoes no Google, isso gera um vazamento invisivel de clientes.</p></div>
+    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8"><h3 class="text-xl font-bold text-red-700 mb-3">Ponto Critico de Conversao Identificado</h3><p class="mb-3">{texto_html_seguro(diagnostico_site)}</p><p>Mesmo possuindo {lead['avaliacoes']} avaliacoes no Google, vale reduzir o atrito entre a busca e o contato comercial.</p></div>
     <div class="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-xl"><h3 class="text-xl font-bold text-blue-800 mb-3">Recomendacao Tecnica Imediata</h3><p>Criacao de uma <strong>Pagina de Alta Conversao (Landing Page)</strong> focada em transmitir confianca e direcionar contatos para o WhatsApp.</p></div>
     <p class="text-center text-xs text-slate-400 mt-12">Relatorio Confidencial gerado via GestaoLead PRO Automation.</p></div></body></html>"""
     return html
@@ -559,6 +599,23 @@ def is_social_or_directory(url):
     url = url.lower()
     domains = ["facebook.com", "instagram.com", "linkedin.com", "linktr.ee", "wa.me", "api.whatsapp", "yelp.", "tripadvisor.", "yellowpages.", "foursquare."]
     return any(d in url for d in domains)
+
+def extrair_destino_externo(url):
+    if not url:
+        return ""
+    url = str(url).strip()
+    parsed = urllib.parse.urlparse(url)
+    if parsed.netloc.endswith("google.com"):
+        params = urllib.parse.parse_qs(parsed.query)
+        url = params.get("url", params.get("q", [url]))[0]
+    return url if url.startswith(("http://", "https://")) else ""
+
+def possui_site_proprio(url):
+    destino = extrair_destino_externo(url)
+    return bool(destino and not is_social_or_directory(destino))
+
+def texto_html_seguro(valor):
+    return str(escape(valor or ""))
 
 def cacar_dados_profundos(context, url, nome="", bairro=""):
     dados = {
@@ -741,16 +798,17 @@ def extrator_worker(data, config, queue):
                             
                             link_el = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']")
                             link_encontrado = link_el.first.get_attribute("href") if link_el.count() > 0 else ""
+                            link_encontrado = extrair_destino_externo(link_encontrado)
                             if not link_encontrado:
                                 # Fallback robusto via regex de atributo aria-label e links externos
                                 fallback = page.locator("a[aria-label*='ebsite'], a[aria-label*='site'], a[href^='http']").all()
                                 for f in fallback:
-                                    hf = f.get_attribute("href")
-                                    if hf and "google.com" not in hf:
+                                    hf = extrair_destino_externo(f.get_attribute("href"))
+                                    if hf:
                                         link_encontrado = hf
                                         break
                                         
-                            is_real_website = link_encontrado and not is_social_or_directory(link_encontrado)
+                            is_real_website = possui_site_proprio(link_encontrado)
                             if data.get("strict_no_socials") and is_real_website:
                                 stats["com_site"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo.")
@@ -872,15 +930,16 @@ def api_status():
 
 @app.route("/api/search", methods=["POST"])
 def api_search():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     if not data.get("nichos") or not data.get("bairros"):
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
-    config = load_config()
-    import threading
-    atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0})
-    
-    t = threading.Thread(target=extrator_worker, args=(data, config, None))
-    t.start()
+    with SEARCH_LOCK:
+        if ler_status().get("rodando"):
+            return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
+        config = load_config()
+        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0})
+        t = threading.Thread(target=extrator_worker, args=(data, config, None), daemon=True)
+        t.start()
     return jsonify({"success": True, "salvos": "Em andamento", "message": "Busca iniciada em segundo plano."})
 
 @app.route("/api/sugerir_alvos", methods=["GET"])
@@ -888,7 +947,7 @@ def sugerir_alvos():
     try:
         regiao = request.args.get('regiao', 'br')
         config = load_config()
-        api_key = config.get("gemini_api_key", "").strip()
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
         
         if api_key:
             try:
@@ -965,6 +1024,27 @@ def limpar_crm():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/descartar_com_site", methods=["POST"])
+def descartar_com_site():
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        rows = conn.execute(
+            "SELECT place_id, link_inicial FROM leads WHERE status != 'Descartado'"
+        ).fetchall()
+        place_ids = [place_id for place_id, link in rows if possui_site_proprio(link)]
+        if place_ids:
+            conn.executemany(
+                "UPDATE leads SET status = 'Descartado' WHERE place_id = ?",
+                [(place_id,) for place_id in place_ids],
+            )
+            conn.commit()
+        return jsonify({"success": True, "descartados": len(place_ids)})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": "Não foi possível classificar os leads"}), 500
+    finally:
+        conn.close()
 
 @app.route("/api/test_gemini", methods=["POST"])
 def test_gemini():

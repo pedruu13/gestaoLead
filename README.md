@@ -9,12 +9,12 @@ O principal objetivo desta ferramenta é identificar negócios locais que **não
 ## ✨ Funcionalidades Premium
 
 * 🌐 **Interface Web Amigável**: Painel completo e fácil de usar construído com Flask.
-* 🎛️ **Filtros de Qualificação Inteligentes**: Salva apenas leads que atendam aos seus critérios de **Nota Mínima** e **Mínimo de Avaliações** no Google, além de permitir exigir contato via WhatsApp.
+* 🎛️ **Filtros de Qualificação Inteligentes**: Prioriza empresas sem site próprio, com filtros de nota, WhatsApp, região e grandes redes.
 * 🤖 **Gerador de Copy (WhatsApp Automático)**: Cria um link direto para o WhatsApp do lead já com um texto de vendas hiper-personalizado (cruzando Nome, Bairro e Elogio sobre a nota no Google).
 * 🎨 **Gerador de Prompts (UI/UX)**: Gera automaticamente um *prompt* em inglês pronto para você jogar no Midjourney, DALL-E ou v0.dev e criar um protótipo de site para impressionar o cliente!
 * 🕵️ **Caçador Profundo (E-mails e Redes Sociais)**: Entra nas páginas de redes sociais dos leads e extrai **E-mails**, **Instagram**, **Facebook** e **LinkedIn** automaticamente via Regex.
-* 📊 **Dashboard em Tempo Real**: Gráficos de barra e placar de métricas ao vivo.
-* 📥 **Exportação Nativa**: Baixe os resultados consolidados diretamente em **Excel (.xlsx)** ou CSV.
+* 📊 **Dashboard em Tempo Real**: Placar de métricas durante a busca, CRM e funil de vendas.
+* 📥 **Exportação Nativa**: Baixe os resultados consolidados em CSV.
 
 ---
 
@@ -46,9 +46,14 @@ py app.py
 
 ---
 
+## 🔐 Configuração de produção
+- Copie `.env.example` para `.env` e defina `APP_USER`, `APP_PASS` e uma `FLASK_SECRET_KEY` forte.
+- Em produção, configure `GEMINI_API_KEY` como variável de ambiente e publique o app atrás de um proxy HTTPS (Nginx ou Caddy).
+- O Docker executa Gunicorn com um único worker, pois a busca usa SQLite e um processo de navegador.
+
 ## 🛠️ Tecnologias Utilizadas
 - **Python 3**
-- **Streamlit**: Criação da Interface e Dashboard.
+- **Flask**: Interface Web e APIs.
 - **Playwright (Sync)**: Automação e Web Scraping seguro.
 - **Pandas & OpenPyxl**: Tratamento de dados e exportação para Excel.
 
