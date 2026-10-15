@@ -739,6 +739,7 @@ def extrator_worker(data, config, queue):
             "telefone_invalido": 0,
             "nota_baixa": 0,
             "sem_whatsapp": 0,
+            "sem_email": 0,
             "erros": 0,
         }
         existing_place_ids = load_existing_place_ids()
@@ -897,6 +898,10 @@ def extrator_worker(data, config, queue):
 
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
                             dados_profundos = cacar_dados_profundos(context, link_encontrado, nome=nome, bairro=bairro)
+                            if data.get("req_email") and not dados_profundos["email"]:
+                                stats["sem_email"] += 1
+                                print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
+                                continue
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -911,7 +916,7 @@ def extrator_worker(data, config, queue):
                                 "Contexto do Site": dados_profundos["contexto_site"],
                             }
                             
-                            is_intl = not numeros_whats.startswith("55") if numeros_whats else False
+                            is_intl = data.get("mercado", "br") != "br"
                             whats_link_final = formatar_whatsapp(numeros_whats, "") if numeros_whats else ""
                             lead_data = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -988,7 +993,25 @@ def api_search():
 @app.route("/api/sugerir_alvos", methods=["GET"])
 def sugerir_alvos():
     try:
-        regiao = request.args.get('regiao', 'br')
+        regiao = request.args.get('regiao', 'br').lower()
+        mercados = {
+            "br": {
+                "descricao": "no Brasil",
+                "cidades": ["Alphaville - SP", "Moema - Sao Paulo", "Balneario Camboriu - SC", "Nova Lima - MG", "Batel - Curitiba", "Itaim Bibi - Sao Paulo", "Leblon - Rio de Janeiro", "Jardins - Sao Paulo", "Campinas - SP", "Lago Sul - Brasilia"],
+            },
+            "us": {
+                "descricao": "somente nos Estados Unidos",
+                "cidades": ["Miami - FL", "Boca Raton - FL", "Naples - FL", "Scottsdale - AZ", "Austin - TX", "Beverly Hills - CA", "Irvine - CA", "Dallas - TX", "Manhattan - NY", "Greenwich - CT"],
+            },
+            "europa": {
+                "descricao": "somente em paises europeus",
+                "cidades": ["London - UK", "Dublin - Ireland", "Amsterdam - Netherlands", "Madrid - Spain", "Barcelona - Spain", "Milan - Italy", "Lisbon - Portugal", "Porto - Portugal", "Zurich - Switzerland", "Paris - France"],
+            },
+        }
+        if regiao not in mercados:
+            return jsonify({"erro": "Mercado invalido."}), 400
+        import random
+        cidades_permitidas = mercados[regiao]["cidades"]
         config = load_config()
         api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
         
@@ -997,7 +1020,7 @@ def sugerir_alvos():
                 import google.generativeai as genai
                 genai.configure(api_key=api_key)
                 
-                contexto_regiao = "no BRASIL (Cidades ricas e polos comerciais brasileiros como SP, SC, RJ, MG, etc)." if regiao == "br" else "INTERNACIONALMENTE nos Estados Unidos e Europa (cidades com alto poder aquisitivo como Miami, Londres, Dubai, etc)."
+                contexto_regiao = mercados[regiao]["descricao"]
                 
                 prompt = f"""Atue como um estrategista de vendas B2B.
 Eu prospecto empresas no Google Maps para vender criação de Sites de Alta Conversão.
@@ -1005,7 +1028,7 @@ Preciso que você me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com
 
 Regras:
 1. Nichos devem ser muito lucrativos (ex: cirurgia plástica, móveis planejados, arquitetura de luxo, energia solar, clínicas especializadas).
-2. As cidades DEVEM SER APENAS {contexto_regiao}. Não misture Brasil com Internacional.
+2. Os nichos devem fazer sentido para {contexto_regiao}.
 3. Retorne EXATAMENTE UM JSON válido e mais nada. O formato deve ser:
 {{
   "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
@@ -1027,7 +1050,7 @@ Regras:
                     dados_ia = json.loads(texto)
                     return jsonify({
                         "nichos": dados_ia.get("nichos", [])[:5],
-                        "cidades": dados_ia.get("cidades", [])[:5]
+                        "cidades": random.sample(cidades_permitidas, 5)
                     })
             except Exception as e:
                 print(f"[IA] Erro ao gerar sugestões: {e}")
@@ -1051,8 +1074,7 @@ Regras:
             "Manhattan NY", "Kensington London", "Dubai Marina", "Aventura FL", "Sunny Isles Beach FL"
         ]
         
-        cidades_pool = cidades_intl if regiao == 'intl' else cidades_br
-        import random
+        cidades_pool = cidades_permitidas
         
         selecionados_nichos = random.sample(nichos_ht, 5)
         selecionados_cidades = random.sample(cidades_pool, 5)
