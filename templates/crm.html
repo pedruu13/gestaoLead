@@ -323,34 +323,47 @@
     }
 
     async function descartarLeadsComSite(qtd) {
-        if (!confirm(`Deseja mover ${qtd} lead(s) com site próprio para 'Descartados'? Eles não serão apagados.`)) {
+        const confirmed = await showAppConfirm({
+            title: 'Mover leads com site?',
+            message: `${qtd} lead(s) com site próprio serão movidos para Descartados. Eles não serão apagados e poderão ser consultados depois.`,
+            confirmLabel: 'Mover para descartados'
+        });
+        if (!confirmed) {
             return;
         }
         try {
             const response = await fetch('/api/descartar_com_site', { method: 'POST' });
             const data = await response.json();
             if (data.success) {
-                window.location.reload();
+                showAppToast(`${data.total || qtd} lead(s) movido(s) para Descartados.`);
+                setTimeout(() => window.location.reload(), 700);
             } else {
-                alert(data.error || 'Não foi possível mover os leads.');
+                showAppToast(data.error || 'Não foi possível mover os leads.', 'error');
             }
         } catch (error) {
-            alert('Erro de conexão ao descartar leads com site.');
+            showAppToast('Erro de conexão ao descartar leads com site.', 'error');
         }
     }
 
     async function limparCRM() {
-        if(confirm("Tem certeza que deseja apagar TODOS os leads do seu banco de dados?")) {
+        const confirmed = await showAppConfirm({
+            title: 'Apagar toda a base?',
+            message: 'Esta ação exclui permanentemente todos os leads do banco de dados e não pode ser desfeita.',
+            confirmLabel: 'Apagar todos os leads',
+            danger: true
+        });
+        if (confirmed) {
             try {
                 let res = await fetch('/api/limpar_crm', { method: 'POST' });
                 let data = await res.json();
                 if(data.success) {
-                    window.location.reload();
+                    showAppToast('Base limpa com sucesso.');
+                    setTimeout(() => window.location.reload(), 700);
                 } else {
-                    alert('Erro ao limpar base.');
+                    showAppToast('Erro ao limpar base.', 'error');
                 }
             } catch(e) {
-                alert('Falha na comunicação com o servidor.');
+                showAppToast('Falha na comunicação com o servidor.', 'error');
             }
         }
     }

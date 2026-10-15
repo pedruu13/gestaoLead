@@ -745,12 +745,20 @@ def extrator_worker(data, config, queue):
         existing_place_ids = load_existing_place_ids()
 
         def publicar_status(mensagem, rodando=True):
+            cancelamento_solicitado = ler_status().get("cancelamento_solicitado", False)
             atualizar_status({
                 "rodando": rodando,
                 "mensagem": mensagem,
                 "leads_salvos": stats["salvos"],
                 "metricas": stats.copy(),
+                "cancelamento_solicitado": cancelamento_solicitado,
             })
+
+        def busca_cancelada():
+            if not ler_status().get("cancelamento_solicitado", False):
+                return False
+            publicar_status("Busca cancelada. Os leads já salvos foram mantidos.", rodando=False)
+            return True
 
         publicar_status("Abrindo navegador...")
         nichos = [n.strip() for n in data["nichos"].split(",") if n.strip()]
@@ -774,7 +782,13 @@ def extrator_worker(data, config, queue):
                 page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
             consent_ok = False
             for bairro in bairros:
+                if busca_cancelada():
+                    browser.close()
+                    return
                 for nicho in nichos:
+                    if busca_cancelada():
+                        browser.close()
+                        return
                     busca = f"{nicho} {bairro}"
                     print(f"[WORKER] Buscando: {busca}")
                     publicar_status(f"Buscando '{nicho}' em '{bairro}'...")
@@ -815,6 +829,9 @@ def extrator_worker(data, config, queue):
                         if h and h not in hrefs: hrefs.append(h)
                     stats["encontrados"] += len(hrefs)
                     for index, href in enumerate(hrefs):
+                        if busca_cancelada():
+                            browser.close()
+                            return
                         place_id = extrair_id_unico(href)
                         if place_id in existing_place_ids:
                             stats["duplicados"] += 1
@@ -985,10 +1002,21 @@ def api_search():
         if ler_status().get("rodando"):
             return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
         config = load_config()
-        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0})
+        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0, "cancelamento_solicitado": False})
         t = threading.Thread(target=extrator_worker, args=(data, config, None), daemon=True)
         t.start()
     return jsonify({"success": True, "salvos": "Em andamento", "message": "Busca iniciada em segundo plano."})
+
+@app.route("/api/cancelar_busca", methods=["POST"])
+def cancelar_busca():
+    with SEARCH_LOCK:
+        status = ler_status()
+        if not status.get("rodando"):
+            return jsonify({"success": False, "error": "Não há uma busca em andamento."}), 409
+        status["cancelamento_solicitado"] = True
+        status["mensagem"] = "Cancelamento solicitado. Finalizando o lead atual..."
+        atualizar_status(status)
+    return jsonify({"success": True, "message": "Cancelamento solicitado."})
 
 @app.route("/api/sugerir_alvos", methods=["GET"])
 def sugerir_alvos():
