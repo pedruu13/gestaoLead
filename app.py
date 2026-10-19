@@ -89,7 +89,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     conn.commit()
@@ -104,18 +104,28 @@ def load_leads():
     c.execute("SELECT * FROM leads ORDER BY data_adicao DESC")
     rows = c.fetchall()
     conn.close()
-    return [dict(ix) for ix in rows]
+    leads = [dict(ix) for ix in rows]
+    for lead in leads:
+        if lead.get("potencial") is None:
+            potencial, motivo = calcular_potencial_lead(
+                lead.get("nota"), lead.get("avaliacoes"), lead.get("telefone"), lead.get("email"),
+                lead.get("instagram"), lead.get("linkedin"), possui_site_proprio(lead.get("link_inicial")),
+            )
+            lead["potencial"] = potencial
+            lead["motivo_potencial"] = motivo
+        lead["faixa_potencial"] = lead.get("faixa_potencial") or classificar_potencial(lead["potencial"])
+    return leads
 
 def save_lead_db(lead, place_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?)""",
+        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial, faixa_potencial)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?, ?)""",
                   (place_id, lead.get("Nome",""), lead.get("Nicho",""), lead.get("Bairro",""), lead.get("Nota Maps",""),
                    lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
                    lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
-                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", "")))
+                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária")))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -244,6 +254,17 @@ def calcular_potencial_lead(nota, avaliacoes, telefone, email, instagram, linked
         pontos += 5
         sinais.append("presença social ativa")
     return min(pontos, 100), ", ".join(sinais)
+
+def classificar_potencial(potencial, minimo_prioridade=55):
+    try:
+        potencial = int(potencial or 0)
+    except (TypeError, ValueError):
+        potencial = 0
+    if potencial >= minimo_prioridade:
+        return "Prioridade"
+    if potencial >= 35:
+        return "Oportunidade secundária"
+    return "Exploração"
 
 def necessidade_digital_do_nicho(nicho):
     nicho = (nicho or "").casefold()
@@ -845,7 +866,9 @@ def extrator_worker(data, config, queue):
             "nota_baixa": 0,
             "sem_whatsapp": 0,
             "sem_email": 0,
-            "baixa_qualificacao": 0,
+            "prioridade": 0,
+            "oportunidade_secundaria": 0,
+            "exploracao": 0,
             "erros": 0,
         }
         existing_place_ids = load_existing_place_ids()
@@ -1039,10 +1062,13 @@ def extrator_worker(data, config, queue):
                                 minimo_potencial = max(0, min(100, int(data.get("min_potencial", 55))))
                             except (TypeError, ValueError):
                                 minimo_potencial = 55
-                            if data.get("strict_potencial", True) and potencial < minimo_potencial:
-                                stats["baixa_qualificacao"] += 1
-                                print(f"[WORKER] Ignorando {nome} - Potencial {potencial}/100 abaixo de {minimo_potencial}")
-                                continue
+                            faixa_potencial = classificar_potencial(potencial, minimo_prioridade=minimo_potencial)
+                            if faixa_potencial == "Prioridade":
+                                stats["prioridade"] += 1
+                            elif faixa_potencial == "Oportunidade secundária":
+                                stats["oportunidade_secundaria"] += 1
+                            else:
+                                stats["exploracao"] += 1
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -1072,6 +1098,7 @@ def extrator_worker(data, config, queue):
                                 "Prompt Prototipo": gerar_prompt_prototipo(nome, nicho),
                                 "Potencial": potencial,
                                 "Motivo Potencial": motivo_potencial,
+                                "Faixa Potencial": faixa_potencial,
                                 "Copy Texto": "",
                                 "Analise IA": "",
                                 "Estrategia IA": ""
