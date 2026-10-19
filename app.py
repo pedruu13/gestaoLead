@@ -89,7 +89,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     conn.commit()
@@ -114,6 +114,11 @@ def load_leads():
             lead["potencial"] = potencial
             lead["motivo_potencial"] = motivo
         lead["faixa_potencial"] = lead.get("faixa_potencial") or classificar_potencial(lead["potencial"])
+    for lead in leads:
+        try:
+            lead["copies_pitch"] = json.loads(lead.get("copies_pitch") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            lead["copies_pitch"] = {}
     return leads
 
 def save_lead_db(lead, place_id):
@@ -133,14 +138,14 @@ def save_lead_db(lead, place_id):
     finally:
         conn.close()
 
-def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_link):
+def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_link, copies_pitch=None):
     conn = sqlite3.connect(DB_NAME)
     try:
         conn.execute(
             """UPDATE leads
-               SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?
+               SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?, copies_pitch = ?
                WHERE place_id = ?""",
-            (copy_texto, analise_ia, estrategia_ia, whatsapp_link, place_id),
+            (copy_texto, analise_ia, estrategia_ia, whatsapp_link, json.dumps(copies_pitch or {}, ensure_ascii=False), place_id),
         )
         conn.commit()
     finally:
@@ -280,6 +285,77 @@ def necessidade_digital_do_nicho(nicho):
         return "não consegue consultar cardápio, horários e reservas de forma rápida pelo celular"
     return "não encontra uma explicação clara dos serviços nem uma forma simples de iniciar o atendimento"
 
+def normalizar_dados_pitch(dados_lead):
+    nome = normalizar_texto(dados_lead.get("Nome", "").split(" - ")[0].split("|")[0], 90)
+    categoria = normalizar_texto(dados_lead.get("Categoria Maps") or dados_lead.get("Nicho"), 120)
+    site = extrair_destino_externo(dados_lead.get("Link Inicial", ""))
+    tem_site = bool(site and not is_social_or_directory(site))
+    instagram = extrair_destino_externo(dados_lead.get("Instagram", ""))
+    evidencias = []
+    if categoria:
+        evidencias.append(f"atua em {categoria}")
+    if dados_lead.get("Bairro"):
+        evidencias.append(f"atende em {normalizar_texto(dados_lead.get('Bairro'), 90)}")
+    if instagram:
+        evidencias.append("tem Instagram identificado")
+    if tem_site:
+        evidencias.append("tem site próprio identificado")
+    else:
+        evidencias.append("não há site próprio identificado no perfil do Google")
+    return {
+        "nome": nome or "a empresa",
+        "categoria": categoria or "o segmento",
+        "bairro": normalizar_texto(dados_lead.get("Bairro"), 90),
+        "tem_site": tem_site,
+        "tem_instagram": bool(instagram),
+        "evidencias": evidencias,
+        "necessidade": necessidade_digital_do_nicho(categoria or dados_lead.get("Nicho", "")),
+    }
+
+def gerar_variacoes_contingencia(dados_lead, is_intl=False):
+    dados = normalizar_dados_pitch(dados_lead)
+    nome = dados["nome"]
+    local = f" em {dados['bairro']}" if dados["bairro"] else ""
+    if is_intl:
+        base = f"I found {nome}{local} on Google. When someone looks for a {dados['categoria']}, they often need clear information before deciding to get in touch."
+        if dados["tem_site"]:
+            oportunidade = "There may be an opportunity to make the current website clearer on mobile and easier for visitors to take the next step."
+        else:
+            oportunidade = "I could not identify a standalone website on the Google profile, so visitors may have to piece together the information before contacting you."
+        variacoes = {
+            "consultiva": f"{base} {oportunidade} A focused website can organize the essentials and make the next step simpler. Would it be useful if I shared a quick idea?",
+            "direta": f"Hi! For {nome}, a clear website can help visitors understand the service and contact the right person without relying only on social profiles. Would you like to see what that could look like?",
+            "curiosidade": f"Hi! I noticed an opportunity in how {nome} is presented online{local}. What if a visitor could understand the service and take action in one place? Would you be open to a quick example?",
+        }
+    else:
+        observacao = "não identifiquei um site próprio no perfil do Google" if not dados["tem_site"] else "identifiquei que vocês já possuem um site"
+        complemento_instagram = " O Instagram ajuda na descoberta, mas não organiza toda a decisão do cliente." if dados["tem_instagram"] and not dados["tem_site"] else ""
+        variacoes = {
+            "consultiva": f"Oi! Encontrei a {nome}{local} no Google e {observacao}. Para quem procura {dados['categoria']}, muitas vezes é importante entender o serviço e o próximo passo antes de chamar. Hoje, sem um espaço próprio, a pessoa {dados['necessidade']}.{complemento_instagram} Um site bem organizado pode resolver isso. Posso te mostrar uma ideia?",
+            "direta": f"Oi! Vi a {nome}{local} no Google. Quando alguém busca {dados['categoria']}, ter um site claro ajuda a apresentar o essencial e evita que o interesse esfrie antes do contato. {observacao.capitalize()}. Faz sentido eu te mostrar uma possibilidade?",
+            "curiosidade": f"Oi! Uma dúvida sobre a {nome}: quando alguém encontra vocês no Google, consegue entender rapidamente o serviço e avançar para o contato? {observacao.capitalize()}. Um site pode concentrar isso em um só lugar. Posso te explicar a ideia em uma imagem?",
+        }
+    return {estilo: adicionar_triagem_responsavel(texto, is_intl) for estilo, texto in variacoes.items()}
+
+def validar_variacoes_pitch(variacoes, nome_empresa, is_intl=False):
+    estilos = ("consultiva", "direta", "curiosidade")
+    proibidos = ("próximo nível", "potencialize", "alavanque", "solução personalizada", "desconto", "preço")
+    if not isinstance(variacoes, dict) or any(not normalizar_texto(variacoes.get(estilo, "")) for estilo in estilos):
+        return False
+    textos = [normalizar_texto(variacoes[estilo], 1200) for estilo in estilos]
+    if len({texto.casefold() for texto in textos}) != len(textos):
+        return False
+    marca = normalizar_texto(nome_empresa, 90).casefold()
+    for texto in textos:
+        palavras = len(texto.split())
+        if palavras < 55 or palavras > 125 or ("site" not in texto.casefold() and "website" not in texto.casefold()):
+            return False
+        if any(termo in texto.casefold() for termo in proibidos):
+            return False
+        if marca and marca not in texto.casefold():
+            return False
+    return True
+
 def mensagem_parece_personalizada(mensagem, nome_empresa):
     if len(mensagem.strip()) < 120:
         return False
@@ -361,13 +437,15 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo="", is_intl=False):
             f"{necessidade}. Sem um site que organize essas informações e conduza o próximo passo, parte desse interesse "
             f"acaba esfriando antes do contato. Posso te mostrar uma ideia simples de como resolver isso para a empresa?"
         )
-    msg = adicionar_triagem_responsavel(msg, is_intl)
+    versoes = gerar_variacoes_contingencia(dados_lead, is_intl)
+    msg = versoes["consultiva"]
 
     aviso_motivo = f" [Alerta: {motivo}]" if motivo else ""
     return {
         'analise': f"Contingência setorial aplicada com base em dados reais do lead.{aviso_motivo}",
         'estrategia': estrategia,
         'mensagem': msg,
+        'versoes': versoes,
         'gerada_por_ia': False,
     }
 
@@ -393,6 +471,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         contexto_site = dados_lead.get('Contexto do Site', '')
         site_encontrado = dados_lead.get('Link Inicial', '')
         tem_site = bool(site_encontrado and not is_social_or_directory(site_encontrado))
+        dados_normalizados = normalizar_dados_pitch(dados_lead)
         
         super_prompt = f"""Você é um especialista em prospecção consultiva B2B e criação de sites de alta conversão.
 Sua missão é gerar uma mensagem curta e humana de primeiro contato para o WhatsApp do responsável por esta empresa local encontrada no Google Maps.
@@ -407,7 +486,8 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
 - Serviços/temas visíveis no Site: {contexto_site if contexto_site else 'Não informado'}
 - Localização/Bairro: {dados_lead.get('Bairro', '')}
 - Prova Social: Nota {dados_lead.get('Nota Maps', 'N/A')} ({dados_lead.get('Qtd Avaliacoes', '0')} avaliações no Google)
-- Status de Site: {'JÁ POSSUI SITE PRÓPRIO (' + site_encontrado + ')' if tem_site else 'NÃO POSSUI SITE PRÓPRIO (ou apenas rede social/diretório)'}
+- Status de Site: {'SITE PRÓPRIO IDENTIFICADO (' + site_encontrado + ')' if tem_site else 'NENHUM SITE PRÓPRIO IDENTIFICADO NO PERFIL DO GOOGLE — não afirmar ausência absoluta'}
+- Evidências verificadas: {"; ".join(dados_normalizados['evidencias'])}
 - Meu Nome: {vendedor}
 
 ### DIRETRIZES DA ABORDAGEM:
@@ -422,9 +502,9 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
    - Gastronomia/Comércio: Praticidade mobile, cardápio rápido e pedidos/reservas.
 3. ESTILO DE REDAÇÃO:
    - Tom natural, humano, direto e profissional.
-   - A parte comercial deve ter entre 220 e 480 caracteres, pois uma abertura de triagem será incluída pelo sistema.
+   - Cada versão deve ter entre 45 e 90 palavras. Uma abertura de triagem será incluída pelo sistema depois.
    - NUNCA use clichês como: "próximo nível", "potencialize sua presença", "transforme sua presença", "solução personalizada", "alavanque resultados".
-   - CTA (Chamada de Ação) de baixíssima fricção no final: "Posso te mandar uma imagem para você ver?", "Quer que eu te envie para dar uma olhada?", "Posso te mostrar o que preparei?".
+   - CTA (Chamada de Ação) de baixíssima fricção no final: uma pergunta simples para continuar a conversa, sem pedir reunião ou proposta.
    - Nunca pergunte "vamos marcar reunião" ou "posso enviar proposta comercial". O objetivo é apenas conseguir a permissão para mostrar a demonstração.
     - Diga explicitamente que a sugestão é de um SITE. A palavra "site" deve aparecer naturalmente na mensagem; não use apenas "página", "presença digital" ou "layout" de forma vaga.
     - Se o Nicho de Busca contrariar a Categoria Real ou o conteúdo do Site, use a Categoria Real e o conteúdo do Site. Nunca escreva uma abordagem de estética para uma empresa jurídica, por exemplo.
@@ -434,16 +514,24 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
    - O número do Google Maps pode ser de recepção, agendamento ou atendimento. Não assuma que a pessoa é dona da empresa.
    - Escreva apenas a parte comercial da mensagem. O sistema adicionará antes uma pergunta educada pedindo o responsável por marketing/comercial e solicitando encaminhamento caso seja recepção ou agendamento.
 
+5. VARIAÇÕES:
+   - Crie três abordagens realmente diferentes: consultiva (observação + contexto), direta (benefício específico) e curiosidade (pergunta que abre uma conversa).
+   - Não invente serviços, problemas técnicos, números, site ausente ou conteúdo de rede social. Se os dados forem insuficientes, use uma observação exploratória.
+
 ### FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 Retorne estritamente um objeto JSON com as chaves:
 {{
   "diagnostico": "Resumo em 1-2 frases do diagnóstico da presença digital da empresa.",
   "estrategia": "Explicação do ângulo comercial adotado e o porquê.",
-  "mensagem": "Texto completo e final da mensagem de abordagem para o WhatsApp."
+  "versoes": {{
+    "consultiva": "Mensagem consultiva completa.",
+    "direta": "Mensagem direta completa.",
+    "curiosidade": "Mensagem de curiosidade completa."
+  }}
 }}
 """
         if is_intl:
-            super_prompt += '\n\nIMPORTANTE: Escreva a chave "mensagem" em INGLÊS natural.'
+            super_prompt += '\n\nIMPORTANTE: Escreva as três mensagens em INGLÊS natural.'
         
         modelos_candidatos = [
             'gemini-3.5-flash-lite',
@@ -472,18 +560,22 @@ Retorne estritamente um objeto JSON com as chaves:
 
         resposta_bruta = re.sub(r"^```(?:json)?\s*|\s*```$", "", resposta_bruta.strip(), flags=re.IGNORECASE)
         parsed = json.loads(resposta_bruta)
-        mensagem = parsed.get("mensagem", "").strip()
+        versoes_sem_triagem = parsed.get("versoes", {})
         diagnostico = parsed.get("diagnostico", "").strip()
         estrategia = parsed.get("estrategia", "").strip()
-        
-        if not mensagem_parece_personalizada(mensagem, nome_curto):
-            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta da IA sem personalização suficiente", is_intl=is_intl)
-        mensagem = adicionar_triagem_responsavel(mensagem, is_intl)
+        versoes = {
+            estilo: adicionar_triagem_responsavel(normalizar_texto(versoes_sem_triagem.get(estilo, ""), 900), is_intl)
+            for estilo in ("consultiva", "direta", "curiosidade")
+        }
+        if not validar_variacoes_pitch(versoes, nome_curto, is_intl):
+            return obter_copy_contingencia(dados_lead, vendedor, motivo="Resposta da IA sem variações personalizadas e verificáveis", is_intl=is_intl)
+        mensagem = versoes["consultiva"]
 
         return {
             'analise': f"DIAGNÓSTICO:\n{diagnostico}" if diagnostico else "Análise concluída via IA.",
             'estrategia': estrategia or "Abordagem consultiva com proposta de melhoria/protótipo de site.",
             'mensagem': mensagem,
+            'versoes': versoes,
             'gerada_por_ia': True,
         }
         
@@ -1128,6 +1220,7 @@ def extrator_worker(data, config, queue):
                                         analise_ia,
                                         estrategia_ia,
                                         whats_link_final,
+                                        resultado_ia.get("versoes", {}),
                                     )
                         except Exception as e:
                             stats["erros"] += 1

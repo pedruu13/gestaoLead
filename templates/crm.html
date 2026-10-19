@@ -146,7 +146,7 @@
                         </td>
                         <td class="px-6 py-4">
                             {% if lead.whatsapp_link %}
-                            <button type="button" onclick="abrirCentralContato(this)" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
+                            <button type="button" onclick="abrirCentralContato(this)" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
                                 <i class="fa-brands fa-whatsapp text-sm mr-1.5"></i> Abordar
                             </button>
                             {% elif lead.email %}
@@ -222,14 +222,19 @@
                         <i class="fa-regular fa-copy"></i> Copiar
                     </button>
                 </div>
-                <textarea id="central_copy" readonly class="min-h-56 w-full resize-none bg-[#080B12] border border-[#1F2B44] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
+                <div class="mb-3 grid grid-cols-3 gap-2" id="pitch_variations">
+                    <button type="button" data-style="consultiva" onclick="selecionarVariacaoPitch('consultiva')" class="pitch-style rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-2 text-[10px] font-black text-cyan-300">Consultiva</button>
+                    <button type="button" data-style="direta" onclick="selecionarVariacaoPitch('direta')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Direta</button>
+                    <button type="button" data-style="curiosidade" onclick="selecionarVariacaoPitch('curiosidade')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Curiosidade</button>
+                </div>
+                <textarea id="central_copy" oninput="atualizarLinkContato()" class="min-h-56 w-full resize-none bg-[#080B12] border border-[#1F2B44] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
             </div>
             
             <div class="rounded-2xl bg-blue-500/10 border border-blue-500/20 p-4 text-xs leading-relaxed text-blue-200 flex items-start gap-3">
                 <i class="fa-solid fa-circle-info text-cyan-400 text-sm mt-0.5 shrink-0"></i>
                 <div>
                     <strong class="font-bold text-white block mb-0.5">Fluxo de Alta Conversão</strong>
-                    <span>Copie a mensagem, clique para abrir o WhatsApp Web e inicie o diálogo consultivo focado no protótipo de site.</span>
+                    <span>Escolha uma abordagem, faça ajustes se quiser e abra o WhatsApp. A mensagem acompanha o texto que está no editor.</span>
                 </div>
             </div>
         </div>
@@ -465,10 +470,18 @@
         const whatsapp = button.getAttribute('data-whatsapp') || '';
         const email = button.getAttribute('data-email') || '';
         const copy = button.getAttribute('data-copy') || 'Nenhum pitch foi gerado para este contato.';
+        let copies = {};
+        try { copies = JSON.parse(button.getAttribute('data-copies') || '{}'); } catch (error) { copies = {}; }
+        if (!copies.consultiva) copies.consultiva = copy;
+        if (!copies.direta) copies.direta = copy;
+        if (!copies.curiosidade) copies.curiosidade = copy;
         document.getElementById('central_nome').textContent = nome;
         document.getElementById('central_canal').textContent = email ? `Canais: WhatsApp & ${email}` : 'Contato direto via WhatsApp';
-        document.getElementById('central_copy').value = copy;
-        document.getElementById('central_whatsapp').href = whatsapp || '#';
+        const textarea = document.getElementById('central_copy');
+        textarea.dataset.copies = JSON.stringify(copies);
+        textarea.dataset.whatsappBase = (whatsapp || '').split('?')[0];
+        textarea.value = copies.consultiva;
+        selecionarVariacaoPitch('consultiva');
         const emailButton = document.getElementById('central_email');
         if (email) {
             emailButton.href = `mailto:${email}`;
@@ -481,6 +494,29 @@
         const drawer = document.getElementById('central_contato');
         drawer.classList.remove('hidden');
         drawer.setAttribute('aria-hidden', 'false');
+    }
+
+    function selecionarVariacaoPitch(style) {
+        const textarea = document.getElementById('central_copy');
+        let copies = {};
+        try { copies = JSON.parse(textarea.dataset.copies || '{}'); } catch (error) { copies = {}; }
+        if (copies[style]) textarea.value = copies[style];
+        document.querySelectorAll('.pitch-style').forEach(button => {
+            const active = button.dataset.style === style;
+            button.classList.toggle('border-cyan-400/40', active);
+            button.classList.toggle('bg-cyan-500/10', active);
+            button.classList.toggle('text-cyan-300', active);
+            button.classList.toggle('border-[#1F2B44]', !active);
+            button.classList.toggle('bg-[#111728]', !active);
+            button.classList.toggle('text-slate-300', !active);
+        });
+        atualizarLinkContato();
+    }
+
+    function atualizarLinkContato() {
+        const textarea = document.getElementById('central_copy');
+        const base = textarea.dataset.whatsappBase || '';
+        document.getElementById('central_whatsapp').href = base ? `${base}?text=${encodeURIComponent(textarea.value)}` : '#';
     }
 
     function fecharCentralContato() {
