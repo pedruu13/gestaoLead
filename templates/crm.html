@@ -114,6 +114,11 @@
                                 <span class="mr-1.5">{{ lead.nota }}</span>
                                 <i class="fa-solid fa-star text-[10px] text-cyan-400"></i>
                             </div>
+                            {% if lead.potencial is not none %}
+                            <div class="mt-2 inline-flex items-center gap-1 rounded-full bg-cyan-500/10 px-2 py-1 text-[10px] font-black text-cyan-700">
+                                <i class="fa-solid fa-gem"></i> {{ lead.potencial }}/100
+                            </div>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4">
                             <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-xl border border-[#1F2B44] py-1.5 pl-3 pr-8 focus:border-blue-500 focus:outline-none text-white bg-[#090D15] cursor-pointer shadow-inner">

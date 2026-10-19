@@ -147,6 +147,14 @@
                                 <small class="block text-[11px] text-slate-400 mt-0.5">Salva apenas empresas que estejam exatamente no endereço pesquisado.</small>
                             </div>
                         </label>
+                        <label class="filter-card sm:col-span-2 border-cyan-400/40 bg-cyan-400/5">
+                            <input type="checkbox" id="strict_potencial" checked class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-gem"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Salvar apenas oportunidades com potencial</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Cruza reputação, avaliações, canal de contato e ausência de site antes de levar o lead ao CRM.</small>
+                            </div>
+                        </label>
                     </div>
                 </section>
 
@@ -160,6 +168,14 @@
                         <i class="fa-solid fa-star text-cyan-400 text-sm"></i>
                         <input type="number" id="min_nota" value="3.0" step="0.1" min="0" max="5" class="w-24 rounded-xl bg-[#111728] border border-[#1F2B44] text-white text-center font-black px-3 py-2 text-xs outline-none focus:border-blue-500">
                     </div>
+                </div>
+
+                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-cyan-500/5 border border-cyan-400/20">
+                    <div>
+                        <label for="min_potencial" class="text-xs font-bold text-white block">Potencial mínimo do lead</label>
+                        <p class="text-[11px] text-slate-400 mt-0.5">55 é o equilíbrio recomendado: corta empresas sem tração, mas mantém negócios locais promissores.</p>
+                    </div>
+                    <div class="flex items-center gap-2"><input type="number" id="min_potencial" value="55" step="5" min="0" max="100" class="w-24 rounded-xl bg-[#111728] border border-cyan-400/30 text-cyan-200 text-center font-black px-3 py-2 text-xs outline-none focus:border-cyan-400"><span class="text-xs font-black text-cyan-300">/100</span></div>
                 </div>
 
                 <!-- Toggle IA Copy -->
@@ -327,14 +343,14 @@
 
 {% block scripts %}
 <script>
-    const preferenceIds = ['mercado', 'nichos', 'bairros', 'min_nota', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'ai_copy'];
+    const preferenceIds = ['mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'strict_potencial', 'ai_copy'];
     const pickerState = { nichos: [], bairros: [] };
     const presets = {
         br: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Arquitetura', 'Móveis Planejados', 'Imobiliária', 'Energia Solar', 'Contabilidade'], bairros: ['Moema - São Paulo', 'Itaim Bibi - São Paulo', 'Alphaville - SP', 'Campinas - SP', 'Balneário Camboriú - SC'] },
         us: { nichos: ['Med Spa', 'Personal Injury Lawyer', 'Cosmetic Dentist', 'Luxury Realtor', 'Roofing Company', 'Solar Installer', 'Custom Home Builder'], bairros: ['Miami - FL', 'Boca Raton - FL', 'Scottsdale - AZ', 'Austin - TX', 'Beverly Hills - CA'] },
         europa: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Imobiliária de Luxo', 'Arquitetura', 'Energia Solar', 'Contabilidade'], bairros: ['London - UK', 'Lisbon - Portugal', 'Madrid - Spain', 'Amsterdam - Netherlands', 'Milan - Italy'] }
     };
-    if (localStorage.getItem('search_preferences_version') !== '6') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('search_preferences_version', '6'); }
+    if (localStorage.getItem('search_preferences_version') !== '7') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '7'); }
     function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function loadPreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); const saved = localStorage.getItem(`pref_${id}`); if (!field || saved === null) return; field.type === 'checkbox' ? field.checked = saved === 'true' : field.value = saved; }); }
     function savePreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); if (field) localStorage.setItem(`pref_${id}`, field.type === 'checkbox' ? field.checked : field.value); }); }
@@ -346,7 +362,7 @@
     function aplicarMercado() { const internacional = document.getElementById('mercado').value !== 'br'; document.getElementById('req_email').checked = internacional; document.getElementById('req_whatsapp').checked = false; document.getElementById('strict_mobile').checked = false; renderPresets('nichos'); renderPresets('bairros'); savePreferences(); }
     loadPreferences(); setupPicker('nichos'); setupPicker('bairros'); renderPresets('nichos'); renderPresets('bairros'); preferenceIds.filter(id => !['nichos', 'bairros'].includes(id)).forEach(id => document.getElementById(id)?.addEventListener('change', savePreferences)); document.getElementById('mercado').addEventListener('change', aplicarMercado);
     const btn = document.getElementById('btn_search'); const panel = document.getElementById('status_panel'); const log = document.getElementById('log_text'); const metrics = document.getElementById('status_metrics'); const cancelBtn = document.getElementById('btn_cancel_search'); let timer = null;
-    function renderMetrics(data) { const source = data.metricas || {}; const items = [['Encontrados', source.encontrados || 0], ['Analisados', source.analisados || 0], ['Salvos', source.salvos || data.leads_salvos || 0], ['Com site', source.com_site || 0], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value]) => `<div class="rounded-xl bg-[#111728] border border-[#1F2B44] p-3 text-center"><span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">${label}</span><strong class="text-lg text-white font-black">${value}</strong></div>`).join(''); }
+    function renderMetrics(data) { const source = data.metricas || {}; const items = [['Encontrados', source.encontrados || 0], ['Analisados', source.analisados || 0], ['Aprovados', source.salvos || data.leads_salvos || 0], ['Baixo potencial', source.baixa_qualificacao || 0], ['Com site', source.com_site || 0], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value]) => `<div class="rounded-xl bg-[#111728] border border-[#1F2B44] p-3 text-center"><span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">${label}</span><strong class="text-lg text-white font-black">${value}</strong></div>`).join(''); }
     function setRunningState() { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>CAÇANDO LEADS...'; panel.classList.remove('hidden'); }
     function setIdleState() { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i>INICIAR CAÇA DE LEADS'; }
     async function verificarStatus() { try { const response = await fetch('/api/status'); const data = await response.json(); renderMetrics(data); if (data.rodando) { setRunningState(); log.textContent = data.mensagem || 'Buscando alvos...'; cancelBtn.disabled = Boolean(data.cancelamento_solicitado); cancelBtn.classList.toggle('opacity-50', Boolean(data.cancelamento_solicitado)); } else if (timer) { log.textContent = data.mensagem || 'Operação concluída.'; setIdleState(); clearInterval(timer); timer = null; } } catch (error) { log.textContent = 'Não foi possível atualizar o radar.'; } }

@@ -89,8 +89,8 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col in ["copy_texto", "analise_ia", "estrategia_ia"]:
-        try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} TEXT")
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT")]:
+        try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     conn.commit()
     conn.close()
@@ -110,12 +110,12 @@ def save_lead_db(lead, place_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?)""",
+        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?)""",
                   (place_id, lead.get("Nome",""), lead.get("Nicho",""), lead.get("Bairro",""), lead.get("Nota Maps",""),
                    lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
                    lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
-                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", "")))
+                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", "")))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -201,6 +201,64 @@ def formatar_whatsapp(numeros, copy_texto=""):
 def normalizar_texto(texto, limite=900):
     return re.sub(r"\s+", " ", texto or "").strip()[:limite]
 
+def extrair_numero_avaliacoes(valor):
+    numeros = re.findall(r"\d+", str(valor or "").replace(".", "").replace(",", ""))
+    return int("".join(numeros)) if numeros else 0
+
+def calcular_potencial_lead(nota, avaliacoes, telefone, email, instagram, linkedin, tem_site):
+    pontos = 0
+    sinais = []
+    if not tem_site:
+        pontos += 30
+        sinais.append("sem site próprio")
+    try:
+        nota_float = float(str(nota).replace(",", "."))
+    except (TypeError, ValueError):
+        nota_float = 0
+    if nota_float >= 4.5:
+        pontos += 20
+        sinais.append("reputação alta")
+    elif nota_float >= 4.2:
+        pontos += 15
+        sinais.append("boa reputação")
+    elif nota_float >= 3.8:
+        pontos += 8
+        sinais.append("reputação consistente")
+    quantidade_avaliacoes = extrair_numero_avaliacoes(avaliacoes)
+    if quantidade_avaliacoes >= 30:
+        pontos += 20
+        sinais.append("clientela recorrente")
+    elif quantidade_avaliacoes >= 15:
+        pontos += 14
+        sinais.append("volume de avaliações")
+    elif quantidade_avaliacoes >= 8:
+        pontos += 7
+        sinais.append("atividade no Google")
+    if telefone:
+        pontos += 10
+        sinais.append("telefone ativo")
+    if email:
+        pontos += 10
+        sinais.append("e-mail encontrado")
+    if instagram or linkedin:
+        pontos += 5
+        sinais.append("presença social ativa")
+    return min(pontos, 100), ", ".join(sinais)
+
+def necessidade_digital_do_nicho(nicho):
+    nicho = (nicho or "").casefold()
+    if any(termo in nicho for termo in ["odont", "dentist", "clinic", "medic", "saud", "dermat", "estetic"]):
+        return "não consegue entender tratamentos, transmitir confiança ou pedir uma avaliação de forma simples"
+    if any(termo in nicho for termo in ["advoc", "jurid", "direito"]):
+        return "não consegue identificar rapidamente as áreas atendidas nem encontrar um caminho claro para falar com o escritório"
+    if any(termo in nicho for termo in ["imob", "corret", "imove"]):
+        return "não consegue ver imóveis, diferenciais ou solicitar atendimento sem depender de várias mensagens"
+    if any(termo in nicho for termo in ["move", "planejad", "marcen", "arquitet", "interiores", "decor"]):
+        return "não consegue ver projetos, perceber o padrão do trabalho ou pedir orçamento com segurança"
+    if any(termo in nicho for termo in ["restauran", "bar", "pizz", "hamburg", "caf", "padar", "gastronom"]):
+        return "não consegue consultar cardápio, horários e reservas de forma rápida pelo celular"
+    return "não encontra uma explicação clara dos serviços nem uma forma simples de iniciar o atendimento"
+
 def mensagem_parece_personalizada(mensagem, nome_empresa):
     if len(mensagem.strip()) < 120:
         return False
@@ -275,6 +333,13 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo="", is_intl=False):
         msg = msg.replace(
             " Posso", " A sugestão é para um site pensado para esse atendimento. Posso", 1
         )
+    if not site:
+        necessidade = necessidade_digital_do_nicho(nicho)
+        msg = (
+            f"Olá, tudo bem? Encontrei a {nome_curto}{regiao} no Google. Hoje, quem procura vocês ali "
+            f"{necessidade}. Sem um site que organize essas informações e conduza o próximo passo, parte desse interesse "
+            f"acaba esfriando antes do contato. Posso te mostrar uma ideia simples de como resolver isso para a empresa?"
+        )
     msg = adicionar_triagem_responsavel(msg, is_intl)
 
     aviso_motivo = f" [Alerta: {motivo}]" if motivo else ""
@@ -326,7 +391,7 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
 
 ### DIRETRIZES DA ABORDAGEM:
 1. FOCO DA PROPOSTA:
-   - Se a empresa NÃO tem site: Apresente a oportunidade de transformar quem já acha a empresa no Google em contatos qualificados. Mostre que você já preparou um modelo/protótipo visual específico para o segmento deles e pergunte se pode enviar uma imagem/prévia.
+   - Se a empresa NÃO tem site: Comece pela necessidade percebida do cliente. Explique, sem alarmismo, o que uma pessoa que encontra a empresa no Google ainda não consegue fazer, entender ou decidir sem um site. Mostre a consequência prática: parte do interesse esfria, vira dúvida ou segue para outra opção antes do contato. Só depois apresente o site como o caminho natural para resolver esse problema.
    - Se a empresa JÁ tem site: Reconheça a presença atual e apresente uma oportunidade clara de otimização (conversão mobile, velocidade, apresentação de serviços ou retenção). Mostre que rascunhou uma sugestão visual sem compromisso.
 2. ADAPTAÇÃO AO NICHO:
    - Advocacia: Sobriedade institucional, respeito ao código da OAB (sem promessas de causas/ganhos, foco em clareza das áreas e contato ético).
@@ -343,6 +408,7 @@ Sua missão é gerar uma mensagem curta e humana de primeiro contato para o What
     - Diga explicitamente que a sugestão é de um SITE. A palavra "site" deve aparecer naturalmente na mensagem; não use apenas "página", "presença digital" ou "layout" de forma vaga.
     - Se o Nicho de Busca contrariar a Categoria Real ou o conteúdo do Site, use a Categoria Real e o conteúdo do Site. Nunca escreva uma abordagem de estética para uma empresa jurídica, por exemplo.
     - Cite apenas um detalhe que esteja nos dados reais acima. Se não houver detalhe confiável, use uma abordagem neutra do segmento, sem inventar serviços.
+   - Não fale como um vendedor oferecendo um serviço, não comece com "preparei um site", "tenho uma proposta" ou "quero vender". A mensagem deve soar como uma observação útil sobre uma oportunidade que o próprio negócio está deixando passar.
 4. CONTATO DE RECEPÇÃO/AGENDAMENTO:
    - O número do Google Maps pode ser de recepção, agendamento ou atendimento. Não assuma que a pessoa é dona da empresa.
    - Escreva apenas a parte comercial da mensagem. O sistema adicionará antes uma pergunta educada pedindo o responsável por marketing/comercial e solicitando encaminhamento caso seja recepção ou agendamento.
@@ -779,6 +845,7 @@ def extrator_worker(data, config, queue):
             "nota_baixa": 0,
             "sem_whatsapp": 0,
             "sem_email": 0,
+            "baixa_qualificacao": 0,
             "erros": 0,
         }
         existing_place_ids = load_existing_place_ids()
@@ -958,6 +1025,24 @@ def extrator_worker(data, config, queue):
                                 stats["sem_email"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
                                 continue
+
+                            potencial, motivo_potencial = calcular_potencial_lead(
+                                nota_str,
+                                avaliacoes_str,
+                                telefone_raw,
+                                dados_profundos["email"],
+                                dados_profundos["instagram"],
+                                dados_profundos["linkedin"],
+                                is_real_website,
+                            )
+                            try:
+                                minimo_potencial = max(0, min(100, int(data.get("min_potencial", 55))))
+                            except (TypeError, ValueError):
+                                minimo_potencial = 55
+                            if data.get("strict_potencial", True) and potencial < minimo_potencial:
+                                stats["baixa_qualificacao"] += 1
+                                print(f"[WORKER] Ignorando {nome} - Potencial {potencial}/100 abaixo de {minimo_potencial}")
+                                continue
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -985,6 +1070,8 @@ def extrator_worker(data, config, queue):
                                 "Link Inicial": link_encontrado,
                                 "Google Maps": href,
                                 "Prompt Prototipo": gerar_prompt_prototipo(nome, nicho),
+                                "Potencial": potencial,
+                                "Motivo Potencial": motivo_potencial,
                                 "Copy Texto": "",
                                 "Analise IA": "",
                                 "Estrategia IA": ""
