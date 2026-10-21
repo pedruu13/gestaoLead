@@ -84,6 +84,9 @@
                     <i class="fa-solid fa-filter-circle-xmark mr-1.5 text-cyan-400"></i> Ocultar {{ leads_com_site }} com site
                 </button>
                 {% endif %}
+                <button id="btn_regen_copys" onclick="iniciarRegeneracaoCopys()" title="Regenerar todas as abordagens e variações para o modelo consultivo" class="flex-1 sm:flex-none bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center flex items-center justify-center">
+                    <i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys
+                </button>
                 <button onclick="limparCRM()" class="flex-1 sm:flex-none bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center">
                     <i class="fa-solid fa-trash-can mr-1.5 text-rose-400"></i> Limpar
                 </button>
@@ -609,5 +612,73 @@
         document.execCommand('copy');
         showAppToast('Mensagem copiada para a área de transferência.');
     }
+
+    let regenInterval = null;
+    async function iniciarRegeneracaoCopys() {
+        const confirmed = await showAppConfirm({
+            title: 'Regenerar todas as copys?',
+            message: 'Isso atualizará todas as mensagens e abordagens dos leads salvos para o novo modelo consultivo (com 3 variações: Consultiva, Direta e Curiosidade).',
+            confirmLabel: 'Regenerar agora'
+        });
+        if (!confirmed) return;
+
+        const btn = document.getElementById('btn_regen_copys');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-cyan-400"></i> Atualizando...';
+        }
+
+        try {
+            const res = await fetch('/api/regenerar_copys', { method: 'POST' });
+            const data = await res.json();
+            if (!data.success) {
+                showAppToast(data.error || 'Erro ao iniciar regeneração.', 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+                }
+                return;
+            }
+            showAppToast('Regeneração iniciada em segundo plano.');
+            acompanharRegeneracao();
+        } catch (e) {
+            showAppToast('Erro de comunicação com o servidor.', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+            }
+        }
+    }
+
+    function acompanharRegeneracao() {
+        const btn = document.getElementById('btn_regen_copys');
+        if (regenInterval) clearInterval(regenInterval);
+        regenInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/status_regenerar_copys');
+                const data = await res.json();
+                if (data.rodando) {
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-cyan-400"></i> ${data.processados}/${data.total}`;
+                } else if (data.concluido) {
+                    clearInterval(regenInterval);
+                    showAppToast('Todas as copys foram atualizadas!');
+                    setTimeout(() => window.location.reload(), 900);
+                } else {
+                    clearInterval(regenInterval);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50');
+                        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+                    }
+                }
+            } catch (err) {
+                clearInterval(regenInterval);
+            }
+        }, 1500);
+    }
+
 </script>
 {% endblock %}

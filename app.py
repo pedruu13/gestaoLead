@@ -1441,6 +1441,111 @@ def test_gemini():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+STATUS_REGEN = {
+    "rodando": False,
+    "total": 0,
+    "processados": 0,
+    "mensagem": "",
+    "concluido": False,
+}
+REGEN_LOCK = threading.Lock()
+
+def worker_regenerar_copys():
+    global STATUS_REGEN
+    try:
+        config = load_config()
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM leads ORDER BY data_adicao DESC")
+        leads = [dict(ix) for ix in c.fetchall()]
+        conn.close()
+
+        total = len(leads)
+        with REGEN_LOCK:
+            STATUS_REGEN["rodando"] = True
+            STATUS_REGEN["total"] = total
+            STATUS_REGEN["processados"] = 0
+            STATUS_REGEN["concluido"] = False
+            STATUS_REGEN["mensagem"] = f"Iniciando regeneração de {total} copys..."
+
+        for idx, lead in enumerate(leads, 1):
+            place_id = lead.get("place_id")
+            nome = lead.get("nome", "Lead")
+            with REGEN_LOCK:
+                STATUS_REGEN["processados"] = idx
+                STATUS_REGEN["mensagem"] = f"Atualizando ({idx}/{total}): {nome[:30]}"
+
+            dados_raw = {
+                "Nome": lead.get("nome", "") or "",
+                "Nicho": lead.get("nicho", "") or "",
+                "Categoria Maps": lead.get("nicho", "") or "",
+                "Bairro": lead.get("bairro", "") or "",
+                "Nota Maps": lead.get("nota", "") or "",
+                "Qtd Avaliacoes": lead.get("avaliacoes", "0") or "0",
+                "Telefone": lead.get("telefone", "") or "",
+                "E-mail Encontrado": lead.get("email", "") or "",
+                "Instagram": lead.get("instagram", "") or "",
+                "Facebook": lead.get("facebook", "") or "",
+                "LinkedIn": lead.get("linkedin", "") or "",
+                "Link Inicial": lead.get("link_inicial", "") or "",
+                "Google Maps": lead.get("google_maps", "") or "",
+                "Prompt Prototipo": lead.get("prompt_design", "") or "",
+            }
+
+            tel = extrair_apenas_numeros(lead.get("telefone", ""))
+            is_intl = bool(tel and not tel.startswith("55"))
+            if not is_intl:
+                local = (lead.get("bairro", "") or "").lower()
+                intl_kws = ["usa", "fl", "ny", "tx", "ca", "london", "uk", "portugal", "lisbon", "spain", "madrid", "united states"]
+                is_intl = any(k in local for k in intl_kws)
+
+            try:
+                res_ia = gerar_copy_inteligente(dados_raw, config, is_intl=is_intl)
+                c_texto = res_ia.get("mensagem", "")
+                a_ia = res_ia.get("analise", "")
+                e_ia = res_ia.get("estrategia", "")
+                v_pitch = res_ia.get("versoes", {})
+
+                w_link = formatar_whatsapp(tel, c_texto) if tel and eh_celular_valido(tel) else lead.get("whatsapp_link", "")
+
+                update_lead_ai(
+                    place_id,
+                    c_texto,
+                    a_ia,
+                    e_ia,
+                    w_link,
+                    v_pitch,
+                )
+            except Exception as e:
+                print(f"[REGEN] Erro no lead {nome}: {e}")
+
+            time.sleep(0.8)
+
+        with REGEN_LOCK:
+            STATUS_REGEN["rodando"] = False
+            STATUS_REGEN["concluido"] = True
+            STATUS_REGEN["mensagem"] = f"Todas as {total} copys foram atualizadas com sucesso!"
+    except Exception as e:
+        with REGEN_LOCK:
+            STATUS_REGEN["rodando"] = False
+            STATUS_REGEN["mensagem"] = f"Erro na regeneração: {e}"
+
+@app.route("/api/regenerar_copys", methods=["POST"])
+def api_regenerar_copys():
+    with REGEN_LOCK:
+        if STATUS_REGEN["rodando"]:
+            return jsonify({"success": False, "error": "Já existe uma regeneração em andamento."}), 409
+        t = threading.Thread(target=worker_regenerar_copys, daemon=True)
+        t.start()
+    return jsonify({"success": True, "message": "Regeneração de copys iniciada em segundo plano."})
+
+@app.route("/api/status_regenerar_copys", methods=["GET"])
+def api_status_regenerar_copys():
+    with REGEN_LOCK:
+        return jsonify(dict(STATUS_REGEN))
+
+
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
