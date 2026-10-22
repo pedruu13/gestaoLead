@@ -217,7 +217,7 @@
     const nichoSemSiteCounts = {};
     const nichoWhatsCounts = {};
     const regiaoCounts = {};
-    const statusCounts = {'Novo': 0, 'Contato Feito': 0, 'Em Negociação': 0, 'Fechado': 0, 'Descartado': 0};
+    const statusCounts = {'Preparação': 0, 'Contato': 0, 'Negociação': 0, 'Fechado': 0, 'Encerrado': 0};
 
     let semSiteTotal = 0;
     let whatsTotal = 0;
@@ -256,11 +256,11 @@
 
         // Status
         let s = lead.status || 'Novo';
-        if (statusCounts[s] !== undefined) {
-            statusCounts[s]++;
-        } else {
-            statusCounts['Novo']++;
-        }
+        if (['Novo', 'Analisado', 'Mensagem preparada'].includes(s)) statusCounts['Preparação']++;
+        else if (['Contato Feito', 'Contatado', 'Respondeu'].includes(s)) statusCounts['Contato']++;
+        else if (['Interessado', 'Proposta enviada', 'Em Negociação', 'Negociação'].includes(s)) statusCounts['Negociação']++;
+        else if (s === 'Fechado') statusCounts['Fechado']++;
+        else statusCounts['Encerrado']++;
     });
 
     // Paleta Executiva Sapphire & Cyan
@@ -271,15 +271,15 @@
     new Chart(ctxFunil, {
         type: 'bar',
         data: {
-            labels: ['Novos Alvos', 'Contato Feito', 'Em Negociação', 'Fechados', 'Descartados'],
+            labels: ['Preparação', 'Contato', 'Negociação', 'Fechados', 'Encerrados'],
             datasets: [{
                 label: 'Leads',
                 data: [
-                    statusCounts['Novo'],
-                    statusCounts['Contato Feito'],
-                    statusCounts['Em Negociação'],
+                    statusCounts['Preparação'],
+                    statusCounts['Contato'],
+                    statusCounts['Negociação'],
                     statusCounts['Fechado'],
-                    statusCounts['Descartado']
+                    statusCounts['Encerrado']
                 ],
                 backgroundColor: [
                     '#2563EB',

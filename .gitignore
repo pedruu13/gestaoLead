@@ -14,6 +14,8 @@ env/
 # Streamlit e Playwright
 .streamlit/
 playwright-log.txt
+generated_previews/
+search_status.json
 
 # OS
 .DS_Store

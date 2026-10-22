@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% set active_page = 'crm' %}
+{% block header_title %}Studio de Prévias{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="text-xs font-bold text-cyan-400"><i class="fa-solid fa-arrow-left mr-2"></i>Voltar ao lead</a><h1 class="mt-4 text-3xl font-black tracking-tight text-white">Direção visual para {{ lead.nome }}</h1><p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">Gere uma homepage HTML real, revise o conteúdo e só então use a prévia na abordagem comercial.</p></div>
+        <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs font-bold text-amber-200"><i class="fa-solid fa-shield-halved mr-2"></i>Demonstração não oficial</div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[360px_1fr]">
+        <aside class="executive-panel h-max rounded-2xl p-5 xl:sticky xl:top-24">
+            <div class="flex items-center justify-between"><h2 class="text-sm font-black uppercase tracking-widest text-white">Editor</h2><span class="text-[10px] font-bold text-slate-500">Nova versão</span></div>
+            <div class="mt-5 space-y-4">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Título principal<input id="headline" value="{{ initial_config.headline }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#080D17] p-3 text-xs text-white outline-none focus:border-cyan-500"></label>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Texto de apoio<textarea id="subheadline" class="mt-2 min-h-24 w-full rounded-xl border border-[#263550] bg-[#080D17] p-3 text-xs leading-relaxed text-white outline-none focus:border-cyan-500">{{ initial_config.subheadline }}</textarea></label>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Botão principal<input id="cta" value="{{ initial_config.cta }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#080D17] p-3 text-xs text-white outline-none focus:border-cyan-500"></label>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Blocos da proposta<textarea id="services" class="mt-2 min-h-28 w-full rounded-xl border border-[#263550] bg-[#080D17] p-3 text-xs leading-relaxed text-white outline-none focus:border-cyan-500">{{ initial_config.services | join('\n') }}</textarea></label>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-500">Destaque<input id="primary" type="color" value="{{ initial_config.primary }}" class="mt-2 h-10 w-full cursor-pointer rounded-lg border-0 bg-transparent"></label>
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-500">Fundo<input id="surface" type="color" value="{{ initial_config.surface }}" class="mt-2 h-10 w-full cursor-pointer rounded-lg border-0 bg-transparent"></label>
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-500">Texto<input id="ink" type="color" value="{{ initial_config.ink }}" class="mt-2 h-10 w-full cursor-pointer rounded-lg border-0 bg-transparent"></label>
+                </div>
+                <button id="generate-button" onclick="generatePreview()" class="w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3.5 text-xs font-black text-white shadow-lg shadow-blue-600/20"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Gerar prévia real</button>
+            </div>
+            {% if previews %}
+            <div class="mt-7 border-t border-[#263550] pt-5"><h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500">Histórico</h3><div class="mt-3 space-y-2">{% for preview in previews %}<button onclick="openVersion({{ preview.id }}, {{ preview.config | tojson | forceescape }})" class="flex w-full items-center justify-between rounded-xl border border-[#263550] bg-[#0B1120] p-3 text-left text-xs font-bold text-slate-300 hover:border-cyan-500/40"><span>Versão {{ preview.version }}</span><span class="text-[9px] text-slate-600">{{ preview.created_at }}</span></button>{% endfor %}</div></div>
+            {% endif %}
+        </aside>
+
+        <section class="executive-panel min-w-0 rounded-2xl p-4 md:p-6">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex rounded-xl border border-[#263550] bg-[#080D17] p-1"><button onclick="setViewport('desktop')" class="viewport-button rounded-lg bg-[#172036] px-4 py-2 text-[10px] font-black text-white" data-viewport="desktop"><i class="fa-solid fa-desktop mr-2"></i>Desktop</button><button onclick="setViewport('mobile')" class="viewport-button rounded-lg px-4 py-2 text-[10px] font-black text-slate-400" data-viewport="mobile"><i class="fa-solid fa-mobile-screen mr-2"></i>Mobile</button></div>
+                <a id="png-link" {% if previews %}href="{{ url_for('preview_png', preview_id=previews[0].id) }}"{% else %}href="#"{% endif %} class="{{ '' if previews else 'pointer-events-none opacity-40' }} rounded-xl border border-[#263550] bg-[#111827] px-4 py-2.5 text-xs font-black text-slate-200"><i class="fa-solid fa-download mr-2 text-cyan-400"></i>Exportar PNG</a>
+            </div>
+            <div class="overflow-auto rounded-2xl border border-[#263550] bg-[#05070D] p-3 md:p-5">
+                <div id="device-frame" class="mx-auto h-[720px] w-full overflow-hidden rounded-xl bg-white shadow-2xl transition-all duration-300">
+                    {% if previews %}<iframe id="preview-frame" title="Prévia do site" sandbox="" src="{{ url_for('preview_document', preview_id=previews[0].id) }}" class="h-full w-full border-0"></iframe>{% else %}<div id="empty-preview" class="grid h-full place-items-center bg-[#0A0F1B] p-8 text-center"><div><i class="fa-solid fa-object-group text-4xl text-slate-700"></i><h3 class="mt-4 font-black text-white">Nenhuma versão gerada</h3><p class="mt-2 text-xs text-slate-500">Revise os campos e gere a primeira homepage.</p></div></div>{% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const placeId = {{ lead.place_id | tojson }};
+function setViewport(viewport) {
+    const frame = document.getElementById('device-frame');
+    frame.style.width = viewport === 'mobile' ? '390px' : '100%';
+    document.querySelectorAll('.viewport-button').forEach(button => { const active = button.dataset.viewport === viewport; button.classList.toggle('bg-[#172036]', active); button.classList.toggle('text-white', active); button.classList.toggle('text-slate-400', !active); });
+}
+function formData() { return {headline:headline.value,subheadline:subheadline.value,cta:cta.value,services:services.value,primary:primary.value,surface:surface.value,ink:ink.value}; }
+async function generatePreview() {
+    const button = document.getElementById('generate-button'); button.disabled = true; button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Renderizando HTML e PNG...';
+    try {
+        const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/previews`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(formData())});
+        const data = await response.json(); if (!data.success) throw new Error(data.error || 'Falha na geração');
+        const container = document.getElementById('device-frame'); container.innerHTML = `<iframe id="preview-frame" title="Prévia do site" sandbox="" src="${data.preview_url}" class="h-full w-full border-0"></iframe>`;
+        const link = document.getElementById('png-link'); link.href = data.png_url; link.classList.remove('pointer-events-none','opacity-40');
+        showAppToast(data.screenshot_ready ? `Versão ${data.version} gerada com PNG.` : `Versão ${data.version} gerada; PNG indisponível neste ambiente.`);
+        setTimeout(() => location.reload(), 1200);
+    } catch (error) { showAppToast(error.message, 'error'); } finally { button.disabled = false; button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Gerar nova versão'; }
+}
+function openVersion(id, config) {
+    headline.value=config.headline||''; subheadline.value=config.subheadline||''; cta.value=config.cta||''; services.value=(config.services||[]).join('\n'); primary.value=config.primary; surface.value=config.surface; ink.value=config.ink;
+    document.getElementById('device-frame').innerHTML=`<iframe id="preview-frame" title="Prévia do site" sandbox="" src="/preview/${id}" class="h-full w-full border-0"></iframe>`;
+    const link=document.getElementById('png-link'); link.href=`/preview/${id}/png`; link.classList.remove('pointer-events-none','opacity-40');
+}
+</script>
+{% endblock %}

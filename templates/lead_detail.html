@@ -1,0 +1,119 @@
+{% extends "layout.html" %}
+{% set active_page = 'crm' %}
+{% block header_title %}Inteligência Comercial{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <a href="/crm" class="text-xs font-bold text-cyan-400 hover:text-cyan-300"><i class="fa-solid fa-arrow-left mr-2"></i>Voltar ao pipeline</a>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                <h1 class="text-3xl font-black tracking-tight text-white">{{ lead.nome }}</h1>
+                <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-300">{{ lead.faixa_potencial or 'Em análise' }}</span>
+            </div>
+            <p class="mt-2 text-sm text-slate-400">{{ lead.nicho }}{% if lead.bairro %} · {{ lead.bairro }}{% endif %}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="regenerarPitches()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-arrows-rotate mr-2 text-cyan-400"></i>Regenerar pitches</button>
+            <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-blue-600/20"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Studio de Prévias</a>
+        </div>
+    </div>
+
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Potencial</span><strong class="mt-3 block text-3xl text-white">{{ lead.potencial or 0 }}<small class="text-sm text-slate-500">/100</small></strong><p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.motivo_potencial or 'Sinais ainda insuficientes.' }}</p></div>
+        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Confiança</span><strong class="mt-3 block text-3xl text-white">{{ intelligence.confidence }}%</strong><p class="mt-2 text-xs leading-relaxed text-slate-400">Calculada pela quantidade de evidências públicas disponíveis.</p></div>
+        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Site próprio</span><strong class="mt-3 block text-base text-white">{{ intelligence.site.status }}</strong><p class="mt-2 text-xs text-slate-400">A afirmação se limita ao perfil consultado.</p></div>
+        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Prévias</span><strong class="mt-3 block text-3xl text-white">{{ previews|length }}</strong><p class="mt-2 text-xs text-slate-400">Versões HTML responsivas salvas para este lead.</p></div>
+    </section>
+
+    <div class="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
+        <div class="space-y-6">
+            <section class="executive-panel rounded-2xl p-6">
+                <h2 class="text-sm font-black uppercase tracking-widest text-white">Diagnóstico</h2>
+                <div class="mt-5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Argumento recomendado</span>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-200">{{ intelligence.main_argument }}</p>
+                </div>
+                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-slate-400">Evidências verificadas</h3>
+                <div class="mt-3 space-y-3">
+                    {% for evidence in intelligence.verified %}
+                    <div class="rounded-xl border border-[#1F2B44] bg-[#090E18] p-4">
+                        <p class="text-xs font-bold text-slate-200">{{ evidence.claim }}</p>
+                        <p class="mt-1 text-[10px] text-slate-500">Fonte: {{ evidence.source }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-amber-300">Inferências, não fatos</h3>
+                <div class="mt-3 space-y-2 text-xs leading-relaxed text-slate-400">
+                    {% for item in intelligence.inferred %}<p>• {{ item.claim }}</p>{% endfor %}
+                </div>
+                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-slate-500">Ainda desconhecido</h3>
+                <div class="mt-3 space-y-2 text-xs text-slate-500">
+                    {% for item in intelligence.unknown %}<p>• {{ item }}</p>{% endfor %}
+                </div>
+            </section>
+
+            <section class="executive-panel rounded-2xl p-6">
+                <h2 class="text-sm font-black uppercase tracking-widest text-white">Canais e fontes</h2>
+                <div class="mt-4 grid gap-2 text-xs">
+                    {% if lead.telefone %}<div class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-phone mr-2 text-cyan-400"></i>{{ lead.telefone }}</div>{% endif %}
+                    {% if lead.email %}<a href="mailto:{{ lead.email }}" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-envelope mr-2 text-cyan-400"></i>{{ lead.email }}</a>{% endif %}
+                    {% if lead.google_maps %}<a href="{{ lead.google_maps }}" target="_blank" rel="noopener" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-map-location-dot mr-2 text-cyan-400"></i>Perfil no Google</a>{% endif %}
+                </div>
+            </section>
+        </div>
+
+        <section class="executive-panel rounded-2xl p-6">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Pitches revisáveis</h2><p class="mt-1 text-xs text-slate-500">Edite antes de copiar ou abrir o WhatsApp.</p></div>
+                {% if lead.qualidade_pitch %}<span class="rounded-full px-3 py-1 text-[10px] font-black {{ 'bg-emerald-500/10 text-emerald-300' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300' }}">Qualidade {{ lead.qualidade_pitch.score or 0 }}/100</span>{% endif %}
+            </div>
+            <div id="pitch-tabs" class="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('personalizada','Personalizada'),('previa_visual','Prévia visual')] %}
+                <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#263550] bg-[#0B1120] px-3 py-3 text-[10px] font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Gere uma prévia para liberar esta abordagem"{% endif %}>{{ label }}</button>
+                {% endfor %}
+            </div>
+            <textarea id="pitch-editor" class="mt-4 min-h-[260px] w-full rounded-2xl border border-[#263550] bg-[#080D17] p-5 text-sm leading-7 text-slate-200 outline-none focus:border-cyan-500"></textarea>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button onclick="savePitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-floppy-disk mr-2 text-cyan-400"></i>Salvar edição</button>
+                <button onclick="copyPitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-copy mr-2 text-cyan-400"></i>Copiar</button>
+                {% if lead.whatsapp_link %}<a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-2"></i>Abrir WhatsApp</a>{% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const pitchCopies = {{ lead.copies_pitch | tojson }};
+const placeId = {{ lead.place_id | tojson }};
+const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
+let activeMode = pitchCopies.consultiva ? 'consultiva' : Object.keys(pitchCopies)[0];
+function selectPitch(mode) {
+    if (!pitchCopies[mode]) return;
+    activeMode = mode;
+    document.getElementById('pitch-editor').value = pitchCopies[mode];
+    document.querySelectorAll('.pitch-tab').forEach(button => button.classList.toggle('border-cyan-400', button.dataset.mode === mode));
+    updateWhatsapp();
+}
+function updateWhatsapp() {
+    const link = document.getElementById('whatsapp-action');
+    if (link) link.href = `${whatsappBase}?text=${encodeURIComponent(document.getElementById('pitch-editor').value)}`;
+}
+document.getElementById('pitch-editor').addEventListener('input', updateWhatsapp);
+async function savePitch() {
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/pitch`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:activeMode,text:document.getElementById('pitch-editor').value})});
+    const data = await response.json();
+    if (!data.success) return showAppToast(data.error || 'Não foi possível salvar.', 'error');
+    pitchCopies[activeMode] = document.getElementById('pitch-editor').value;
+    showAppToast('Pitch atualizado e mantido para revisão.');
+}
+async function copyPitch() { await navigator.clipboard.writeText(document.getElementById('pitch-editor').value); showAppToast('Pitch copiado.'); }
+async function regenerarPitches() {
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/regenerate-pitches`, {method:'POST'});
+    const data = await response.json();
+    if (!data.success) return showAppToast(data.error || 'Falha ao regenerar.', 'error');
+    Object.assign(pitchCopies, data.versoes); showAppToast('Novas abordagens aprovadas.'); setTimeout(() => location.reload(), 600);
+}
+if (activeMode) selectPitch(activeMode);
+</script>
+{% endblock %}

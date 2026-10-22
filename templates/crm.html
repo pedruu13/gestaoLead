@@ -40,9 +40,15 @@
                 <select id="filter_status" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todos os Status</option>
                     <option value="Novo">Novo</option>
-                    <option value="Contato Feito">Contato Feito</option>
-                    <option value="Em Negociação">Em Negociação</option>
+                    <option value="Analisado">Analisado</option>
+                    <option value="Mensagem preparada">Mensagem preparada</option>
+                    <option value="Contatado">Contatado</option>
+                    <option value="Respondeu">Respondeu</option>
+                    <option value="Interessado">Interessado</option>
+                    <option value="Proposta enviada">Proposta enviada</option>
+                    <option value="Negociação">Negociação</option>
                     <option value="Fechado">Fechado</option>
+                    <option value="Perdido">Perdido</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -141,9 +147,15 @@
                         <td class="px-6 py-4">
                             <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-xl border border-[#1F2B44] py-1.5 pl-3 pr-8 focus:border-blue-500 focus:outline-none text-white bg-[#090D15] cursor-pointer shadow-inner">
                                 <option value="Novo" {% if lead.status == 'Novo' %}selected{% endif %}>Novo</option>
-                                <option value="Contato Feito" {% if lead.status == 'Contato Feito' %}selected{% endif %}>Contato Feito</option>
-                                <option value="Em Negociação" {% if lead.status == 'Em Negociação' %}selected{% endif %}>Em Negociação</option>
+                                <option value="Analisado" {% if lead.status == 'Analisado' %}selected{% endif %}>Analisado</option>
+                                <option value="Mensagem preparada" {% if lead.status == 'Mensagem preparada' %}selected{% endif %}>Mensagem preparada</option>
+                                <option value="Contatado" {% if lead.status in ('Contatado', 'Contato Feito') %}selected{% endif %}>Contatado</option>
+                                <option value="Respondeu" {% if lead.status == 'Respondeu' %}selected{% endif %}>Respondeu</option>
+                                <option value="Interessado" {% if lead.status == 'Interessado' %}selected{% endif %}>Interessado</option>
+                                <option value="Proposta enviada" {% if lead.status == 'Proposta enviada' %}selected{% endif %}>Proposta enviada</option>
+                                <option value="Negociação" {% if lead.status in ('Negociação', 'Em Negociação') %}selected{% endif %}>Negociação</option>
                                 <option value="Fechado" {% if lead.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                                <option value="Perdido" {% if lead.status == 'Perdido' %}selected{% endif %}>Perdido</option>
                                 <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
                             </select>
                         </td>
@@ -159,6 +171,9 @@
                             {% else %}
                             <span class="text-slate-500 text-xs italic">Sem contato</span>
                             {% endif %}
+                            <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="mt-2 flex w-max items-center rounded-xl border border-[#1F2B44] bg-[#0B1120] px-3 py-1.5 text-xs font-black text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-white">
+                                <i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i> Inteligência
+                            </a>
                         </td>
                         <td class="px-6 py-4 text-center">
                             <button onclick="abrirDetalhes(this)" 
@@ -225,10 +240,11 @@
                         <i class="fa-regular fa-copy"></i> Copiar
                     </button>
                 </div>
-                <div class="mb-3 grid grid-cols-3 gap-2" id="pitch_variations">
+                <div class="mb-3 grid grid-cols-2 gap-2" id="pitch_variations">
                     <button type="button" data-style="consultiva" onclick="selecionarVariacaoPitch('consultiva')" class="pitch-style rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-2 text-[10px] font-black text-cyan-300">Consultiva</button>
                     <button type="button" data-style="direta" onclick="selecionarVariacaoPitch('direta')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Direta</button>
-                    <button type="button" data-style="curiosidade" onclick="selecionarVariacaoPitch('curiosidade')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Curiosidade</button>
+                    <button type="button" data-style="personalizada" onclick="selecionarVariacaoPitch('personalizada')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Personalizada</button>
+                    <button type="button" data-style="previa_visual" onclick="selecionarVariacaoPitch('previa_visual')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Prévia visual</button>
                 </div>
                 <textarea id="central_copy" oninput="atualizarLinkContato()" class="min-h-56 w-full resize-none bg-[#080B12] border border-[#1F2B44] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
             </div>
@@ -477,7 +493,7 @@
         try { copies = JSON.parse(button.getAttribute('data-copies') || '{}'); } catch (error) { copies = {}; }
         if (!copies.consultiva) copies.consultiva = copy;
         if (!copies.direta) copies.direta = copy;
-        if (!copies.curiosidade) copies.curiosidade = copy;
+        if (!copies.personalizada) copies.personalizada = copy;
         document.getElementById('central_nome').textContent = nome;
         document.getElementById('central_canal').textContent = email ? `Canais: WhatsApp & ${email}` : 'Contato direto via WhatsApp';
         const textarea = document.getElementById('central_copy');
@@ -617,7 +633,7 @@
     async function iniciarRegeneracaoCopys() {
         const confirmed = await showAppConfirm({
             title: 'Regenerar todas as copys?',
-            message: 'Isso atualizará todas as mensagens e abordagens dos leads salvos para o novo modelo consultivo (com 3 variações: Consultiva, Direta e Curiosidade).',
+            message: 'Isso reanalisa as evidências e atualiza as abordagens Consultiva, Direta e Personalizada. A versão com prévia só aparece quando houver uma demonstração real salva.',
             confirmLabel: 'Regenerar agora'
         });
         if (!confirmed) return;

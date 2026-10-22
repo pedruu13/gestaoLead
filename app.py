@@ -11,9 +11,11 @@ from datetime import timedelta
 import threading
 import psutil
 import pandas as pd
-from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
 import google.generativeai as genai
+from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
+from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -34,6 +36,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
+PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
@@ -89,9 +92,14 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
+    c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL, version INTEGER NOT NULL,
+                  config_json TEXT NOT NULL, html_content TEXT NOT NULL, screenshot_path TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(place_id, version))""")
     conn.commit()
     conn.close()
 
@@ -101,7 +109,9 @@ def load_leads():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM leads ORDER BY data_adicao DESC")
+    c.execute("""SELECT leads.*,
+                 (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id
+                 FROM leads ORDER BY data_adicao DESC""")
     rows = c.fetchall()
     conn.close()
     leads = [dict(ix) for ix in rows]
@@ -119,6 +129,11 @@ def load_leads():
             lead["copies_pitch"] = json.loads(lead.get("copies_pitch") or "{}")
         except (TypeError, json.JSONDecodeError):
             lead["copies_pitch"] = {}
+        for field_name in ("inteligencia_comercial", "qualidade_pitch"):
+            try:
+                lead[field_name] = json.loads(lead.get(field_name) or "{}")
+            except (TypeError, json.JSONDecodeError):
+                lead[field_name] = {}
     return leads
 
 def save_lead_db(lead, place_id):
@@ -138,14 +153,16 @@ def save_lead_db(lead, place_id):
     finally:
         conn.close()
 
-def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_link, copies_pitch=None):
+def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_link, copies_pitch=None, inteligencia=None, qualidade=None):
     conn = sqlite3.connect(DB_NAME)
     try:
         conn.execute(
             """UPDATE leads
-               SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?, copies_pitch = ?
+               SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?, copies_pitch = ?,
+                   inteligencia_comercial = ?, qualidade_pitch = ?
                WHERE place_id = ?""",
-            (copy_texto, analise_ia, estrategia_ia, whatsapp_link, json.dumps(copies_pitch or {}, ensure_ascii=False), place_id),
+            (copy_texto, analise_ia, estrategia_ia, whatsapp_link, json.dumps(copies_pitch or {}, ensure_ascii=False),
+             json.dumps(inteligencia or {}, ensure_ascii=False), json.dumps(qualidade or {}, ensure_ascii=False), place_id),
         )
         conn.commit()
     finally:
@@ -584,6 +601,70 @@ Retorne estritamente um objeto JSON com as chaves:
         return obter_copy_contingencia(dados_lead, vendedor, motivo=f"Erro na execução da IA: {e}", is_intl=is_intl)
 
 
+def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False):
+    inteligencia = analyze_lead(dados_lead, preview_available=preview_available)
+    fallback = generate_fallback_pitches(inteligencia, is_intl=is_intl)
+    qualidade_fallback = evaluate_pitches(fallback, inteligencia, require_preview=preview_available)
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
+    versoes = fallback
+    gerada_por_ia = False
+    motivo = "Modelo profissional local aplicado"
+
+    if api_key:
+        genai.configure(api_key=api_key)
+        modos = ["consultiva", "direta", "personalizada"]
+        if preview_available:
+            modos.append("previa_visual")
+        prompt = f"""Atue como redator B2B criterioso. Gere mensagens de primeiro contato para WhatsApp ou e-mail.
+Use somente os dados do JSON de inteligência. Fatos categóricos só podem vir de 'verified'. Itens de 'inferred' devem ser tratados como hipótese ou oportunidade, nunca como fato.
+Regras: linguagem natural; 45 a 90 palavras por mensagem; mencionar claramente um site; sem pressão, promessa, elogio inventado ou falsa urgência; não perguntar automaticamente pelo responsável; não dizer que existe prévia se preview_available for falso; variar o encerramento e manter próximo passo claro.
+Modos obrigatórios: {', '.join(modos)}.
+Retorne apenas JSON no formato {{"versoes": {{"consultiva":"...","direta":"...","personalizada":"..."{',"previa_visual":"..."' if preview_available else ''}}}}}.
+INTELIGÊNCIA:
+{json.dumps(inteligencia, ensure_ascii=False)}"""
+        modelos = ("gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite")
+        tentativas = 0
+        for model_name in modelos:
+            if tentativas >= 2:
+                break
+            tentativas += 1
+            try:
+                model = genai.GenerativeModel(model_name, generation_config={"response_mime_type": "application/json"})
+                response = model.generate_content(prompt)
+                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", (response.text or "").strip(), flags=re.IGNORECASE)
+                candidate = json.loads(raw).get("versoes", {})
+                candidate = {mode: normalizar_texto(candidate.get(mode, ""), 1200) for mode in modos}
+                qualidade = evaluate_pitches(candidate, inteligencia, require_preview=preview_available)
+                if qualidade["approved"]:
+                    versoes = candidate
+                    qualidade_fallback = qualidade
+                    gerada_por_ia = True
+                    motivo = f"Aprovada após {tentativas} tentativa(s) de IA"
+                    break
+                motivo = f"IA reprovada na tentativa {tentativas}: {qualidade['reasons']}"
+            except Exception as error:
+                motivo = f"IA indisponível na tentativa {tentativas}: {str(error)[:160]}"
+
+    evidencias = inteligencia.get("verified", [])
+    resumo = "\n".join(f"• {item['claim']} — Fonte: {item['source']}" for item in evidencias)
+    analise = (
+        f"Confiança da análise: {inteligencia['confidence']}%.\n"
+        f"Oportunidade: {inteligencia['opportunity']}.\n"
+        f"Evidências verificadas:\n{resumo}"
+    )
+    qualidade_fallback["processing_note"] = motivo
+    return {
+        "analise": analise,
+        "estrategia": inteligencia["main_argument"],
+        "mensagem": versoes["consultiva"],
+        "versoes": versoes,
+        "inteligencia": inteligencia,
+        "qualidade": qualidade_fallback,
+        "gerada_por_ia": gerada_por_ia,
+    }
+
+
+gerar_copy_inteligente = gerar_copy_profissional
 
 
 def gerar_prompt_prototipo(nome, nicho):
@@ -679,9 +760,11 @@ def logout():
 @app.after_request
 def aplicar_cabecalhos_seguranca(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if request.endpoint == "preview_document" else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.endpoint == "preview_document":
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
     if request.headers.get("X-Forwarded-Proto") == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
@@ -703,14 +786,202 @@ def crm_descartados():
     descartados = [l for l in todos if l.get("status") == "Descartado"]
     return render_template("crm.html", leads=descartados, leads_com_site=0, is_descartados=True)
 
+
+def get_lead_by_id(place_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM leads WHERE place_id = ?", (place_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    lead = dict(row)
+    for field_name in ("copies_pitch", "inteligencia_comercial", "qualidade_pitch"):
+        try:
+            lead[field_name] = json.loads(lead.get(field_name) or "{}")
+        except (TypeError, json.JSONDecodeError):
+            lead[field_name] = {}
+    return lead
+
+
+def lead_to_raw_data(lead):
+    return {
+        "Nome": lead.get("nome", ""), "Nicho": lead.get("nicho", ""),
+        "Categoria Maps": lead.get("nicho", ""), "Bairro": lead.get("bairro", ""),
+        "Nota Maps": lead.get("nota", ""), "Qtd Avaliacoes": lead.get("avaliacoes", ""),
+        "Telefone": lead.get("telefone", ""), "E-mail Encontrado": lead.get("email", ""),
+        "Instagram": lead.get("instagram", ""), "Facebook": lead.get("facebook", ""),
+        "LinkedIn": lead.get("linkedin", ""), "Link Inicial": lead.get("link_inicial", ""),
+        "Google Maps": lead.get("google_maps", ""),
+    }
+
+
+def lead_is_international(lead):
+    phone = extrair_apenas_numeros(lead.get("telefone", ""))
+    if phone and not phone.startswith("55"):
+        return True
+    location = (lead.get("bairro", "") or "").casefold()
+    markers = ("usa", "united states", "portugal", "lisboa", "lisbon", "europe", "europa", "london", "madrid", "miami", "new york")
+    return any(marker in location for marker in markers)
+
+
+def get_preview_versions(place_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT id, place_id, version, config_json, screenshot_path, created_at FROM preview_versions WHERE place_id = ? ORDER BY version DESC",
+        (place_id,),
+    ).fetchall()
+    conn.close()
+    previews = []
+    for row in rows:
+        preview = dict(row)
+        try:
+            preview["config"] = json.loads(preview.pop("config_json"))
+        except (TypeError, json.JSONDecodeError):
+            preview["config"] = {}
+        previews.append(preview)
+    return previews
+
+
+@app.route("/leads/<path:place_id>")
+def lead_detail(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return "Lead não encontrado", 404
+    previews = get_preview_versions(place_id)
+    intelligence = lead.get("inteligencia_comercial") or analyze_lead(lead_to_raw_data(lead), preview_available=bool(previews))
+    return render_template("lead_detail.html", lead=lead, intelligence=intelligence, previews=previews)
+
+
+@app.route("/leads/<path:place_id>/studio")
+def preview_studio(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return "Lead não encontrado", 404
+    previews = get_preview_versions(place_id)
+    initial_config = previews[0]["config"] if previews else build_preview_config(lead_to_raw_data(lead))
+    return render_template("studio.html", lead=lead, previews=previews, initial_config=initial_config)
+
+
+@app.route("/api/leads/<path:place_id>/previews", methods=["POST"])
+def create_preview(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    config = build_preview_config(lead_to_raw_data(lead), payload)
+    html = render_preview_html(config)
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        version = conn.execute("SELECT COALESCE(MAX(version), 0) + 1 FROM preview_versions WHERE place_id = ?", (place_id,)).fetchone()[0]
+        cursor = conn.execute(
+            "INSERT INTO preview_versions (place_id, version, config_json, html_content) VALUES (?, ?, ?, ?)",
+            (place_id, version, json.dumps(config, ensure_ascii=False), html),
+        )
+        preview_id = cursor.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    screenshot_path = os.path.join(PREVIEW_DIR, f"preview_{preview_id}.png")
+    screenshot_error = ""
+    try:
+        capture_preview_png(html, screenshot_path)
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute("UPDATE preview_versions SET screenshot_path = ? WHERE id = ?", (screenshot_path, preview_id))
+        conn.commit()
+        conn.close()
+    except Exception as error:
+        screenshot_error = str(error)[:240]
+
+    raw = lead_to_raw_data(lead)
+    result = gerar_copy_inteligente(raw, load_config(), is_intl=lead_is_international(lead), preview_available=True)
+    phone = extrair_apenas_numeros(lead.get("telefone", ""))
+    whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else lead.get("whatsapp_link", "")
+    update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
+                   result["versoes"], result["inteligencia"], result["qualidade"])
+    return jsonify({
+        "success": True, "preview_id": preview_id, "version": version,
+        "preview_url": url_for("preview_document", preview_id=preview_id),
+        "png_url": url_for("preview_png", preview_id=preview_id),
+        "screenshot_ready": not bool(screenshot_error), "screenshot_error": screenshot_error,
+    })
+
+
+@app.route("/preview/<int:preview_id>")
+def preview_document(preview_id):
+    conn = sqlite3.connect(DB_NAME)
+    row = conn.execute("SELECT html_content FROM preview_versions WHERE id = ?", (preview_id,)).fetchone()
+    conn.close()
+    if not row:
+        return "Prévia não encontrada", 404
+    return Response(row[0], mimetype="text/html")
+
+
+@app.route("/preview/<int:preview_id>/png")
+def preview_png(preview_id):
+    conn = sqlite3.connect(DB_NAME)
+    row = conn.execute("SELECT html_content, screenshot_path FROM preview_versions WHERE id = ?", (preview_id,)).fetchone()
+    conn.close()
+    if not row:
+        return "Prévia não encontrada", 404
+    screenshot_path = row[1] or os.path.join(PREVIEW_DIR, f"preview_{preview_id}.png")
+    if not os.path.exists(screenshot_path):
+        try:
+            capture_preview_png(row[0], screenshot_path)
+            conn = sqlite3.connect(DB_NAME)
+            conn.execute("UPDATE preview_versions SET screenshot_path = ? WHERE id = ?", (screenshot_path, preview_id))
+            conn.commit()
+            conn.close()
+        except Exception as error:
+            return jsonify({"success": False, "error": f"Não foi possível gerar o PNG: {error}"}), 503
+    return send_file(screenshot_path, mimetype="image/png", as_attachment=True, download_name=f"previa-site-{preview_id}.png")
+
+
+@app.route("/api/leads/<path:place_id>/regenerate-pitches", methods=["POST"])
+def regenerate_lead_pitches(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    previews = get_preview_versions(place_id)
+    result = gerar_copy_inteligente(lead_to_raw_data(lead), load_config(), is_intl=lead_is_international(lead), preview_available=bool(previews))
+    phone = extrair_apenas_numeros(lead.get("telefone", ""))
+    whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else lead.get("whatsapp_link", "")
+    update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
+                   result["versoes"], result["inteligencia"], result["qualidade"])
+    return jsonify({"success": True, "versoes": result["versoes"], "qualidade": result["qualidade"]})
+
+
+@app.route("/api/leads/<path:place_id>/pitch", methods=["PATCH"])
+def save_lead_pitch(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    payload = request.get_json(silent=True) or {}
+    mode = payload.get("mode", "")
+    text = normalizar_texto(payload.get("text", ""), 1400)
+    allowed = {"consultiva", "direta", "personalizada", "previa_visual"}
+    if mode not in allowed or not text:
+        return jsonify({"success": False, "error": "Modalidade ou texto inválido"}), 400
+    copies = dict(lead.get("copies_pitch") or {})
+    copies[mode] = text
+    intelligence = lead.get("inteligencia_comercial") or analyze_lead(lead_to_raw_data(lead), bool(get_preview_versions(place_id)))
+    quality = evaluate_pitches(copies, intelligence, require_preview=bool(get_preview_versions(place_id)))
+    primary = copies.get("consultiva") or text
+    phone = extrair_apenas_numeros(lead.get("telefone", ""))
+    whatsapp = formatar_whatsapp(phone, primary) if phone else lead.get("whatsapp_link", "")
+    update_lead_ai(place_id, primary, lead.get("analise_ia", ""), lead.get("estrategia_ia", ""), whatsapp,
+                   copies, intelligence, quality)
+    return jsonify({"success": True, "qualidade": quality})
+
 @app.route("/estatisticas")
 def estatisticas():
     leads = load_leads()
     total_leads = len(leads)
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
-    em_negociacao = sum(1 for l in leads if l.get("status") == "Em Negociação")
-    contato_feito = sum(1 for l in leads if l.get("status") == "Contato Feito")
+    em_negociacao = sum(1 for l in leads if l.get("status") in ("Interessado", "Proposta enviada", "Negociação", "Em Negociação"))
+    contato_feito = sum(1 for l in leads if l.get("status") in ("Contatado", "Respondeu", "Contato Feito"))
     descartados = sum(1 for l in leads if l.get("status") == "Descartado")
     novos = sum(1 for l in leads if l.get("status") in ("Novo", None, ""))
     sem_site = sum(1 for l in leads if not possui_site_proprio(l.get("link_inicial")))
@@ -758,7 +1029,11 @@ def update_status():
     data = request.get_json(silent=True) or {}
     place_id = data.get("place_id", "")
     status = data.get("status", "")
-    status_validos = {"Novo", "Contato Feito", "Em Negociação", "Fechado", "Descartado"}
+    status_validos = {
+        "Novo", "Analisado", "Mensagem preparada", "Contatado", "Respondeu",
+        "Interessado", "Proposta enviada", "Negociação", "Fechado", "Perdido", "Descartado",
+        "Contato Feito", "Em Negociação",
+    }
     if not place_id or status not in status_validos:
         return jsonify({"success": False, "error": "Status ou lead inválido"}), 400
     conn = sqlite3.connect(DB_NAME)
@@ -1221,6 +1496,8 @@ def extrator_worker(data, config, queue):
                                         estrategia_ia,
                                         whats_link_final,
                                         resultado_ia.get("versoes", {}),
+                                        resultado_ia.get("inteligencia", {}),
+                                        resultado_ia.get("qualidade", {}),
                                     )
                         except Exception as e:
                             stats["erros"] += 1
@@ -1516,6 +1793,8 @@ def worker_regenerar_copys():
                     e_ia,
                     w_link,
                     v_pitch,
+                    res_ia.get("inteligencia", {}),
+                    res_ia.get("qualidade", {}),
                 )
             except Exception as e:
                 print(f"[REGEN] Erro no lead {nome}: {e}")
