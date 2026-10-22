@@ -7,13 +7,13 @@ import urllib.parse
 import sqlite3
 import multiprocessing
 import hmac
-from datetime import timedelta
+from datetime import datetime, timedelta
 import threading
 import psutil
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
-import google.generativeai as genai
+from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
 from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 
@@ -92,7 +92,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -100,6 +100,44 @@ def init_db():
                   config_json TEXT NOT NULL, html_content TEXT NOT NULL, screenshot_path TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   UNIQUE(place_id, version))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS lead_interactions
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL,
+                  interaction_type TEXT NOT NULL, channel TEXT, content TEXT NOT NULL,
+                  sentiment TEXT, next_action TEXT, next_action_at TIMESTAMP,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    legacy_rows = c.execute(
+        """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
+                  instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto
+           FROM leads"""
+    ).fetchall()
+    for row in legacy_rows:
+        stored_copies = row[13] or ""
+        stored_primary = row[14] or ""
+        is_legacy = not stored_copies or '"personalizada"' not in stored_copies or "responsável pelo comercial ou marketing" in stored_primary.casefold()
+        if not is_legacy:
+            continue
+        place_id = row[0]
+        preview_available = bool(c.execute("SELECT 1 FROM preview_versions WHERE place_id = ? LIMIT 1", (place_id,)).fetchone())
+        raw = {
+            "Nome": row[1] or "", "Nicho": row[2] or "", "Categoria Maps": row[2] or "",
+            "Bairro": row[3] or "", "Nota Maps": row[4] or "", "Qtd Avaliacoes": row[5] or "",
+            "Telefone": row[6] or "", "E-mail Encontrado": row[7] or "", "Instagram": row[8] or "",
+            "Facebook": row[9] or "", "LinkedIn": row[10] or "", "Link Inicial": row[11] or "",
+            "Google Maps": row[12] or "",
+        }
+        intelligence = analyze_lead(raw, preview_available=preview_available)
+        pitches = generate_fallback_pitches(intelligence)
+        quality = evaluate_pitches(pitches, intelligence, require_preview=preview_available)
+        diagnosis = f"Confiança da análise: {intelligence['confidence']}%. Oportunidade: {intelligence['opportunity']}."
+        c.execute(
+            """UPDATE leads SET copy_texto = ?, copies_pitch = ?, inteligencia_comercial = ?,
+                      qualidade_pitch = ?, analise_ia = ?, estrategia_ia = ?,
+                      status = CASE WHEN status = 'Novo' THEN 'Mensagem preparada' ELSE status END
+               WHERE place_id = ?""",
+            (pitches["consultiva"], json.dumps(pitches, ensure_ascii=False),
+             json.dumps(intelligence, ensure_ascii=False), json.dumps(quality, ensure_ascii=False),
+             diagnosis, intelligence["main_argument"], place_id),
+        )
     conn.commit()
     conn.close()
 
@@ -159,7 +197,8 @@ def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_lin
         conn.execute(
             """UPDATE leads
                SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?, copies_pitch = ?,
-                   inteligencia_comercial = ?, qualidade_pitch = ?
+                   inteligencia_comercial = ?, qualidade_pitch = ?,
+                   status = CASE WHEN status = 'Novo' THEN 'Mensagem preparada' ELSE status END
                WHERE place_id = ?""",
             (copy_texto, analise_ia, estrategia_ia, whatsapp_link, json.dumps(copies_pitch or {}, ensure_ascii=False),
              json.dumps(inteligencia or {}, ensure_ascii=False), json.dumps(qualidade or {}, ensure_ascii=False), place_id),
@@ -467,7 +506,6 @@ def obter_copy_contingencia(dados_lead, vendedor, motivo="", is_intl=False):
     }
 
 def gerar_copy_inteligente(dados_lead, config, is_intl=False):
-    import google.generativeai as genai
     import json
     import time
     
@@ -479,8 +517,6 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
         return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada", is_intl=is_intl)
         
     try:
-        genai.configure(api_key=api_key)
-        
         categoria = dados_lead.get('Categoria Maps') or dados_lead.get('Nicho', '')
         resumo = dados_lead.get('Resumo Maps', '')
         titulo_site = dados_lead.get('Título do Site', '')
@@ -550,23 +586,13 @@ Retorne estritamente um objeto JSON com as chaves:
         if is_intl:
             super_prompt += '\n\nIMPORTANTE: Escreva as três mensagens em INGLÊS natural.'
         
-        modelos_candidatos = [
-            'gemini-3.5-flash-lite',
-            'gemini-flash-lite-latest',
-            'gemini-3.1-flash-lite',
-            'gemini-3.5-flash',
-            'gemini-flash-latest'
-        ]
+        modelos_candidatos = MODEL_CANDIDATES
         resposta_bruta = ""
         for m_name in modelos_candidatos:
             try:
-                model = genai.GenerativeModel(
-                    m_name,
-                    generation_config={"response_mime_type": "application/json"}
-                )
-                response = model.generate_content(super_prompt)
-                if response and response.text:
-                    resposta_bruta = response.text
+                response_text = generate_text(api_key, m_name, super_prompt, json_mode=True)
+                if response_text:
+                    resposta_bruta = response_text
                     break
             except Exception as e:
                 print(f"[WORKER] Modelo {m_name} indisponível: {str(e)[:100]}")
@@ -611,7 +637,6 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
     motivo = "Modelo profissional local aplicado"
 
     if api_key:
-        genai.configure(api_key=api_key)
         modos = ["consultiva", "direta", "personalizada"]
         if preview_available:
             modos.append("previa_visual")
@@ -622,16 +647,14 @@ Modos obrigatórios: {', '.join(modos)}.
 Retorne apenas JSON no formato {{"versoes": {{"consultiva":"...","direta":"...","personalizada":"..."{',"previa_visual":"..."' if preview_available else ''}}}}}.
 INTELIGÊNCIA:
 {json.dumps(inteligencia, ensure_ascii=False)}"""
-        modelos = ("gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite")
         tentativas = 0
-        for model_name in modelos:
+        for model_name in MODEL_CANDIDATES:
             if tentativas >= 2:
                 break
             tentativas += 1
             try:
-                model = genai.GenerativeModel(model_name, generation_config={"response_mime_type": "application/json"})
-                response = model.generate_content(prompt)
-                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", (response.text or "").strip(), flags=re.IGNORECASE)
+                response_text = generate_text(api_key, model_name, prompt, json_mode=True)
+                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", response_text, flags=re.IGNORECASE)
                 candidate = json.loads(raw).get("versoes", {})
                 candidate = {mode: normalizar_texto(candidate.get(mode, ""), 1200) for mode in modos}
                 qualidade = evaluate_pitches(candidate, inteligencia, require_preview=preview_available)
@@ -707,7 +730,7 @@ def check_auth(username, password):
 
 @app.before_request
 def require_login():
-    if request.endpoint in ("static", "login"):
+    if request.endpoint in ("static", "login", "health"):
         return
     
     # Suporte para requisições com Authorization Header (compatibilidade com automações/curl)
@@ -772,6 +795,20 @@ def aplicar_cabecalhos_seguranca(response):
 @app.route("/")
 def index():
     return render_template("search.html")
+
+
+@app.route("/health")
+def health():
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute("SELECT 1").fetchone()
+        preview_table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='preview_versions'").fetchone()
+        interaction_table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='lead_interactions'").fetchone()
+        conn.close()
+        ready = bool(preview_table and interaction_table)
+        return jsonify({"status": "ok" if ready else "degraded", "database": "ok", "studio": bool(preview_table), "follow_up": bool(interaction_table)}), 200 if ready else 503
+    except Exception:
+        return jsonify({"status": "error", "database": "unavailable"}), 503
 
 @app.route("/crm")
 def crm():
@@ -843,6 +880,32 @@ def get_preview_versions(place_id):
     return previews
 
 
+def get_lead_interactions(place_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM lead_interactions WHERE place_id = ? ORDER BY created_at DESC, id DESC",
+        (place_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def suggest_next_action(response_text, sentiment, preview_available=False):
+    response = (response_text or "").casefold()
+    if sentiment == "não contatar" or any(term in response for term in ("não tenho interesse", "nao tenho interesse", "não chamar", "nao chamar", "remover contato")):
+        return "Marcar como não contatar e encerrar a abordagem."
+    if sentiment == "interessado" or any(term in response for term in ("tenho interesse", "pode enviar", "manda", "gostei", "quero ver")):
+        return "Enviar a prévia visual e confirmar qual objetivo do site deve receber prioridade." if preview_available else "Gerar uma prévia visual e confirmar qual objetivo do site deve receber prioridade."
+    if sentiment == "objeção" or any(term in response for term in ("preço", "valor", "caro", "orçamento", "orcamento")):
+        return "Entender o escopo necessário antes de falar em investimento e responder sem pressionar."
+    if sentiment == "sem momento" or any(term in response for term in ("agora não", "agora nao", "depois", "outro momento")):
+        return "Registrar o prazo indicado pelo lead e fazer apenas um retorno na data combinada."
+    if response_text:
+        return "Revisar a resposta, esclarecer a dúvida apresentada e definir um único próximo passo."
+    return "Fazer um acompanhamento curto em três dias úteis, sem repetir a mensagem inicial."
+
+
 @app.route("/leads/<path:place_id>")
 def lead_detail(place_id):
     lead = get_lead_by_id(place_id)
@@ -850,7 +913,8 @@ def lead_detail(place_id):
         return "Lead não encontrado", 404
     previews = get_preview_versions(place_id)
     intelligence = lead.get("inteligencia_comercial") or analyze_lead(lead_to_raw_data(lead), preview_available=bool(previews))
-    return render_template("lead_detail.html", lead=lead, intelligence=intelligence, previews=previews)
+    interactions = get_lead_interactions(place_id)
+    return render_template("lead_detail.html", lead=lead, intelligence=intelligence, previews=previews, interactions=interactions)
 
 
 @app.route("/leads/<path:place_id>/studio")
@@ -973,6 +1037,80 @@ def save_lead_pitch(place_id):
     update_lead_ai(place_id, primary, lead.get("analise_ia", ""), lead.get("estrategia_ia", ""), whatsapp,
                    copies, intelligence, quality)
     return jsonify({"success": True, "qualidade": quality})
+
+
+@app.route("/api/leads/<path:place_id>/follow-up", methods=["POST"])
+def save_lead_follow_up(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    payload = request.get_json(silent=True) or {}
+    response_text = normalizar_texto(payload.get("response", ""), 1800)
+    channel = normalizar_texto(payload.get("channel", "WhatsApp"), 40)
+    sentiment = normalizar_texto(payload.get("sentiment", "neutro"), 40).casefold()
+    allowed_sentiments = {"neutro", "interessado", "objeção", "sem momento", "não contatar"}
+    if sentiment not in allowed_sentiments:
+        return jsonify({"success": False, "error": "Classificação da resposta inválida"}), 400
+    next_action = normalizar_texto(payload.get("next_action", ""), 700)
+    if not next_action:
+        next_action = suggest_next_action(response_text, sentiment, bool(get_preview_versions(place_id)))
+    next_action_at = normalizar_texto(payload.get("next_action_at", ""), 30) or None
+    if next_action_at and not re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?", next_action_at):
+        return jsonify({"success": False, "error": "Data da próxima ação inválida"}), 400
+    if not response_text and not next_action:
+        return jsonify({"success": False, "error": "Informe uma resposta ou próxima ação"}), 400
+
+    status = "Interessado" if sentiment == "interessado" else "Respondeu" if response_text else lead.get("status", "Novo")
+    do_not_contact = sentiment == "não contatar"
+    if do_not_contact:
+        status = "Perdido"
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """INSERT INTO lead_interactions
+               (place_id, interaction_type, channel, content, sentiment, next_action, next_action_at)
+               VALUES (?, 'resposta', ?, ?, ?, ?, ?)""",
+            (place_id, channel, response_text or "Próxima ação registrada", sentiment, next_action, next_action_at),
+        )
+        conn.execute(
+            """UPDATE leads SET last_response = ?, next_action = ?, next_action_at = ?, status = ?,
+               do_not_contact = CASE WHEN ? THEN 1 ELSE do_not_contact END,
+               do_not_contact_reason = CASE WHEN ? THEN ? ELSE do_not_contact_reason END,
+               do_not_contact_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE do_not_contact_at END
+               WHERE place_id = ?""",
+            (response_text, next_action, next_action_at, status, do_not_contact, do_not_contact,
+             response_text or "Preferência registrada", do_not_contact, place_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"success": True, "next_action": next_action, "status": status, "do_not_contact": do_not_contact})
+
+
+@app.route("/api/leads/<path:place_id>/do-not-contact", methods=["POST"])
+def update_do_not_contact(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    payload = request.get_json(silent=True) or {}
+    blocked = bool(payload.get("blocked", True))
+    reason = normalizar_texto(payload.get("reason", "Preferência de não contato registrada"), 500)
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """UPDATE leads SET do_not_contact = ?, do_not_contact_reason = ?,
+               do_not_contact_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END,
+               status = CASE WHEN ? THEN 'Perdido' ELSE 'Respondeu' END WHERE place_id = ?""",
+            (int(blocked), reason if blocked else "", blocked, blocked, place_id),
+        )
+        conn.execute(
+            "INSERT INTO lead_interactions (place_id, interaction_type, channel, content, sentiment) VALUES (?, 'preferencia', 'Sistema', ?, ?)",
+            (place_id, reason if blocked else "Permissão de contato reaberta manualmente", "não contatar" if blocked else "neutro"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"success": True, "blocked": blocked})
 
 @app.route("/estatisticas")
 def estatisticas():
@@ -1568,9 +1706,6 @@ def sugerir_alvos():
         
         if api_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=api_key)
-                
                 contexto_regiao = mercados[regiao]["descricao"]
                 
                 prompt = f"""Atue como um estrategista de vendas B2B.
@@ -1585,16 +1720,8 @@ Regras:
   "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
   "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
 }}"""
-                texto = None
-                for m_name in ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest']:
-                    try:
-                        model = genai.GenerativeModel(m_name)
-                        response = model.generate_content(prompt)
-                        if response and response.text:
-                            texto = response.text.replace("```json", "").replace("```", "").strip()
-                            break
-                    except Exception:
-                        continue
+                texto, _ = first_available_response(api_key, prompt, json_mode=True, attempt_limit=2)
+                texto = texto.replace("```json", "").replace("```", "").strip()
 
                 if texto:
                     import json
@@ -1643,9 +1770,17 @@ def limpar_crm():
     try:
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
+        screenshot_paths = [row[0] for row in c.execute("SELECT screenshot_path FROM preview_versions WHERE screenshot_path IS NOT NULL").fetchall()]
+        c.execute("DELETE FROM lead_interactions")
+        c.execute("DELETE FROM preview_versions")
         c.execute("DELETE FROM leads")
         conn.commit()
         conn.close()
+        preview_root = os.path.abspath(PREVIEW_DIR)
+        for screenshot_path in screenshot_paths:
+            absolute_path = os.path.abspath(screenshot_path)
+            if os.path.commonpath((preview_root, absolute_path)) == preview_root and os.path.isfile(absolute_path):
+                os.remove(absolute_path)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -1684,37 +1819,13 @@ def test_gemini():
         return jsonify({"success": False, "error": "Informe uma API Key para testar."})
         
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        
-        candidatos = [
-            'gemini-3.5-flash-lite',
-            'gemini-flash-lite-latest',
-            'gemini-3.1-flash-lite',
-            'gemini-3.5-flash',
-            'gemini-flash-latest'
-        ]
-        
-        ultimo_erro = None
-        for m_name in candidatos:
-            try:
-                model = genai.GenerativeModel(m_name)
-                response = model.generate_content("Diga apenas 'ok'")
-                if response and response.text:
-                    if chave_enviada:
-                        cfg = load_config()
-                        cfg["gemini_api_key"] = api_key
-                        save_config(cfg)
-                        os.environ["GEMINI_API_KEY"] = api_key
-                    return jsonify({
-                        "success": True,
-                        "message": f"Conexão bem-sucedida! Modelo ativo: {m_name}"
-                    })
-            except Exception as e:
-                ultimo_erro = e
-                continue
-                
-        return jsonify({"success": False, "error": f"Erro na API do Gemini: {ultimo_erro}"})
+        _, model_name = first_available_response(api_key, "Diga apenas 'ok'", attempt_limit=2)
+        if chave_enviada:
+            cfg = load_config()
+            cfg["gemini_api_key"] = api_key
+            save_config(cfg)
+            os.environ["GEMINI_API_KEY"] = api_key
+        return jsonify({"success": True, "message": f"Conexão bem-sucedida! Modelo ativo: {model_name}"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 

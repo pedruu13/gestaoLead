@@ -76,10 +76,44 @@
             <div class="mt-4 flex flex-wrap gap-2">
                 <button onclick="savePitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-floppy-disk mr-2 text-cyan-400"></i>Salvar edição</button>
                 <button onclick="copyPitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-copy mr-2 text-cyan-400"></i>Copiar</button>
-                {% if lead.whatsapp_link %}<a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-2"></i>Abrir WhatsApp</a>{% endif %}
+                {% if lead.whatsapp_link and not lead.do_not_contact %}<a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-2"></i>Abrir WhatsApp</a>{% endif %}
             </div>
+            {% if lead.do_not_contact %}<div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-200"><i class="fa-solid fa-ban mr-2"></i>Contato bloqueado: {{ lead.do_not_contact_reason or 'preferência registrada' }}</div>{% endif %}
         </section>
     </div>
+
+    <section class="executive-panel rounded-2xl p-6">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Acompanhamento comercial</h2><p class="mt-1 text-xs text-slate-500">Registre respostas e combine o próximo passo. Nada é enviado automaticamente.</p></div>
+            <button onclick="toggleDoNotContact()" class="rounded-xl border {{ 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' if lead.do_not_contact else 'border-rose-500/30 bg-rose-500/10 text-rose-300' }} px-4 py-2.5 text-xs font-black">
+                <i class="fa-solid {{ 'fa-rotate-left' if lead.do_not_contact else 'fa-ban' }} mr-2"></i>{{ 'Reabrir contato' if lead.do_not_contact else 'Não contatar' }}
+            </button>
+        </div>
+        <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+            <div class="rounded-2xl border border-[#263550] bg-[#080D17] p-5">
+                <div class="grid gap-4 md:grid-cols-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Canal<select id="follow-channel" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"><option>WhatsApp</option><option>E-mail</option><option>Telefone</option><option>Outro</option></select></label>
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Leitura da resposta<select id="follow-sentiment" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"><option value="neutro">Neutra / dúvida</option><option value="interessado">Interessado</option><option value="objeção">Objeção</option><option value="sem momento">Sem momento</option><option value="não contatar">Não deseja contato</option></select></label>
+                </div>
+                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Resposta recebida<textarea id="follow-response" class="mt-2 min-h-28 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-4 text-xs leading-relaxed text-white outline-none focus:border-cyan-500" placeholder="Cole ou resuma o que o lead respondeu."></textarea></label>
+                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Próxima ação<textarea id="follow-next-action" class="mt-2 min-h-20 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-4 text-xs leading-relaxed text-white outline-none focus:border-cyan-500" placeholder="Deixe vazio para receber uma sugestão baseada na resposta.">{{ lead.next_action or '' }}</textarea></label>
+                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Quando<input id="follow-next-at" type="datetime-local" value="{{ (lead.next_action_at or '') | replace(' ', 'T') }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"></label>
+                <button onclick="saveFollowUp()" class="mt-5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3.5 text-xs font-black text-white"><i class="fa-solid fa-check mr-2"></i>Registrar acompanhamento</button>
+            </div>
+            <div>
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500">Histórico do lead</h3>
+                <div class="mt-3 max-h-[520px] space-y-3 overflow-auto pr-1">
+                    {% for item in interactions %}
+                    <article class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
+                        <div class="flex items-center justify-between gap-3"><span class="text-[10px] font-black uppercase tracking-widest {{ 'text-rose-300' if item.sentiment == 'não contatar' else 'text-cyan-400' }}">{{ item.interaction_type }} · {{ item.channel or 'Sistema' }}</span><time class="text-[9px] text-slate-600">{{ item.created_at }}</time></div>
+                        <p class="mt-3 text-xs leading-relaxed text-slate-300">{{ item.content }}</p>
+                        {% if item.next_action %}<div class="mt-3 rounded-lg bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-200"><strong>Próxima ação:</strong> {{ item.next_action }}{% if item.next_action_at %}<br><span class="text-slate-500">Prazo: {{ item.next_action_at }}</span>{% endif %}</div>{% endif %}
+                    </article>
+                    {% else %}<div class="rounded-xl border border-dashed border-[#263550] p-8 text-center text-xs text-slate-600">Nenhuma interação registrada.</div>{% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -113,6 +147,23 @@ async function regenerarPitches() {
     const data = await response.json();
     if (!data.success) return showAppToast(data.error || 'Falha ao regenerar.', 'error');
     Object.assign(pitchCopies, data.versoes); showAppToast('Novas abordagens aprovadas.'); setTimeout(() => location.reload(), 600);
+}
+async function saveFollowUp() {
+    const payload = {response:document.getElementById('follow-response').value,channel:document.getElementById('follow-channel').value,sentiment:document.getElementById('follow-sentiment').value,next_action:document.getElementById('follow-next-action').value,next_action_at:document.getElementById('follow-next-at').value};
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/follow-up`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data = await response.json(); if (!data.success) return showAppToast(data.error || 'Não foi possível registrar.', 'error');
+    document.getElementById('follow-next-action').value = data.next_action; showAppToast('Resposta e próxima ação registradas.'); setTimeout(() => location.reload(), 700);
+}
+async function toggleDoNotContact() {
+    const currentlyBlocked = {{ 'true' if lead.do_not_contact else 'false' }};
+    let reason = currentlyBlocked ? 'Permissão de contato reaberta manualmente' : 'Preferência de não contato registrada';
+    if (!currentlyBlocked) {
+        const confirmed = await showAppConfirm({title:'Bloquear contato?',message:'O WhatsApp e o e-mail deixarão de aparecer como ações para este lead. O histórico será preservado.',confirmLabel:'Bloquear contato',danger:true});
+        if (!confirmed) return;
+    }
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/do-not-contact`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked:!currentlyBlocked,reason})});
+    const data = await response.json(); if (!data.success) return showAppToast(data.error || 'Falha ao atualizar preferência.', 'error');
+    showAppToast(currentlyBlocked ? 'Contato reaberto.' : 'Preferência de não contato salva.'); setTimeout(() => location.reload(), 600);
 }
 if (activeMode) selectPitch(activeMode);
 </script>

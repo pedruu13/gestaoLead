@@ -1,6 +1,6 @@
-# 🕵️‍♂️ Buscador de Leads PRO
+# GestãoLead PRO
 
-Uma ferramenta completa de extração e qualificação de Leads B2B a partir do Google Maps, construída em Python com interface Web (Flask) e automação de navegador (Playwright).
+Plataforma de inteligência comercial para encontrar, qualificar e acompanhar empresas que podem se beneficiar de um site profissional.
 
 O principal objetivo desta ferramenta é identificar negócios locais que **não possuem um site profissional próprio** (ou que usam apenas Linktree/Instagram) para oferecer serviços de Web Design e Desenvolvimento.
 
@@ -10,10 +10,13 @@ O principal objetivo desta ferramenta é identificar negócios locais que **não
 
 * 🌐 **Interface Web Amigável**: Painel completo e fácil de usar construído com Flask.
 * 🎛️ **Filtros de Qualificação Inteligentes**: Prioriza empresas sem site próprio, com filtros de nota, WhatsApp, região e grandes redes.
-* 🤖 **Gerador de Copy (WhatsApp Automático)**: Cria um link direto para o WhatsApp do lead já com um texto de vendas hiper-personalizado (cruzando Nome, Bairro e Elogio sobre a nota no Google).
-* 🎨 **Gerador de Prompts (UI/UX)**: Gera automaticamente um *prompt* em inglês pronto para você jogar no Midjourney, DALL-E ou v0.dev e criar um protótipo de site para impressionar o cliente!
+* 🤖 **Inteligência comercial baseada em evidências**: Separa dados verificados, inferências e informações desconhecidas antes de gerar uma abordagem.
+* ✍️ **Pitches revisáveis**: Gera versões consultiva, direta e personalizada. A versão com prévia só é liberada quando existe uma demonstração real.
+* 🎨 **Studio de Prévias**: Cria homepage HTML/CSS responsiva, visualização desktop/mobile, histórico de versões e exportação PNG.
+* 📋 **Acompanhamento comercial**: Registra respostas, sentimento, próxima ação, prazo e histórico do lead.
+* 🛡️ **Preferência de não contato**: Bloqueia ações de abordagem sem apagar o histórico comercial.
 * 🕵️ **Caçador Profundo (E-mails e Redes Sociais)**: Entra nas páginas de redes sociais dos leads e extrai **E-mails**, **Instagram**, **Facebook** e **LinkedIn** automaticamente via Regex.
-* 📊 **Dashboard em Tempo Real**: Placar de métricas durante a busca, CRM e funil de vendas.
+* 📊 **Dashboard em Tempo Real**: Placar de métricas durante a busca, CRM e funil comercial completo.
 * 📥 **Exportação Nativa**: Baixe os resultados consolidados em CSV.
 
 ---
@@ -50,6 +53,7 @@ py app.py
 - Copie `.env.example` para `.env` e defina `APP_USER`, `APP_PASS` e uma `FLASK_SECRET_KEY` forte.
 - Em produção, configure `GEMINI_API_KEY` como variável de ambiente e publique o app atrás de um proxy HTTPS (Nginx ou Caddy).
 - O Docker executa Gunicorn com um único worker, pois a busca usa SQLite e um processo de navegador.
+- O endpoint `GET /health` permite verificar banco, Studio de Prévias e acompanhamento comercial sem expor dados de leads.
 
 ## 🛠️ Tecnologias Utilizadas
 - **Python 3**

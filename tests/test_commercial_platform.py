@@ -114,6 +114,50 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual("Um sorriso começa com informação clara", json.loads(row[1])["headline"])
                 self.assertIn("Demonstração conceitual não oficial", row[2])
                 self.assertTrue(os.path.exists(row[3]))
+
+                follow_up = client.post("/api/leads/test-place/follow-up", json={
+                    "response": "Gostei da ideia, pode enviar a demonstração.",
+                    "channel": "WhatsApp",
+                    "sentiment": "interessado",
+                    "next_action_at": "2026-10-30T10:00",
+                })
+                self.assertEqual(200, follow_up.status_code)
+                follow_up_data = follow_up.get_json()
+                self.assertEqual("Interessado", follow_up_data["status"])
+                self.assertIn("prévia visual", follow_up_data["next_action"])
+
+                blocked = client.post("/api/leads/test-place/do-not-contact", json={
+                    "blocked": True,
+                    "reason": "Solicitou encerramento do contato",
+                })
+                self.assertEqual(200, blocked.status_code)
+                detail = client.get("/leads/test-place")
+                self.assertEqual(200, detail.status_code)
+                detail_html = detail.get_data(as_text=True)
+                self.assertIn("Contato bloqueado", detail_html)
+                self.assertNotIn("Abrir WhatsApp", detail_html)
+
+                conn = sqlite3.connect(application.DB_NAME)
+                lead_state = conn.execute("SELECT do_not_contact, status, next_action FROM leads WHERE place_id = 'test-place'").fetchone()
+                interaction_count = conn.execute("SELECT COUNT(*) FROM lead_interactions WHERE place_id = 'test-place'").fetchone()[0]
+                conn.close()
+                self.assertEqual(1, lead_state[0])
+                self.assertEqual("Perdido", lead_state[1])
+                self.assertTrue(lead_state[2])
+                self.assertEqual(2, interaction_count)
+
+                health = client.get("/health")
+                self.assertEqual(200, health.status_code)
+                self.assertEqual("ok", health.get_json()["status"])
+
+                cleared = client.post("/api/limpar_crm")
+                self.assertEqual(200, cleared.status_code)
+                conn = sqlite3.connect(application.DB_NAME)
+                self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM leads").fetchone()[0])
+                self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM preview_versions").fetchone()[0])
+                self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM lead_interactions").fetchone()[0])
+                conn.close()
+                self.assertFalse(os.path.exists(row[3]))
             finally:
                 application.DB_NAME = old_db
                 application.PREVIEW_DIR = old_preview_dir
