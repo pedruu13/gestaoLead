@@ -16,6 +16,7 @@ from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
 from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
+from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -92,7 +93,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -113,7 +114,7 @@ def init_db():
     for row in legacy_rows:
         stored_copies = row[13] or ""
         stored_primary = row[14] or ""
-        is_legacy = not stored_copies or '"personalizada"' not in stored_copies or "responsável pelo comercial ou marketing" in stored_primary.casefold()
+        is_legacy = not stored_copies or '"personalizada"' not in stored_copies or '"recepcao"' not in stored_copies or '"email"' not in stored_copies or "responsável pelo comercial ou marketing" in stored_primary.casefold()
         if not is_legacy:
             continue
         place_id = row[0]
@@ -153,15 +154,14 @@ def load_leads():
     rows = c.fetchall()
     conn.close()
     leads = [dict(ix) for ix in rows]
+    configured_weights = load_config().get("lead_score_weights")
     for lead in leads:
-        if lead.get("potencial") is None:
-            potencial, motivo = calcular_potencial_lead(
-                lead.get("nota"), lead.get("avaliacoes"), lead.get("telefone"), lead.get("email"),
-                lead.get("instagram"), lead.get("linkedin"), possui_site_proprio(lead.get("link_inicial")),
-            )
-            lead["potencial"] = potencial
-            lead["motivo_potencial"] = motivo
-        lead["faixa_potencial"] = lead.get("faixa_potencial") or classificar_potencial(lead["potencial"])
+        scoring = calcular_score_lead(lead, configured_weights=configured_weights)
+        lead["potencial"] = scoring["score"]
+        lead["motivo_potencial"] = scoring["reason"]
+        lead["faixa_potencial"] = scoring["range"]
+        lead["score_breakdown"] = scoring
+        lead["score_version"] = scoring["version"]
     for lead in leads:
         try:
             lead["copies_pitch"] = json.loads(lead.get("copies_pitch") or "{}")
@@ -178,12 +178,12 @@ def save_lead_db(lead, place_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial, faixa_potencial)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?, ?)""",
+        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial, faixa_potencial, score_breakdown, score_version)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?, ?, ?, ?)""",
                   (place_id, lead.get("Nome",""), lead.get("Nicho",""), lead.get("Bairro",""), lead.get("Nota Maps",""),
                    lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
                    lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
-                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária")))
+                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária"), json.dumps(lead.get("Score Breakdown", {}), ensure_ascii=False), lead.get("Score Version", SCORE_VERSION)))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -276,45 +276,25 @@ def extrair_numero_avaliacoes(valor):
     numeros = re.findall(r"\d+", str(valor or "").replace(".", "").replace(",", ""))
     return int("".join(numeros)) if numeros else 0
 
-def calcular_potencial_lead(nota, avaliacoes, telefone, email, instagram, linkedin, tem_site):
-    pontos = 0
-    sinais = []
-    if not tem_site:
-        pontos += 30
-        sinais.append("sem site próprio")
-    try:
-        nota_float = float(str(nota).replace(",", "."))
-    except (TypeError, ValueError):
-        nota_float = 0
-    if nota_float >= 4.5:
-        pontos += 20
-        sinais.append("reputação alta")
-    elif nota_float >= 4.2:
-        pontos += 15
-        sinais.append("boa reputação")
-    elif nota_float >= 3.8:
-        pontos += 8
-        sinais.append("reputação consistente")
-    quantidade_avaliacoes = extrair_numero_avaliacoes(avaliacoes)
-    if quantidade_avaliacoes >= 30:
-        pontos += 20
-        sinais.append("clientela recorrente")
-    elif quantidade_avaliacoes >= 15:
-        pontos += 14
-        sinais.append("volume de avaliações")
-    elif quantidade_avaliacoes >= 8:
-        pontos += 7
-        sinais.append("atividade no Google")
-    if telefone:
-        pontos += 10
-        sinais.append("telefone ativo")
-    if email:
-        pontos += 10
-        sinais.append("e-mail encontrado")
-    if instagram or linkedin:
-        pontos += 5
-        sinais.append("presença social ativa")
-    return min(pontos, 100), ", ".join(sinais)
+def calcular_score_lead(lead, tem_site=None, configured_weights=None):
+    if tem_site is None:
+        tem_site = possui_site_proprio(lead.get("Link Inicial") or lead.get("link_inicial"))
+    return score_lead(lead, tem_site, configured_weights)
+
+
+def calcular_potencial_lead(nota, avaliacoes, telefone, email, instagram, linkedin, tem_site, nicho="", bairro="", facebook="", configured_weights=None):
+    scoring = calcular_score_lead({
+        "Nota Maps": nota,
+        "Qtd Avaliacoes": avaliacoes,
+        "Telefone": telefone,
+        "E-mail Encontrado": email,
+        "Instagram": instagram,
+        "Facebook": facebook,
+        "LinkedIn": linkedin,
+        "Nicho": nicho,
+        "Bairro": bairro,
+    }, tem_site=tem_site, configured_weights=configured_weights)
+    return scoring["score"], scoring["reason"]
 
 def classificar_potencial(potencial, minimo_prioridade=55):
     try:
@@ -326,6 +306,21 @@ def classificar_potencial(potencial, minimo_prioridade=55):
     if potencial >= 35:
         return "Oportunidade secundária"
     return "Exploração"
+
+
+def classificar_prazo_followup(value):
+    if not value:
+        return "sem_acao"
+    try:
+        due = datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        return "sem_acao"
+    today = datetime.now().date()
+    if due.date() < today:
+        return "atrasado"
+    if due.date() == today:
+        return "hoje"
+    return "proximo"
 
 def necessidade_digital_do_nicho(nicho):
     nicho = (nicho or "").casefold()
@@ -637,14 +632,15 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
     motivo = "Modelo profissional local aplicado"
 
     if api_key:
-        modos = ["consultiva", "direta", "personalizada"]
+        modos = ["consultiva", "direta", "personalizada", "recepcao", "email"]
         if preview_available:
             modos.append("previa_visual")
+        output_example = {mode: "..." for mode in modos}
         prompt = f"""Atue como redator B2B criterioso. Gere mensagens de primeiro contato para WhatsApp ou e-mail.
 Use somente os dados do JSON de inteligência. Fatos categóricos só podem vir de 'verified'. Itens de 'inferred' devem ser tratados como hipótese ou oportunidade, nunca como fato.
-Regras: linguagem natural; 45 a 90 palavras por mensagem; mencionar claramente um site; sem pressão, promessa, elogio inventado ou falsa urgência; não perguntar automaticamente pelo responsável; não dizer que existe prévia se preview_available for falso; variar o encerramento e manter próximo passo claro.
+Regras: linguagem natural; 45 a 100 palavras por mensagem; mencionar claramente um site; sem pressão, promessa, elogio inventado ou falsa urgência; não dizer que existe prévia se preview_available for falso; variar o encerramento e manter próximo passo claro. Em recepcao, escreva condicionalmente para um número de atendimento/agendamento e peça encaminhamento com educação. Em email, comece com "Assunto:" e escreva corpo apropriado para e-mail.
 Modos obrigatórios: {', '.join(modos)}.
-Retorne apenas JSON no formato {{"versoes": {{"consultiva":"...","direta":"...","personalizada":"..."{',"previa_visual":"..."' if preview_available else ''}}}}}.
+Retorne apenas JSON no formato {json.dumps({"versoes": output_example}, ensure_ascii=False)}.
 INTELIGÊNCIA:
 {json.dumps(inteligencia, ensure_ascii=False)}"""
         tentativas = 0
@@ -657,6 +653,7 @@ INTELIGÊNCIA:
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", response_text, flags=re.IGNORECASE)
                 candidate = json.loads(raw).get("versoes", {})
                 candidate = {mode: normalizar_texto(candidate.get(mode, ""), 1200) for mode in modos}
+                candidate = {**fallback, **candidate}
                 qualidade = evaluate_pitches(candidate, inteligencia, require_preview=preview_available)
                 if qualidade["approved"]:
                     versoes = candidate
@@ -814,14 +811,19 @@ def health():
 def crm():
     todos = load_leads()
     ativos = [l for l in todos if l.get("status") != "Descartado"]
+    for lead in ativos:
+        lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
     leads_com_site = sum(1 for lead in ativos if possui_site_proprio(lead.get("link_inicial")))
-    return render_template("crm.html", leads=ativos, leads_com_site=leads_com_site, is_descartados=False)
+    follow_up_counts = {state: sum(1 for lead in ativos if lead["follow_up_state"] == state) for state in ("atrasado", "hoje", "proximo", "sem_acao")}
+    return render_template("crm.html", leads=ativos, leads_com_site=leads_com_site, is_descartados=False, follow_up_counts=follow_up_counts)
 
 @app.route("/crm/descartados")
 def crm_descartados():
     todos = load_leads()
     descartados = [l for l in todos if l.get("status") == "Descartado"]
-    return render_template("crm.html", leads=descartados, leads_com_site=0, is_descartados=True)
+    for lead in descartados:
+        lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
+    return render_template("crm.html", leads=descartados, leads_com_site=0, is_descartados=True, follow_up_counts={})
 
 
 def get_lead_by_id(place_id):
@@ -832,11 +834,17 @@ def get_lead_by_id(place_id):
     if not row:
         return None
     lead = dict(row)
-    for field_name in ("copies_pitch", "inteligencia_comercial", "qualidade_pitch"):
+    for field_name in ("copies_pitch", "inteligencia_comercial", "qualidade_pitch", "score_breakdown"):
         try:
             lead[field_name] = json.loads(lead.get(field_name) or "{}")
         except (TypeError, json.JSONDecodeError):
             lead[field_name] = {}
+    scoring = calcular_score_lead(lead, configured_weights=load_config().get("lead_score_weights"))
+    lead["potencial"] = scoring["score"]
+    lead["motivo_potencial"] = scoring["reason"]
+    lead["faixa_potencial"] = scoring["range"]
+    lead["score_breakdown"] = scoring
+    lead["score_version"] = scoring["version"]
     return lead
 
 
@@ -1024,7 +1032,7 @@ def save_lead_pitch(place_id):
     payload = request.get_json(silent=True) or {}
     mode = payload.get("mode", "")
     text = normalizar_texto(payload.get("text", ""), 1400)
-    allowed = {"consultiva", "direta", "personalizada", "previa_visual"}
+    allowed = {"consultiva", "direta", "personalizada", "recepcao", "email", "previa_visual"}
     if mode not in allowed or not text:
         return jsonify({"success": False, "error": "Modalidade ou texto inválido"}), 400
     copies = dict(lead.get("copies_pitch") or {})
@@ -1119,7 +1127,15 @@ def estatisticas():
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
     em_negociacao = sum(1 for l in leads if l.get("status") in ("Interessado", "Proposta enviada", "Negociação", "Em Negociação"))
-    contato_feito = sum(1 for l in leads if l.get("status") in ("Contatado", "Respondeu", "Contato Feito"))
+    contacted_statuses = {"Contatado", "Contato Feito", "Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    response_statuses = {"Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    interest_statuses = {"Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    proposal_statuses = {"Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    contato_feito = sum(1 for l in leads if l.get("status") in contacted_statuses)
+    responderam = sum(1 for l in leads if l.get("status") in response_statuses)
+    interessados = sum(1 for l in leads if l.get("status") in interest_statuses)
+    propostas = sum(1 for l in leads if l.get("status") in proposal_statuses)
+    qualificados = sum(1 for l in leads if l.get("faixa_potencial") == "Prioridade")
     descartados = sum(1 for l in leads if l.get("status") == "Descartado")
     novos = sum(1 for l in leads if l.get("status") in ("Novo", None, ""))
     sem_site = sum(1 for l in leads if not possui_site_proprio(l.get("link_inicial")))
@@ -1129,6 +1145,10 @@ def estatisticas():
     taxa_sem_site = round((sem_site / total_leads * 100), 1) if total_leads > 0 else 0
     taxa_whats = round((com_whats / total_leads * 100), 1) if total_leads > 0 else 0
     taxa_fechamento = round((fechados / total_leads * 100), 1) if total_leads > 0 else 0
+    taxa_resposta = round((responderam / contato_feito * 100), 1) if contato_feito else 0
+    taxa_interesse = round((interessados / responderam * 100), 1) if responderam else 0
+    taxa_proposta = round((propostas / interessados * 100), 1) if interessados else 0
+    taxa_conversao_contato = round((fechados / contato_feito * 100), 1) if contato_feito else 0
 
     return render_template(
         "estatisticas.html",
@@ -1137,6 +1157,10 @@ def estatisticas():
         fechados=fechados,
         em_negociacao=em_negociacao,
         contato_feito=contato_feito,
+        responderam=responderam,
+        interessados=interessados,
+        propostas=propostas,
+        qualificados=qualificados,
         descartados=descartados,
         novos=novos,
         sem_site=sem_site,
@@ -1145,6 +1169,10 @@ def estatisticas():
         taxa_sem_site=taxa_sem_site,
         taxa_whats=taxa_whats,
         taxa_fechamento=taxa_fechamento,
+        taxa_resposta=taxa_resposta,
+        taxa_interesse=taxa_interesse,
+        taxa_proposta=taxa_proposta,
+        taxa_conversao_contato=taxa_conversao_contato,
         leads=leads,
     )
 
@@ -1154,6 +1182,15 @@ def configuracoes():
         data = load_config()
         nova_configuracao = request.form.to_dict()
         api_key = nova_configuracao.pop("gemini_api_key", "").strip()
+        score_weights = {}
+        for key, default in DEFAULT_WEIGHTS.items():
+            raw_value = nova_configuracao.pop(f"score_{key}", str(default))
+            try:
+                score_weights[key] = max(0, int(raw_value))
+            except (TypeError, ValueError):
+                score_weights[key] = default
+        if sum(score_weights.values()) == 100:
+            data["lead_score_weights"] = score_weights
         data.update(nova_configuracao)
         if api_key:
             data["gemini_api_key"] = api_key
@@ -1177,6 +1214,11 @@ def update_status():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE leads SET status = ? WHERE place_id = ?", (status, place_id))
+    if c.rowcount > 0:
+        c.execute(
+            "INSERT INTO lead_interactions (place_id, interaction_type, channel, content, sentiment) VALUES (?, 'mudanca_etapa', 'Sistema', ?, 'neutro')",
+            (place_id, f"Etapa alterada para {status}"),
+        )
     conn.commit()
     atualizado = c.rowcount > 0
     conn.close()
@@ -1554,15 +1596,20 @@ def extrator_worker(data, config, queue):
                                 print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
                                 continue
 
-                            potencial, motivo_potencial = calcular_potencial_lead(
-                                nota_str,
-                                avaliacoes_str,
-                                telefone_raw,
-                                dados_profundos["email"],
-                                dados_profundos["instagram"],
-                                dados_profundos["linkedin"],
-                                is_real_website,
-                            )
+                            scoring = calcular_score_lead({
+                                "Nicho": nicho,
+                                "Categoria Maps": categoria_maps or nicho,
+                                "Bairro": bairro,
+                                "Nota Maps": nota_str,
+                                "Qtd Avaliacoes": avaliacoes_str,
+                                "Telefone": telefone_raw,
+                                "E-mail Encontrado": dados_profundos["email"],
+                                "Instagram": dados_profundos["instagram"],
+                                "Facebook": dados_profundos["facebook"],
+                                "LinkedIn": dados_profundos["linkedin"],
+                            }, tem_site=is_real_website, configured_weights=config.get("lead_score_weights"))
+                            potencial = scoring["score"]
+                            motivo_potencial = scoring["reason"]
                             try:
                                 minimo_potencial = max(0, min(100, int(data.get("min_potencial", 55))))
                             except (TypeError, ValueError):
@@ -1604,6 +1651,8 @@ def extrator_worker(data, config, queue):
                                 "Potencial": potencial,
                                 "Motivo Potencial": motivo_potencial,
                                 "Faixa Potencial": faixa_potencial,
+                                "Score Breakdown": scoring,
+                                "Score Version": scoring["version"],
                                 "Copy Texto": "",
                                 "Analise IA": "",
                                 "Estrategia IA": ""

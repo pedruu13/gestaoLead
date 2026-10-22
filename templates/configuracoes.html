@@ -68,6 +68,30 @@
             <hr class="border-[#1E293B]">
 
             <div>
+                <h3 class="text-lg font-black text-white flex items-center mb-2">
+                    <i class="fa-solid fa-gauge-high text-cyan-400 mr-3"></i> Pesos da Qualificação Comercial
+                </h3>
+                <p class="text-slate-400 text-xs mb-4">Os cinco pesos devem somar 100. A nota organiza a fila, mas não representa garantia de compra.</p>
+                {% set score_weights = config.get('lead_score_weights', {}) %}
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {% for key, label, default in [
+                        ('necessidade_digital', 'Necessidade digital', 30),
+                        ('adequacao_servico', 'Adequação ao serviço', 25),
+                        ('capacidade_contato', 'Capacidade de contato', 20),
+                        ('atividade_publica', 'Atividade pública', 15),
+                        ('qualidade_evidencia', 'Qualidade da evidência', 10)
+                    ] %}
+                    <label class="rounded-xl border border-[#1E293B] bg-[#080B12] p-3 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        {{ label }}
+                        <input type="number" min="0" max="100" name="score_{{ key }}" value="{{ score_weights.get(key, default) }}" class="mt-2 w-full rounded-lg border border-[#263550] bg-[#111728] px-3 py-2 text-center text-sm font-black text-white outline-none focus:border-cyan-500">
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <hr class="border-[#1E293B]">
+
+            <div>
                 <h3 class="text-lg font-black text-white flex items-center mb-4">
                     <i class="fa-solid fa-sliders text-cyan-400 mr-3"></i> Comportamento do Motor de Busca
                 </h3>

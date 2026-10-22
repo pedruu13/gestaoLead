@@ -110,6 +110,22 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {% for label, value, detail in [
+            ('Qualificados', qualificados, 'fila Prioridade'),
+            ('Taxa de resposta', taxa_resposta|string + '%', responderam|string + ' respostas'),
+            ('Taxa de interesse', taxa_interesse|string + '%', interessados|string + ' interessados'),
+            ('Taxa de proposta', taxa_proposta|string + '%', propostas|string + ' propostas'),
+            ('Conversão após contato', taxa_conversao_contato|string + '%', fechados|string + ' fechados')
+        ] %}
+        <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-4">
+            <span class="text-[9px] font-black uppercase tracking-widest text-slate-500">{{ label }}</span>
+            <strong class="mt-2 block text-2xl text-white">{{ value }}</strong>
+            <span class="mt-1 block text-[10px] text-cyan-300">{{ detail }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
     <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Gráfico 1: Funil de Conversão Comercial -->

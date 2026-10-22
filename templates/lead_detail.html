@@ -19,11 +19,26 @@
     </div>
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Potencial</span><strong class="mt-3 block text-3xl text-white">{{ lead.potencial or 0 }}<small class="text-sm text-slate-500">/100</small></strong><p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.motivo_potencial or 'Sinais ainda insuficientes.' }}</p></div>
+        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Potencial</span><strong class="mt-3 block text-3xl text-white">{{ lead.potencial or 0 }}<small class="text-sm text-slate-500">/100</small></strong><p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.motivo_potencial or 'Sinais ainda insuficientes.' }}</p><p class="mt-2 text-[10px] text-slate-600">Score v{{ lead.score_version or '1.0' }} · priorização, não chance garantida de compra</p></div>
         <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Confiança</span><strong class="mt-3 block text-3xl text-white">{{ intelligence.confidence }}%</strong><p class="mt-2 text-xs leading-relaxed text-slate-400">Calculada pela quantidade de evidências públicas disponíveis.</p></div>
         <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Site próprio</span><strong class="mt-3 block text-base text-white">{{ intelligence.site.status }}</strong><p class="mt-2 text-xs text-slate-400">A afirmação se limita ao perfil consultado.</p></div>
         <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Prévias</span><strong class="mt-3 block text-3xl text-white">{{ previews|length }}</strong><p class="mt-2 text-xs text-slate-400">Versões HTML responsivas salvas para este lead.</p></div>
     </section>
+
+    {% if lead.score_breakdown and lead.score_breakdown.dimensions %}
+    <section class="executive-panel rounded-2xl p-5 md:p-6">
+        <div class="mb-5"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Composição transparente</span><h2 class="mt-1 text-lg font-black text-white">Por que este lead recebeu essa nota</h2></div>
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {% for key, item in lead.score_breakdown.dimensions.items() %}
+            <div class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
+                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">{{ item.label }}</span>
+                <strong class="mt-2 block text-xl text-white">{{ item.score }}<small class="text-xs text-slate-500">/{{ item.max }}</small></strong>
+                <p class="mt-2 text-[11px] leading-relaxed text-slate-400">{{ item.evidence }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 
     <div class="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
         <div class="space-y-6">
@@ -67,8 +82,8 @@
                 <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Pitches revisáveis</h2><p class="mt-1 text-xs text-slate-500">Edite antes de copiar ou abrir o WhatsApp.</p></div>
                 {% if lead.qualidade_pitch %}<span class="rounded-full px-3 py-1 text-[10px] font-black {{ 'bg-emerald-500/10 text-emerald-300' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300' }}">Qualidade {{ lead.qualidade_pitch.score or 0 }}/100</span>{% endif %}
             </div>
-            <div id="pitch-tabs" class="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('personalizada','Personalizada'),('previa_visual','Prévia visual')] %}
+            <div id="pitch-tabs" class="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-3">
+                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('personalizada','Personalizada'),('recepcao','Recepção/agendamento'),('email','E-mail'),('previa_visual','Prévia visual')] %}
                 <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#263550] bg-[#0B1120] px-3 py-3 text-[10px] font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Gere uma prévia para liberar esta abordagem"{% endif %}>{{ label }}</button>
                 {% endfor %}
             </div>
@@ -77,6 +92,7 @@
                 <button onclick="savePitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-floppy-disk mr-2 text-cyan-400"></i>Salvar edição</button>
                 <button onclick="copyPitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-copy mr-2 text-cyan-400"></i>Copiar</button>
                 {% if lead.whatsapp_link and not lead.do_not_contact %}<a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-2"></i>Abrir WhatsApp</a>{% endif %}
+                {% if lead.email and not lead.do_not_contact %}<a id="email-action" href="#" class="rounded-xl bg-blue-600 px-4 py-3 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-2"></i>Abrir e-mail</a>{% endif %}
             </div>
             {% if lead.do_not_contact %}<div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-200"><i class="fa-solid fa-ban mr-2"></i>Contato bloqueado: {{ lead.do_not_contact_reason or 'preferência registrada' }}</div>{% endif %}
         </section>
@@ -121,19 +137,28 @@
 const pitchCopies = {{ lead.copies_pitch | tojson }};
 const placeId = {{ lead.place_id | tojson }};
 const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
+const emailAddress = {{ (lead.email or '') | tojson }};
 let activeMode = pitchCopies.consultiva ? 'consultiva' : Object.keys(pitchCopies)[0];
 function selectPitch(mode) {
     if (!pitchCopies[mode]) return;
     activeMode = mode;
     document.getElementById('pitch-editor').value = pitchCopies[mode];
     document.querySelectorAll('.pitch-tab').forEach(button => button.classList.toggle('border-cyan-400', button.dataset.mode === mode));
-    updateWhatsapp();
+    updateContactLinks();
 }
-function updateWhatsapp() {
+function updateContactLinks() {
+    const text = document.getElementById('pitch-editor').value;
     const link = document.getElementById('whatsapp-action');
-    if (link) link.href = `${whatsappBase}?text=${encodeURIComponent(document.getElementById('pitch-editor').value)}`;
+    if (link) link.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
+    const emailLink = document.getElementById('email-action');
+    if (emailLink) {
+        const lines = text.split('\n');
+        const hasSubject = /^assunto:|^subject:/i.test(lines[0] || '');
+        const subject = hasSubject ? lines.shift().replace(/^assunto:|^subject:/i, '').trim() : `Site para {{ lead.nome | e }}`;
+        emailLink.href = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n').trim())}`;
+    }
 }
-document.getElementById('pitch-editor').addEventListener('input', updateWhatsapp);
+document.getElementById('pitch-editor').addEventListener('input', updateContactLinks);
 async function savePitch() {
     const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/pitch`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:activeMode,text:document.getElementById('pitch-editor').value})});
     const data = await response.json();

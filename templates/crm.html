@@ -19,6 +19,11 @@
                 <i class="fa-solid fa-radar text-cyan-400"></i>
                 <span>{{ leads_com_site }} lead(s) com website identificado na base</span>
             </div>
+            <div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
+                <span class="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-rose-300">{{ follow_up_counts.atrasado or 0 }} atrasados</span>
+                <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-amber-300">{{ follow_up_counts.hoje or 0 }} para hoje</span>
+                <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-blue-300">{{ follow_up_counts.proximo or 0 }} próximos</span>
+            </div>
             {% endif %}
         </div>
         
@@ -30,6 +35,16 @@
                     <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
                 </div>
                 <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
+            </div>
+
+            <div class="relative w-full sm:w-44">
+                <select id="filter_followup" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                    <option value="">Todos os follow-ups</option>
+                    <option value="atrasado">Atrasados</option>
+                    <option value="hoje">Para hoje</option>
+                    <option value="proximo">Próximos</option>
+                    <option value="sem_acao">Sem próxima ação</option>
+                </select>
             </div>
             
             <!-- Filtro Status -->
@@ -120,7 +135,7 @@
                 </thead>
                 <tbody class="divide-y divide-[#1A2338] text-slate-200">
                     {% for lead in leads %}
-                    <tr class="hover:bg-[#121828] transition-colors group" data-faixa-potential="{{ lead.faixa_potencial }}">
+                    <tr class="hover:bg-[#121828] transition-colors group" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}">
                         <td class="px-6 py-4">
                             <div class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">{{ lead.nome }}</div>
                             <div class="text-xs text-slate-400 mt-0.5 truncate max-w-[220px] flex items-center gap-1">
@@ -182,6 +197,9 @@
                             <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="mt-2 flex w-max items-center rounded-xl border border-[#1F2B44] bg-[#0B1120] px-3 py-1.5 text-xs font-black text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-white">
                                 <i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i> Inteligência
                             </a>
+                            <button type="button" onclick="gerarPreviaRapida({{ lead.place_id | tojson }}, this)" class="mt-2 flex w-max items-center rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-black text-violet-300 hover:bg-violet-500/20">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> Prévia automática
+                            </button>
                         </td>
                         <td class="px-6 py-4 text-center">
                             <button onclick="abrirDetalhes(this)" 
@@ -248,10 +266,12 @@
                         <i class="fa-regular fa-copy"></i> Copiar
                     </button>
                 </div>
-                <div class="mb-3 grid grid-cols-2 gap-2" id="pitch_variations">
+                <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3" id="pitch_variations">
                     <button type="button" data-style="consultiva" onclick="selecionarVariacaoPitch('consultiva')" class="pitch-style rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-2 text-[10px] font-black text-cyan-300">Consultiva</button>
                     <button type="button" data-style="direta" onclick="selecionarVariacaoPitch('direta')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Direta</button>
                     <button type="button" data-style="personalizada" onclick="selecionarVariacaoPitch('personalizada')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Personalizada</button>
+                    <button type="button" data-style="recepcao" onclick="selecionarVariacaoPitch('recepcao')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Recepção</button>
+                    <button type="button" data-style="email" onclick="selecionarVariacaoPitch('email')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">E-mail</button>
                     <button type="button" data-style="previa_visual" onclick="selecionarVariacaoPitch('previa_visual')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Prévia visual</button>
                 </div>
                 <textarea id="central_copy" oninput="atualizarLinkContato()" class="min-h-56 w-full resize-none bg-[#080B12] border border-[#1F2B44] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
@@ -395,6 +415,7 @@
         let status = document.getElementById('filter_status').value;
         let nicho = document.getElementById('filter_nicho').value;
         let potencial = document.getElementById('filter_potencial').value;
+        let followup = document.getElementById('filter_followup').value;
         
         let trs = document.querySelectorAll('tbody tr');
         
@@ -410,13 +431,31 @@
             let matchStatus = !status || leadStatus === status;
             let matchNicho = !nicho || leadNicho === nicho;
             let matchPotencial = !potencial || tr.dataset.faixaPotential === potencial;
+            let matchFollowup = !followup || tr.dataset.followup === followup;
             
-            if(matchNome && matchStatus && matchNicho && matchPotencial) {
+            if(matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup) {
                 tr.style.display = '';
             } else {
                 tr.style.display = 'none';
             }
         });
+    }
+
+    async function gerarPreviaRapida(placeId, button) {
+        const original = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> Gerando...';
+        try {
+            const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/previews`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível gerar a prévia.');
+            showAppToast(`Prévia ${data.version} criada${data.screenshot_ready ? ' com PNG' : ''}.`);
+            setTimeout(() => window.location.href = `/leads/${encodeURIComponent(placeId)}/studio`, 700);
+        } catch (error) {
+            showAppToast(error.message, 'error');
+            button.disabled = false;
+            button.innerHTML = original;
+        }
     }
 
     async function updateStatus(e, placeId, novoStatus) {
@@ -507,11 +546,11 @@
         const textarea = document.getElementById('central_copy');
         textarea.dataset.copies = JSON.stringify(copies);
         textarea.dataset.whatsappBase = (whatsapp || '').split('?')[0];
+        textarea.dataset.email = email;
         textarea.value = copies.consultiva;
         selecionarVariacaoPitch('consultiva');
         const emailButton = document.getElementById('central_email');
         if (email) {
-            emailButton.href = `mailto:${email}`;
             emailButton.classList.remove('hidden');
             emailButton.classList.add('flex');
         } else {
@@ -544,6 +583,12 @@
         const textarea = document.getElementById('central_copy');
         const base = textarea.dataset.whatsappBase || '';
         document.getElementById('central_whatsapp').href = base ? `${base}?text=${encodeURIComponent(textarea.value)}` : '#';
+        const email = textarea.dataset.email || '';
+        const lines = textarea.value.split('\n');
+        const hasSubject = /^assunto:|^subject:/i.test(lines[0] || '');
+        const subject = hasSubject ? lines.shift().replace(/^assunto:|^subject:/i, '').trim() : `Site para ${document.getElementById('central_nome').textContent}`;
+        const emailButton = document.getElementById('central_email');
+        if (email) emailButton.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n').trim())}`;
     }
 
     function fecharCentralContato() {

@@ -7,6 +7,7 @@ import unittest
 import app as application
 from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, render_preview_html
+from lead_scoring import SCORE_VERSION, score_lead
 
 
 BUSINESS_CASES = (
@@ -39,6 +40,17 @@ def sample_lead(name="Sorriso Centro", category="Dentistas"):
 
 
 class CommercialIntelligenceTests(unittest.TestCase):
+    def test_score_v2_is_transparent_and_keeps_lower_potential_leads(self):
+        priority = score_lead(sample_lead(), has_own_site=False)
+        exploration = score_lead({"Nome": "Negócio sem dados"}, has_own_site=True)
+        self.assertEqual(SCORE_VERSION, priority["version"])
+        self.assertEqual(100, sum(priority["weights"].values()))
+        self.assertLessEqual(priority["score"], 100)
+        self.assertEqual("Prioridade", priority["range"])
+        self.assertEqual("Exploração", exploration["range"])
+        self.assertEqual(5, len(priority["dimensions"]))
+        self.assertIn("não probabilidade", priority["disclaimer"])
+
     def test_ten_business_types_change_opportunity_and_pitch(self):
         opportunities = set()
         personalized = set()
@@ -52,6 +64,9 @@ class CommercialIntelligenceTests(unittest.TestCase):
                 self.assertIn(name, pitches["personalizada"])
                 self.assertNotIn("responsável pelo comercial", pitches["consultiva"].casefold())
                 self.assertNotIn("prévia", pitches["consultiva"].casefold())
+                self.assertNotIn("encontrei", pitches["consultiva"].casefold())
+                self.assertIn("site", pitches["recepcao"].casefold())
+                self.assertTrue(pitches["email"].casefold().startswith(("assunto:", "subject:")))
                 opportunities.add(analysis["opportunity"])
                 personalized.add(pitches["personalizada"])
         self.assertGreaterEqual(len(opportunities), 9)
@@ -149,6 +164,12 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
+
+                stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
+                self.assertEqual(200, stage_change.status_code)
+                dashboard = client.get("/estatisticas")
+                self.assertEqual(200, dashboard.status_code)
+                self.assertIn("Taxa de proposta", dashboard.get_data(as_text=True))
 
                 cleared = client.post("/api/limpar_crm")
                 self.assertEqual(200, cleared.status_code)
