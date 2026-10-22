@@ -29,7 +29,7 @@ O roadmap usa **gates de resultado**, não datas rígidas. Uma fase só avança 
 
 ## Fase 0 — Base segura e recuperável
 
-**Prioridade:** P0  
+**Prioridade:** P0
 **Itens:** SEG-01, SEG-02, SEG-03, OPS-01, DEP-01.
 
 ### Entregas
@@ -49,7 +49,7 @@ O roadmap usa **gates de resultado**, não datas rígidas. Uma fase só avança 
 
 ## Fase 1 — Verdade do lead
 
-**Prioridade:** P1  
+**Prioridade:** P1
 **Itens:** LEAD-02, LEAD-03, LEAD-04 e correções B1/B4/B5.
 
 ### Entregas
@@ -76,7 +76,7 @@ O roadmap usa **gates de resultado**, não datas rígidas. Uma fase só avança 
 
 ## Fase 2 — Priorização comercial
 
-**Prioridade:** P1  
+**Prioridade:** P1
 **Itens:** LEAD-01 e CRM-02.
 
 ### Entregas
@@ -106,7 +106,7 @@ Os pesos são ponto de partida e devem ser calibrados com resposta e fechamento 
 
 ## Fase 3 — Abordagem que aprende
 
-**Prioridade:** P1  
+**Prioridade:** P1
 **Itens:** COPY-01, COPY-02 e correção B2.
 
 ### Entregas
@@ -132,7 +132,7 @@ Os pesos são ponto de partida e devem ser calibrados com resposta e fechamento 
 
 ## Fase 4 — Cadência e fechamento
 
-**Prioridade:** P1  
+**Prioridade:** P1
 **Itens:** CRM-01 e MET-01.
 
 ### Entregas
@@ -160,7 +160,7 @@ Os pesos são ponto de partida e devem ser calibrados com resposta e fechamento 
 
 ## Fase 5 — Escala operacional
 
-**Prioridade:** P2  
+**Prioridade:** P2
 **Itens:** JOB-01, OBS-01, EXP-01 e ARC-01.
 
 ### Entregas
@@ -180,7 +180,7 @@ Os pesos são ponto de partida e devem ser calibrados com resposta e fechamento 
 
 ## Fase 6 — Produto premium
 
-**Prioridade:** P2/P3  
+**Prioridade:** P2/P3
 **Itens:** UX-01, UX-02, PREV-01 e CHAN-01.
 
 ### Entregas

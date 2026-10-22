@@ -1,7 +1,7 @@
 # Auditoria Completa — GestãoLead PRO
 
-**Data da auditoria:** 22/10/2026  
-**Escopo:** repositório local, banco SQLite local, aplicação Flask em ambiente temporário, interface desktop/mobile e verificação somente leitura do endereço de produção.  
+**Data da auditoria:** 22/10/2026
+**Escopo:** repositório local, banco SQLite local, aplicação Flask em ambiente temporário, interface desktop/mobile e verificação somente leitura do endereço de produção.
 **Regra aplicada:** nenhuma alteração funcional, exclusão de dados ou mudança em produção foi realizada.
 
 ## 1. Resumo executivo

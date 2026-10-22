@@ -803,7 +803,15 @@ def health():
         interaction_table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='lead_interactions'").fetchone()
         conn.close()
         ready = bool(preview_table and interaction_table)
-        return jsonify({"status": "ok" if ready else "degraded", "database": "ok", "studio": bool(preview_table), "follow_up": bool(interaction_table)}), 200 if ready else 503
+        return jsonify({
+            "status": "ok" if ready else "degraded",
+            "database": "ok",
+            "studio": bool(preview_table),
+            "follow_up": bool(interaction_table),
+            "commercial_release": "2026.10",
+            "lead_score_version": SCORE_VERSION,
+            "pitch_modes": 5,
+        }), 200 if ready else 503
     except Exception:
         return jsonify({"status": "error", "database": "unavailable"}), 503
 
