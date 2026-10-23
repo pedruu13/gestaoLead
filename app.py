@@ -817,7 +817,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10",
+            "commercial_release": "2026.10.23-pitch-v3",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
         }), 200 if ready else 503

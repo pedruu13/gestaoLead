@@ -262,6 +262,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
+                self.assertEqual("2026.10.23-pitch-v3", health.get_json()["commercial_release"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)
