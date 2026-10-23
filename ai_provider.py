@@ -3,8 +3,8 @@ from google.genai import types
 
 
 MODEL_CANDIDATES = (
-    "gemini-2.5-flash-lite",
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
     "gemini-flash-latest",
 )
 
@@ -13,7 +13,7 @@ def generate_text(api_key, model, prompt, json_mode=False):
     client = genai.Client(api_key=api_key)
     config = types.GenerateContentConfig(
         response_mime_type="application/json" if json_mode else "text/plain",
-        temperature=0.45,
+        temperature=0.55,
     )
     response = client.models.generate_content(model=model, contents=prompt, config=config)
     return (response.text or "").strip()

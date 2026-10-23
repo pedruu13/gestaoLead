@@ -14,7 +14,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
-from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
+from commercial_intelligence import analyze_lead, build_generation_prompt, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 
@@ -114,7 +114,20 @@ def init_db():
     for row in legacy_rows:
         stored_copies = row[13] or ""
         stored_primary = row[14] or ""
-        is_legacy = not stored_copies or '"personalizada"' not in stored_copies or '"recepcao"' not in stored_copies or '"email"' not in stored_copies or "responsável pelo comercial ou marketing" in stored_primary.casefold()
+        legacy_phrases = (
+            "responsável pelo comercial ou marketing",
+            "perfil público consultado",
+            "oportunidade mais clara",
+            "estrutura que recomendaria",
+            "pelas informações públicas disponíveis",
+        )
+        is_legacy = (
+            not stored_copies
+            or '"personalizada"' not in stored_copies
+            or '"recepcao"' not in stored_copies
+            or '"email"' not in stored_copies
+            or any(phrase in stored_primary.casefold() for phrase in legacy_phrases)
+        )
         if not is_legacy:
             continue
         place_id = row[0]
@@ -624,6 +637,7 @@ Retorne estritamente um objeto JSON com as chaves:
 
 def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False):
     inteligencia = analyze_lead(dados_lead, preview_available=preview_available)
+    inteligencia["language"] = "en" if is_intl else "pt-BR"
     fallback = generate_fallback_pitches(inteligencia, is_intl=is_intl)
     qualidade_fallback = evaluate_pitches(fallback, inteligencia, require_preview=preview_available)
     api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
@@ -635,20 +649,14 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
         modos = ["consultiva", "direta", "personalizada", "recepcao", "email"]
         if preview_available:
             modos.append("previa_visual")
-        output_example = {mode: "..." for mode in modos}
-        prompt = f"""Atue como redator B2B criterioso. Gere mensagens de primeiro contato para WhatsApp ou e-mail.
-Use somente os dados do JSON de inteligência. Fatos categóricos só podem vir de 'verified'. Itens de 'inferred' devem ser tratados como hipótese ou oportunidade, nunca como fato.
-Regras: linguagem natural; 45 a 100 palavras por mensagem; mencionar claramente um site; sem pressão, promessa, elogio inventado ou falsa urgência; não dizer que existe prévia se preview_available for falso; variar o encerramento e manter próximo passo claro. Em recepcao, escreva condicionalmente para um número de atendimento/agendamento e peça encaminhamento com educação. Em email, comece com "Assunto:" e escreva corpo apropriado para e-mail.
-Modos obrigatórios: {', '.join(modos)}.
-Retorne apenas JSON no formato {json.dumps({"versoes": output_example}, ensure_ascii=False)}.
-INTELIGÊNCIA:
-{json.dumps(inteligencia, ensure_ascii=False)}"""
         tentativas = 0
+        feedback = None
         for model_name in MODEL_CANDIDATES:
             if tentativas >= 2:
                 break
             tentativas += 1
             try:
+                prompt = build_generation_prompt(inteligencia, modos, feedback=feedback, is_intl=is_intl)
                 response_text = generate_text(api_key, model_name, prompt, json_mode=True)
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", response_text, flags=re.IGNORECASE)
                 candidate = json.loads(raw).get("versoes", {})
@@ -661,6 +669,7 @@ INTELIGÊNCIA:
                     gerada_por_ia = True
                     motivo = f"Aprovada após {tentativas} tentativa(s) de IA"
                     break
+                feedback = qualidade["reasons"]
                 motivo = f"IA reprovada na tentativa {tentativas}: {qualidade['reasons']}"
             except Exception as error:
                 motivo = f"IA indisponível na tentativa {tentativas}: {str(error)[:160]}"

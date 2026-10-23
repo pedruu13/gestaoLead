@@ -3,9 +3,17 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
 import app as application
-from commercial_intelligence import analyze_lead, evaluate_pitches, generate_fallback_pitches
+from commercial_intelligence import (
+    analyze_lead,
+    evaluate_pitches,
+    generate_fallback_pitches,
+    normalize_lead_context,
+    plan_commercial_angle,
+    review_pitch,
+)
 from preview_studio import build_preview_config, render_preview_html
 from lead_scoring import SCORE_VERSION, score_lead
 
@@ -21,6 +29,29 @@ BUSINESS_CASES = (
     ("Pronto Reparo", "Empresa de manutenção", "manutenção"),
     ("Mesa da Vila", "Restaurante", "gastronomia"),
     ("Apoio Local", "Prestadores de serviços locais", "Prestadores de serviços locais"),
+)
+
+TWENTY_BUSINESS_CASES = (
+    ("Dra. Rosiene Silva de Brito", "Dentista"),
+    ("Studio Belle Estética Avançada", "Clínica de estética"),
+    ("Dr. Marcos Pereira Advocacia", "Advogado"),
+    ("Traço Vivo Arquitetura Ltda", "Arquitetos"),
+    ("Reforma Certa", "Empresa de reformas"),
+    ("Conta Simples Contabilidade", "Contadores"),
+    ("Eixo Projetos", "Escritório de engenharia"),
+    ("Pronto Reparo 24 Horas", "Empresa de manutenção"),
+    ("Mesa da Vila", "Restaurante"),
+    ("Clínica Veterinária Amigo Fiel", "Veterinário"),
+    ("Lar & Chave Negócios Imobiliários", "Imobiliária"),
+    ("Sol Forte Energia", "Empresa de energia solar"),
+    ("Ana Souza Psicologia Clínica", "Psicólogo"),
+    ("Movimento Fisioterapia", "Fisioterapeuta"),
+    ("Colégio Novo Horizonte", "Escola particular"),
+    ("Academia Corpo Ativo", "Academia"),
+    ("Hotel Serra Azul", "Hotel"),
+    ("Clara Luz Fotografia", "Fotógrafo"),
+    ("Auto Center Avenida", "Oficina mecânica"),
+    ("Norte Gestão", "Consultoria empresarial"),
 )
 
 
@@ -40,6 +71,29 @@ def sample_lead(name="Sorriso Centro", category="Dentistas"):
 
 
 class CommercialIntelligenceTests(unittest.TestCase):
+    def test_bad_legacy_pitch_is_rejected_by_quality_review(self):
+        analysis = analyze_lead(sample_lead("Dra. Rosiene Silva de Brito", "Dentista"))
+        legacy = (
+            "Oi, equipe da Dra. Rosiene Silva de Brito. Quem compara opções de Dentista costuma precisar "
+            "entender o serviço e o próximo passo antes de entrar em contato. No perfil público consultado, "
+            "não identifiquei um site próprio no perfil do Google consultado. A oportunidade mais clara é "
+            "organizar tratamentos, orientações iniciais e o caminho para agendamento. Um site objetivo pode "
+            "organizar essas respostas e levar a pessoa interessada ao canal que vocês já usam. Posso "
+            "compartilhar a estrutura que recomendaria para avaliação?"
+        )
+        review = review_pitch(legacy, analysis, "consultiva")
+        self.assertFalse(review["approved"])
+        self.assertGreaterEqual(len(review["issues"]), 4)
+
+    def test_normalization_and_plan_do_not_expose_raw_google_language(self):
+        context = normalize_lead_context(sample_lead("Dra. Rosiene Silva de Brito", "Dentista"))
+        plan = plan_commercial_angle(context)
+        self.assertEqual("odontologia", context["segment"])
+        self.assertNotEqual(context["raw_category"], context["commercial_category"])
+        self.assertNotIn("Rosiene Silva de Brito", context["salutation"])
+        self.assertIn("agendamento", plan["benefit"])
+        self.assertNotIn("perfil público", json.dumps(plan, ensure_ascii=False).casefold())
+
     def test_score_v2_is_transparent_and_keeps_lower_potential_leads(self):
         priority = score_lead(sample_lead(), has_own_site=False)
         exploration = score_lead({"Nome": "Negócio sem dados"}, has_own_site=True)
@@ -51,26 +105,63 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertEqual(5, len(priority["dimensions"]))
         self.assertIn("não probabilidade", priority["disclaimer"])
 
-    def test_ten_business_types_change_opportunity_and_pitch(self):
+    def test_twenty_business_types_generate_distinct_natural_approved_pitches(self):
         opportunities = set()
         personalized = set()
-        for name, category, expected_segment in BUSINESS_CASES:
+        forbidden = (
+            "perfil público consultado",
+            "oportunidade mais clara",
+            "estrutura que recomendaria",
+        )
+        for name, category in TWENTY_BUSINESS_CASES:
             with self.subTest(category=category):
                 analysis = analyze_lead(sample_lead(name, category))
                 pitches = generate_fallback_pitches(analysis)
                 quality = evaluate_pitches(pitches, analysis)
-                self.assertEqual(expected_segment, analysis["segment"])
                 self.assertTrue(quality["approved"], quality["reasons"])
-                self.assertIn(name, pitches["personalizada"])
+                self.assertNotIn(name, pitches["consultiva"])
                 self.assertNotIn("responsável pelo comercial", pitches["consultiva"].casefold())
                 self.assertNotIn("prévia", pitches["consultiva"].casefold())
                 self.assertNotIn("encontrei", pitches["consultiva"].casefold())
+                self.assertFalse(any(term in pitches["consultiva"].casefold() for term in forbidden))
                 self.assertIn("site", pitches["recepcao"].casefold())
                 self.assertTrue(pitches["email"].casefold().startswith(("assunto:", "subject:")))
                 opportunities.add(analysis["opportunity"])
                 personalized.add(pitches["personalizada"])
-        self.assertGreaterEqual(len(opportunities), 9)
-        self.assertEqual(10, len(personalized))
+        self.assertGreaterEqual(len(opportunities), 14)
+        self.assertEqual(20, len(personalized))
+
+    def test_each_pitch_mode_uses_a_different_ending(self):
+        analysis = analyze_lead(sample_lead())
+        pitches = generate_fallback_pitches(analysis)
+        endings = {mode: text.rstrip().split(".")[-1].strip().casefold() for mode, text in pitches.items()}
+        self.assertEqual(len(endings), len(set(endings.values())))
+
+    def test_ai_response_is_rejected_then_retried_with_review_feedback(self):
+        lead = sample_lead("Dra. Rosiene Silva de Brito", "Dentista")
+        analysis = analyze_lead(lead)
+        approved = generate_fallback_pitches(analysis)
+        rejected = dict(approved)
+        rejected["consultiva"] = (
+            "Oi, equipe da Dra. Rosiene Silva de Brito. No perfil público consultado, a oportunidade mais clara "
+            "é ter um site para organizar o atendimento. Posso compartilhar a estrutura que recomendaria para "
+            "avaliação com a pessoa responsável por essa decisão dentro da clínica?"
+        )
+        responses = [
+            json.dumps({"versoes": rejected}, ensure_ascii=False),
+            json.dumps({"versoes": approved}, ensure_ascii=False),
+        ]
+        with mock.patch.object(application, "generate_text", side_effect=responses) as generator:
+            result = application.gerar_copy_profissional(lead, {"gemini_api_key": "test-key"})
+        self.assertTrue(result["gerada_por_ia"])
+        self.assertEqual(2, generator.call_count)
+        self.assertIn("versão anterior foi rejeitada", generator.call_args_list[1].args[2])
+        self.assertNotIn("perfil público consultado", result["mensagem"].casefold())
+
+    def test_international_fallback_remains_approved(self):
+        result = application.gerar_copy_profissional(sample_lead(), {}, is_intl=True)
+        self.assertTrue(result["qualidade"]["approved"], result["qualidade"]["reasons"])
+        self.assertTrue(result["versoes"]["email"].startswith("Subject:"))
 
     def test_preview_pitch_only_exists_after_real_preview(self):
         analysis = analyze_lead(sample_lead(), preview_available=False)
@@ -113,6 +204,13 @@ class PreviewStudioTests(unittest.TestCase):
                 with client.session_transaction() as session:
                     session["authenticated"] = True
                     session["user"] = "teste"
+                regenerated = client.post("/api/leads/test-place/regenerate-pitches")
+                self.assertEqual(200, regenerated.status_code, regenerated.get_data(as_text=True))
+                regenerated_data = regenerated.get_json()
+                self.assertTrue(regenerated_data["success"])
+                self.assertTrue(regenerated_data["qualidade"]["approved"], regenerated_data["qualidade"]["reasons"])
+                self.assertNotIn("perfil público consultado", regenerated_data["versoes"]["consultiva"].casefold())
+
                 response = client.post("/api/leads/test-place/previews", json={"headline": "Um sorriso começa com informação clara"})
                 self.assertEqual(200, response.status_code, response.get_data(as_text=True))
                 result = response.get_json()
