@@ -17,6 +17,7 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
+from target_intelligence import suggest_targets
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -840,6 +841,7 @@ def health():
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
             "commercial_release": "2026.10.26-pitch-v4",
+            "target_engine_version": "2026.10.26-target-v1",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
@@ -1772,87 +1774,20 @@ def cancelar_busca():
 def sugerir_alvos():
     try:
         regiao = request.args.get('regiao', 'br').lower()
-        mercados = {
-            "br": {
-                "descricao": "no Brasil",
-                "cidades": ["Alphaville - SP", "Moema - Sao Paulo", "Balneario Camboriu - SC", "Nova Lima - MG", "Batel - Curitiba", "Itaim Bibi - Sao Paulo", "Leblon - Rio de Janeiro", "Jardins - Sao Paulo", "Campinas - SP", "Lago Sul - Brasilia"],
-            },
-            "us": {
-                "descricao": "somente nos Estados Unidos",
-                "cidades": ["Miami - FL", "Boca Raton - FL", "Naples - FL", "Scottsdale - AZ", "Austin - TX", "Beverly Hills - CA", "Irvine - CA", "Dallas - TX", "Manhattan - NY", "Greenwich - CT"],
-            },
-            "europa": {
-                "descricao": "somente em paises europeus",
-                "cidades": ["London - UK", "Dublin - Ireland", "Amsterdam - Netherlands", "Madrid - Spain", "Barcelona - Spain", "Milan - Italy", "Lisbon - Portugal", "Porto - Portugal", "Zurich - Switzerland", "Paris - France"],
-            },
-        }
-        if regiao not in mercados:
-            return jsonify({"erro": "Mercado invalido."}), 400
-        import random
-        cidades_permitidas = mercados[regiao]["cidades"]
-        config = load_config()
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
-        
-        if api_key:
-            try:
-                contexto_regiao = mercados[regiao]["descricao"]
-                
-                prompt = f"""Atue como um estrategista de vendas B2B.
-Eu prospecto empresas no Google Maps para vender criação de Sites de Alta Conversão.
-Preciso que você me sugira 5 Nichos de Alto Valor (High-Ticket) e 5 Cidades com alto poder aquisitivo {contexto_regiao}.
-
-Regras:
-1. Nichos devem ser muito lucrativos (ex: cirurgia plástica, móveis planejados, arquitetura de luxo, energia solar, clínicas especializadas).
-2. Os nichos devem fazer sentido para {contexto_regiao}.
-3. Retorne EXATAMENTE UM JSON válido e mais nada. O formato deve ser:
-{{
-  "nichos": ["Nicho 1", "Nicho 2", "Nicho 3", "Nicho 4", "Nicho 5"],
-  "cidades": ["Cidade 1", "Cidade 2", "Cidade 3", "Cidade 4", "Cidade 5"]
-}}"""
-                texto, _ = first_available_response(api_key, prompt, json_mode=True, attempt_limit=2)
-                texto = texto.replace("```json", "").replace("```", "").strip()
-
-                if texto:
-                    import json
-                    dados_ia = json.loads(texto)
-                    return jsonify({
-                        "nichos": dados_ia.get("nichos", [])[:5],
-                        "cidades": random.sample(cidades_permitidas, 5)
-                    })
-            except Exception as e:
-                print(f"[IA] Erro ao gerar sugestões: {e}")
-                # Fallback para o hardcoded se a IA falhar
-        
-        # Fallback Hardcoded
-        nichos_ht = [
-            "Advogado Trabalhista", "CirurgiÃƒÆ’Ã‚Â£o PlÃƒÆ’Ã‚Â¡stico", "ClÃƒÆ’Ã‚Â­nica de EstÃƒÆ’Ã‚Â©tica", "ImobiliÃƒÆ’Ã‚Â¡ria de Alto PadrÃƒÆ’Ã‚Â£o",
-            "ClÃƒÆ’Ã‚Â­nica OdontolÃƒÆ’Ã‚Â³gica", "EscritÃƒÆ’Ã‚Â³rio de Contabilidade", "Energia Solar", "Arquitetura e Interiores",
-            "Construtora", "ClÃƒÆ’Ã‚Â­nica VeterinÃƒÆ’Ã‚Â¡ria", "ConcessionÃƒÆ’Ã‚Â¡ria de VeÃƒÆ’Ã‚Â­culos", "Consultoria Financeira",
-            "Personal Trainer de Elite", "Psiquiatra", "Dermatologista", "MÃƒÆ’Ã‚Â³veis Planejados", "Seguros"
-        ]
-        
-        cidades_br = [
-            "Alphaville SP", "Moema SÃƒÆ’Ã‚Â£o Paulo", "BalneÃƒÆ’Ã‚Â¡rio CamboriÃƒÆ’Ã‚Âº SC", "Nova Lima MG", 
-            "Batel Curitiba", "Itaim Bibi SP", "Leblon RJ", "JurerÃƒÆ’Ã‚Âª Internacional SC",
-            "Campinas SP", "RibeirÃƒÆ’Ã‚Â£o Preto SP", "Jardins SÃƒÆ’Ã‚Â£o Paulo", "Lago Sul BrasÃƒÆ’Ã‚Â­lia"
-        ]
-        cidades_intl = [
-            "Miami FL", "Orlando FL", "Beverly Hills CA", "Brickell Miami", "Boca Raton FL",
-            "Manhattan NY", "Kensington London", "Dubai Marina", "Aventura FL", "Sunny Isles Beach FL"
-        ]
-        
-        cidades_pool = cidades_permitidas
-        
-        selecionados_nichos = random.sample(nichos_ht, 5)
-        selecionados_cidades = random.sample(cidades_pool, 5)
-        
-        return jsonify({
-            "nichos": selecionados_nichos,
-            "cidades": selecionados_cidades
-        })
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        rows = [dict(row) for row in conn.execute(
+            """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes
+               FROM leads
+               WHERE COALESCE(status, '') != 'Descartado'"""
+        ).fetchall()]
+        conn.close()
+        return jsonify(suggest_targets(regiao, rows))
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
     except Exception as e:
-        print("[ERRO IA SugestÃƒÆ’Ã‚Â£o]:", e)
-        return jsonify({"erro": str(e)}), 500
+        print("[ERRO SUGESTAO DE ALVOS]:", e)
+        return jsonify({"erro": "Não foi possível calcular os melhores alvos agora."}), 500
 
 @app.route("/api/limpar_crm", methods=["POST"])
 def limpar_crm():
