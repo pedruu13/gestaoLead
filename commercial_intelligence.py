@@ -4,6 +4,9 @@ import unicodedata
 from urllib.parse import urlparse
 
 
+PITCH_PIPELINE_VERSION = "4.0"
+
+
 SOCIAL_OR_DIRECTORY_HOSTS = (
     "instagram.com", "facebook.com", "linkedin.com", "linktr.ee",
     "wa.me", "whatsapp.com", "google.com", "goo.gl",
@@ -14,6 +17,14 @@ REPORT_LANGUAGE = (
     "oportunidade mais clara", "estrutura que recomendaria",
     "com base nos dados coletados", "pelas informações públicas disponíveis",
     "dados públicos coletados", "categoria identificada",
+)
+
+WEAK_SALES_LANGUAGE = (
+    "se fizer sentido",
+    "três ideias práticas",
+    "uma ideia simples",
+    "vale eu te mostrar",
+    "sugestão de organização",
 )
 
 PRESSURE_OR_PROMISES = (
@@ -44,7 +55,7 @@ SEGMENT_PROFILES = (
     (("academia", "fitness", "pilates", "crossfit"), "academia", "academia", "quem está comparando opções para começar a treinar", "dúvidas sobre modalidades, horários e como começar", "mostrar modalidades e horários e facilitar a primeira visita", ("modalidade", "horário", "treino", "visita")),
     (("hotel", "pousada", "hostel"), "hotelaria", "hotel ou pousada", "viajantes comparando hospedagens", "dúvidas sobre acomodações, localização e reserva", "apresentar as acomodações e facilitar o pedido de reserva", ("acomoda", "hosped", "reserva", "viaj")),
     (("fotóg", "fotog", "filmagem", "vídeo", "video"), "fotografia", "serviço de fotografia", "quem está escolhendo um profissional para registrar um evento ou projeto", "dúvidas sobre estilo, trabalhos anteriores e orçamento", "mostrar o portfólio e facilitar o pedido de orçamento", ("portfólio", "trabalho", "evento", "orçamento")),
-    (("oficina", "auto center", "mecân", "mecan", "automot"), "serviços automotivos", "oficina ou centro automotivo", "motoristas procurando manutenção para o veículo", "dúvidas sobre serviços, atendimento e pedido de orçamento", "apresentar os serviços e facilitar o pedido de orçamento", ("veículo", "serviço", "manutenção", "orçamento")),
+    (("oficina", "auto center", "mecân", "mecan", "automot"), "serviços automotivos", "oficina ou centro automotivo", "motoristas procurando manutenção para o veículo", "dúvidas sobre serviços, atendimento e pedido de orçamento", "apresentar os serviços e facilitar o pedido de orçamento", ("veículo", "serviço", "manutenção", "orçamento", "oficina")),
     (("consultor", "consultoria", "gestão", "gestao"), "consultoria", "consultoria empresarial", "empresas procurando apoio para uma decisão ou projeto", "dúvidas sobre especialidades, forma de trabalho e primeiro diagnóstico", "explicar a atuação e facilitar uma conversa inicial mais qualificada", ("empresa", "atuação", "diagnóstico", "conversa")),
 )
 
@@ -146,6 +157,31 @@ SEGMENT_COPY_ANGLES = {
     ),
 }
 
+SEGMENT_BUSINESS_REFERENCES = {
+    "odontologia": "da clínica",
+    "estética": "da clínica",
+    "veterinária": "da clínica veterinária",
+    "psicologia": "do consultório",
+    "fisioterapia": "da clínica",
+    "saúde": "da clínica",
+    "advocacia": "do escritório",
+    "arquitetura": "do escritório",
+    "reformas": "da empresa",
+    "contabilidade": "do escritório",
+    "engenharia": "da empresa",
+    "manutenção": "da empresa",
+    "gastronomia": "do restaurante",
+    "imobiliária": "da imobiliária",
+    "energia solar": "da empresa",
+    "educação": "da instituição",
+    "academia": "da academia",
+    "hotelaria": "da hospedagem",
+    "fotografia": "do estúdio",
+    "serviços automotivos": "da oficina",
+    "consultoria": "da consultoria",
+    "serviços locais": "da empresa",
+}
+
 
 def clean_text(value, limit=600):
     return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
@@ -220,7 +256,7 @@ def normalize_lead_context(lead, preview_available=False):
     website = clean_text(field(lead, "Link Inicial", "link_inicial"), 500)
     channels = []
     for label, value in (
-        ("WhatsApp ou telefone", field(lead, "Telefone", "telefone")),
+        ("WhatsApp", field(lead, "Telefone", "telefone")),
         ("e-mail", field(lead, "E-mail Encontrado", "email")),
         ("Instagram", field(lead, "Instagram", "instagram")),
         ("Facebook", field(lead, "Facebook", "facebook")),
@@ -246,22 +282,71 @@ def normalize_lead_context(lead, preview_available=False):
 def plan_commercial_angle(context):
     channel = context["channels"][0] if context["channels"] else "canal de atendimento"
     if context["site_verified"]:
-        premise = "o site pode ser avaliado pela clareza com que apresenta o serviço e conduz ao contato"
+        observation = "A empresa já possui um site; a proposta deve ser apresentada como evolução, não como criação do zero."
+        need_statement = f"O ponto comercial é avaliar se a página ajuda {context['audience']} a resolver {context['friction']} antes do contato."
+        offer_action = "reestruturar o site"
     else:
-        premise = "um site pode responder dúvidas importantes antes do primeiro contato, sem substituir os canais atuais"
+        observation = "Não foi encontrado um site próprio vinculado ao perfil da empresa no Google."
+        need_statement = f"Sem uma página própria, o potencial cliente pode chegar ao {channel} ainda com {context['friction']}."
+        offer_action = "desenvolver um site profissional"
     hook, site_value = SEGMENT_COPY_ANGLES.get(context["segment"], SEGMENT_COPY_ANGLES["serviços locais"])
+    entity_reference = SEGMENT_BUSINESS_REFERENCES.get(context["segment"], "da empresa")
+    masculine_categories = ("atendimento", "escritório", "restaurante", "hotel", "serviço", "negócio")
+    article = "um" if context["commercial_category"].casefold().startswith(masculine_categories) else "uma"
     return {
         "audience": context["audience"],
         "friction": context["friction"],
         "benefit": context["benefit"],
-        "premise": premise,
+        "observation": observation,
+        "need_statement": need_statement,
+        "offer_action": offer_action,
         "destination_channel": channel,
         "primary_angle": f"{context['benefit']}, reduzindo {context['friction']}",
         "hook": hook,
         "site_value": site_value,
+        "entity_reference": entity_reference,
+        "category_with_article": f"{article} {context['commercial_category']}",
         "required_terms": context["required_terms"],
         "claims_policy": "Tratar o benefício como possibilidade; não afirmar falhas, resultados ou ausência absoluta de site.",
     }
+
+
+def _seller_introduction(analysis, plural=False):
+    seller = analysis.get("seller") or {}
+    seller_name = clean_text(seller.get("name"), 80)
+    agency_name = clean_text(seller.get("agency"), 100)
+    first_name = seller_name.split()[0] if seller_name else ""
+    if agency_name and first_name:
+        if plural:
+            return f"Meu nome é {first_name} e faço parte da {agency_name}, onde desenvolvemos sites para empresas."
+        return f"Sou {first_name}, da {agency_name}, e desenvolvo sites para empresas."
+    if agency_name:
+        return f"Na {agency_name}, desenvolvemos sites para empresas."
+    if first_name:
+        return f"Sou {first_name} e desenvolvo sites para empresas."
+    return "Trabalhamos com criação de sites para empresas." if plural else "Trabalho com criação de sites para empresas."
+
+
+def _seller_introduction_en(analysis, plural=False):
+    seller = analysis.get("seller") or {}
+    seller_name = clean_text(seller.get("name"), 80)
+    agency_name = clean_text(seller.get("agency"), 100)
+    first_name = seller_name.split()[0] if seller_name else ""
+    if agency_name and first_name:
+        if plural:
+            return f"My name is {first_name}, and I am part of {agency_name}, where we build websites for businesses."
+        return f"My name is {first_name}, from {agency_name}, and I build websites for businesses."
+    if agency_name:
+        return f"At {agency_name}, we build websites for businesses."
+    if first_name:
+        return f"My name is {first_name}, and I build websites for businesses."
+    return "We build websites for businesses." if plural else "I work with website development for businesses."
+
+
+def _site_observation_for_pitch(context, plan):
+    if context["site_verified"]:
+        return f"Vi que {plan['entity_reference'][1:]} já possui um site, então minha proposta seria trabalhar a clareza comercial e o caminho até o contato."
+    return f"Ao pesquisar a presença digital {plan['entity_reference']}, não encontrei um site próprio vinculado ao perfil do Google."
 
 
 def analyze_lead(lead, preview_available=False):
@@ -322,12 +407,14 @@ def generate_fallback_pitches(analysis, is_intl=False):
     plan = analysis["commercial_plan"]
     context = analysis["normalized_context"]
     if is_intl:
+        introduction = _seller_introduction_en(analysis)
+        agency_introduction = _seller_introduction_en(analysis, plural=True)
         pitches = {
-            "consultiva": f"Hi, how are you? People researching {context['commercial_category']} often have questions before making contact. A clear website can organize the essential information and guide interested visitors to your existing contact channel. Would it help if I sent three practical suggestions for that page?",
-            "direta": "Hi! I have a simple website idea for your business: make the service easier to understand and give each visitor a clear next step. It would work alongside your current channels rather than replace them. May I send you a short summary here?",
-            "personalizada": f"Hello! For a {context['commercial_category']}, a focused website can help visitors understand the service before contacting the team. The useful angle would be to {plan['benefit']}. Would you like to see how I would organize the main sections?",
-            "recepcao": "Hi! Is this number mainly used for customer service or appointments? I have a website suggestion focused on helping visitors understand the service before they message the team. Could you forward it to the person who handles this area?",
-            "email": "Subject: A website idea to clarify the customer journey\n\nHello, I would like to share a practical website idea for your business. The page could help visitors understand the service and reach the right contact channel with fewer initial questions. If relevant, reply to this email and I will send a concise outline.",
+            "consultiva": f"Hello, how are you? {introduction} I could not find a company website linked to the Google profile. Without a website, potential customers may reach the team before understanding the service or the next step. My proposal is to build a professional website that presents the business clearly and directs qualified visitors to the current contact channel. May I send an initial project scope?",
+            "direta": f"Hello. {introduction} I could not find a website linked to the company profile. I would like to present a website proposal focused on explaining the service, building trust and giving visitors a clear path to contact the team. Who would be the best person to review the initial scope?",
+            "personalizada": f"Hello, how are you? {introduction} Without a website linked to the business profile, visitors may depend on scattered information before contacting the team. My proposal is to build a website that organizes the decision process and sends better-prepared enquiries to the business. Could we discuss the project briefly?",
+            "recepcao": f"Hello, how are you? {introduction} I could not find a company website linked to the Google profile, and I would like to present a website proposal. If this number is mainly used for customer service or appointments, could you forward my contact to the person who handles website projects?",
+            "email": f"Subject: Website proposal for the business\n\nHello, {agency_introduction} I could not find a company website linked to the Google profile. Without a website, prospects may contact the team before understanding the service. Our proposal is to build a professional website that presents the business and directs qualified visitors to the right channel. Reply to this email, and I will send an initial scope for review.",
         }
         if analysis.get("preview_available"):
             pitches["previa_visual"] = "Hi! I created a non-official visual concept using only confirmed information. It is not a finished website, but a way to discuss structure and mobile readability. May I send the image with a short explanation?"
@@ -335,12 +422,15 @@ def generate_fallback_pitches(analysis, is_intl=False):
 
     location = _location_phrase(context["location"])
     destination = plan["destination_channel"]
+    introduction = _seller_introduction(analysis)
+    agency_introduction = _seller_introduction(analysis, plural=True)
+    observation = _site_observation_for_pitch(context, plan)
     pitches = {
-        "consultiva": f"Oi, tudo bem? {plan['hook']} Um site bem organizado pode {plan['site_value']}. Se fizer sentido, posso te mandar três ideias práticas para essa página?",
-        "direta": f"Oi! Uma página enxuta para {context['commercial_category']} pode {plan['benefit']}. A ideia é reunir o essencial em um só lugar e levar quem já entendeu a proposta ao {destination}. Quer que eu te envie um resumo curto do que entraria nesse site?",
-        "personalizada": f"Olá! Pensando em {context['commercial_category']}{location}, há espaço para um site que ajude {plan['audience']} sem complicar o atendimento. O foco seria {plan['site_value']}. Vale eu te mostrar uma sugestão de organização para esse tipo de negócio?",
-        "recepcao": f"Oi! Este número é usado para atendimento ou agendamento? Tenho uma ideia de site para {plan['benefit']}, evitando que dúvidas iniciais ocupem a conversa no {destination}. Se outra pessoa cuida dessa parte, você consegue encaminhar a sugestão para ela?",
-        "email": f"Assunto: uma ideia de site para {context['commercial_category']}\n\nOlá, tudo bem? {plan['hook']} Minha sugestão seria um site objetivo para {plan['site_value']}. Se esse assunto fizer sentido para a equipe, responda este e-mail e eu envio um resumo prático da proposta.",
+        "consultiva": f"Olá, tudo bem? {introduction} {observation} {plan['need_statement']} Minha proposta é {plan['offer_action']} para {plan['site_value']}. Posso encaminhar um escopo inicial para vocês avaliarem?",
+        "direta": f"Olá. {introduction} {observation} Para {plan['category_with_article']}, um site profissional pode {plan['site_value']}. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
+        "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']}. Podemos conversar sobre esse projeto?",
+        "recepcao": f"Olá, tudo bem? {introduction} Estou entrando em contato porque {observation[0].lower() + observation[1:]} Tenho uma proposta de site para a empresa. O projeto teria como objetivo {plan['site_value']}. Se este número for de atendimento ou agendamento, você pode encaminhar meu contato a quem avalia esse tipo de projeto?",
+        "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} {plan['need_statement']} Nossa proposta é {plan['offer_action']} para {plan['site_value']}. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
     }
     if analysis.get("preview_available"):
         pitches["previa_visual"] = "Oi! Preparei um conceito visual não oficial usando apenas informações confirmadas. Não é um site pronto: é uma imagem para conversar sobre organização, leitura no celular e caminho até o contato. Posso enviar a imagem com uma explicação curta?"
@@ -354,7 +444,7 @@ def _last_sentence(text):
 
 def _repeated_content_words(text):
     words = re.findall(r"[a-zá-úç]{5,}", clean_text(text).casefold())
-    ignored = {"atendimento", "contato", "pessoa", "equipe", "porque", "antes", "poderia", "vocês"}
+    ignored = {"atendimento", "contato", "pessoa", "equipe", "porque", "antes", "poderia", "vocês", "website"}
     counts = {word: words.count(word) for word in set(words) if word not in ignored}
     return sorted(word for word, count in counts.items() if count >= 4)
 
@@ -377,6 +467,10 @@ def review_pitch(text, analysis, mode):
             issues.append(f"usa linguagem de relatório técnico: {phrase}")
     if any(phrase in folded for phrase in PRESSURE_OR_PROMISES):
         issues.append("usa pressão, promessa ou clichê comercial")
+    if any(phrase in folded for phrase in WEAK_SALES_LANGUAGE):
+        issues.append("usa linguagem comercial fraca ou genérica")
+    if any(phrase in folded for phrase in ("uma atendimento", "uma escritório", "uma restaurante", "uma hotel", "uma serviço", "uma negócio")):
+        issues.append("contém erro de concordância na categoria comercial")
     full_name = clean_text(analysis.get("name"), 100).casefold()
     greeting_area = clean_text(value, 180).casefold()
     if full_name and full_name != "empresa" and full_name in greeting_area:
@@ -393,6 +487,27 @@ def review_pitch(text, analysis, mode):
         required_terms = ("service", "appointment", "contact", "project", "booking", "website", "visitor")
     if required_terms and not any(_fold(term) in _fold(value) for term in required_terms):
         issues.append("não traz benefício específico do segmento")
+    if mode != "previa_visual":
+        seller_terms = (
+            "sou ", "trabalho com criação de sites", "trabalhamos com criação de sites", "desenvolvo sites", "desenvolvemos sites",
+            "i build websites", "we build websites", "website development", "where we build websites",
+        )
+        offer_terms = (
+            "minha proposta", "nossa proposta", "desenvolver um site", "reestruturar o site",
+            "proposta de site", "projeto que quero apresentar", "site que quero apresentar",
+            "my proposal", "our proposal", "build a website", "website proposal",
+        )
+        if not any(term in folded for term in seller_terms):
+            issues.append("não apresenta quem oferece o serviço")
+        if not any(term in folded for term in offer_terms):
+            issues.append("não faz uma proposta comercial explícita de site")
+        if not analysis.get("normalized_context", {}).get("site_verified"):
+            evidence_terms = (
+                "site próprio vinculado", "sem uma página própria", "não encontrei um site próprio",
+                "website linked", "without a website",
+            )
+            if not any(term in folded for term in evidence_terms):
+                issues.append("não explica com segurança por que um site é necessário")
     if ("prévia" in folded or "demonstração" in folded or "conceito visual" in folded) and not analysis.get("preview_available"):
         issues.append("menciona material visual inexistente")
     if mode == "email" and not folded.startswith(("assunto:", "subject:")):
@@ -425,10 +540,17 @@ def evaluate_pitches(pitches, analysis, require_preview=False):
             right_words = set(re.findall(r"[a-zá-úç]{4,}", texts[right_mode]))
             union = left_words | right_words
             similarity = len(left_words & right_words) / len(union) if union else 0
-            if similarity > 0.72:
+            if similarity > 0.82:
                 reasons.setdefault("geral", []).append(f"{left_mode} e {right_mode} são semelhantes demais")
     total_issues = sum(len(items) for items in reasons.values())
-    return {"approved": total_issues == 0, "score": max(0, 100 - total_issues * 12), "reasons": reasons, "reviews": reviews, "attempt_limit": 2}
+    return {
+        "approved": total_issues == 0,
+        "score": max(0, 100 - total_issues * 12),
+        "reasons": reasons,
+        "reviews": reviews,
+        "attempt_limit": 2,
+        "pipeline_version": PITCH_PIPELINE_VERSION,
+    }
 
 
 def build_generation_prompt(analysis, modes, feedback=None, is_intl=False):
@@ -441,6 +563,7 @@ def build_generation_prompt(analysis, modes, feedback=None, is_intl=False):
         "site_verified": context["site_verified"],
         "preview_available": context["preview_available"],
         "commercial_plan": analysis["commercial_plan"],
+        "seller": analysis.get("seller", {}),
     }
     language = "inglês natural" if is_intl else "português brasileiro natural"
     repair = f"\nA versão anterior foi rejeitada por: {json.dumps(feedback, ensure_ascii=False)}\nCorrija esses pontos." if feedback else ""
@@ -454,8 +577,11 @@ REGRAS OBRIGATÓRIAS:
 - Comece de forma natural, sem nome completo da pessoa ou do estabelecimento na saudação.
 - Nunca copie categoria bruta do Google; use somente commercial_category de forma gramatical.
 - Use um benefício específico do segmento e trate-o como possibilidade, não como fato comprovado.
+- Apresente claramente quem está entrando em contato e que o serviço oferecido é criação ou reestruturação de site.
+- Mostre por que a ausência de uma página própria pode prejudicar a decisão ou qualificação do contato.
+- Faça uma proposta comercial explícita e termine com um próximo passo profissional.
 - Não afirme que o negócio tem um problema nem que está sem site.
-- Não use: perfil público consultado, oportunidade mais clara, estrutura que recomendaria, pelas informações públicas disponíveis.
+- Não use: perfil público consultado, oportunidade mais clara, estrutura que recomendaria, pelas informações públicas disponíveis, se fizer sentido, três ideias práticas.
 - Não invente serviços, números, elogios, resultados, urgência, preço ou desconto.
 - Não mencione prévia, demonstração ou conceito visual se preview_available for falso.
 - Crie argumentos e encerramentos realmente diferentes entre os modos.

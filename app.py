@@ -14,7 +14,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
-from commercial_intelligence import analyze_lead, build_generation_prompt, evaluate_pitches, generate_fallback_pitches
+from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 
@@ -86,6 +86,7 @@ def ler_status():
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    configured_identity = load_config()
     c.execute("""CREATE TABLE IF NOT EXISTS leads
                  (place_id TEXT PRIMARY KEY, nome TEXT, nicho TEXT, bairro TEXT, nota TEXT,
                   avaliacoes TEXT, telefone TEXT, whatsapp_link TEXT, email TEXT,
@@ -108,24 +109,31 @@ def init_db():
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     legacy_rows = c.execute(
         """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
-                  instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto
+                  instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto, qualidade_pitch
            FROM leads"""
     ).fetchall()
     for row in legacy_rows:
         stored_copies = row[13] or ""
         stored_primary = row[14] or ""
+        try:
+            stored_pipeline_version = json.loads(row[15] or "{}").get("pipeline_version")
+        except (TypeError, json.JSONDecodeError):
+            stored_pipeline_version = None
         legacy_phrases = (
             "responsável pelo comercial ou marketing",
             "perfil público consultado",
             "oportunidade mais clara",
             "estrutura que recomendaria",
             "pelas informações públicas disponíveis",
+            "se fizer sentido",
+            "três ideias práticas",
         )
         is_legacy = (
             not stored_copies
             or '"personalizada"' not in stored_copies
             or '"recepcao"' not in stored_copies
             or '"email"' not in stored_copies
+            or stored_pipeline_version != PITCH_PIPELINE_VERSION
             or any(phrase in stored_primary.casefold() for phrase in legacy_phrases)
         )
         if not is_legacy:
@@ -140,6 +148,10 @@ def init_db():
             "Google Maps": row[12] or "",
         }
         intelligence = analyze_lead(raw, preview_available=preview_available)
+        intelligence["seller"] = {
+            "name": clean_text(configured_identity.get("vendedor_nome", ""), 80),
+            "agency": clean_text(configured_identity.get("agencia_nome", ""), 100),
+        }
         pitches = generate_fallback_pitches(intelligence)
         quality = evaluate_pitches(pitches, intelligence, require_preview=preview_available)
         diagnosis = f"Confiança da análise: {intelligence['confidence']}%. Oportunidade: {intelligence['opportunity']}."
@@ -638,6 +650,10 @@ Retorne estritamente um objeto JSON com as chaves:
 def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False):
     inteligencia = analyze_lead(dados_lead, preview_available=preview_available)
     inteligencia["language"] = "en" if is_intl else "pt-BR"
+    inteligencia["seller"] = {
+        "name": clean_text(config.get("vendedor_nome", ""), 80),
+        "agency": clean_text(config.get("agencia_nome", ""), 100),
+    }
     fallback = generate_fallback_pitches(inteligencia, is_intl=is_intl)
     qualidade_fallback = evaluate_pitches(fallback, inteligencia, require_preview=preview_available)
     api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
@@ -817,9 +833,10 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.23-pitch-v3",
+            "commercial_release": "2026.10.26-pitch-v4",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
+            "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
         }), 200 if ready else 503
     except Exception:
         return jsonify({"status": "error", "database": "unavailable"}), 503

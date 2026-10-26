@@ -9,16 +9,19 @@
 5. O prompt recebia o objeto técnico inteiro, incluindo evidências escritas como relatório, e não havia uma etapa própria de planejamento comercial.
 6. Quando a IA era usada, a primeira opção era o modelo `flash-lite`; uma resposta reprovada não recebia os motivos da reprovação na tentativa seguinte.
 7. Os pitches antigos já salvos não eram regenerados porque a migração só reconhecia uma versão legada mais antiga.
+8. A primeira correção ficou segura, porém comercialmente fraca: não apresentava o vendedor, não formulava a necessidade do site e terminava com pedidos vagos como “três ideias práticas”.
 
 ## Pipeline implementado
 
 1. **Normalização:** transforma categoria bruta, nome, localização, canais e situação do site em contexto comercial seguro.
-2. **Planejamento:** escolhe público, dúvida anterior ao contato, benefício, gancho e valor do site por segmento.
-3. **Geração:** produz cinco abordagens diferentes sem copiar os campos técnicos; usa IA quando disponível e fallback contextual quando não está.
-4. **Revisão:** rejeita linguagem de relatório, nome completo na saudação, categoria bruta, repetição excessiva, promessa, prévia inexistente, falta de benefício específico e encerramentos duplicados.
+2. **Planejamento:** escolhe público, dúvida anterior ao contato, impacto comercial, escopo do site e valor específico por segmento.
+3. **Geração:** apresenta o vendedor ou agência, registra a evidência segura, explica a necessidade e oferece explicitamente a criação do site.
+4. **Revisão:** rejeita texto sem apresentação comercial, sem proposta explícita, sem justificativa do site, com linguagem fraca, erro gramatical, promessa, repetição ou encerramento genérico.
 5. **Recuperação:** a segunda tentativa da IA recebe os motivos exatos da reprovação; se continuar ruim, entra o fallback contextual já validado.
 
 ## Antes e depois — caso real
+
+Os exemplos abaixo usam “Pedro” e “Norte Digital” apenas para demonstrar os campos de vendedor e agência configuráveis na plataforma.
 
 ### Antes
 
@@ -26,25 +29,25 @@
 
 ### Depois
 
-> Oi, tudo bem? Muita gente escolhe onde marcar uma consulta depois de entender os tratamentos e como funciona o primeiro atendimento. Um site bem organizado pode explicar essas etapas com clareza e conduzir o paciente ao agendamento sem transformar o WhatsApp em um balcão de dúvidas. Se fizer sentido, posso te mandar três ideias práticas para essa página?
+> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre tratamentos, primeira consulta e agendamento. Minha proposta é desenvolver um site profissional para explicar essas etapas com clareza e conduzir o paciente ao agendamento sem transformar o WhatsApp em um balcão de dúvidas. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 ### Outros exemplos gerados pelo sistema
 
 **Estética**
 
-> Oi, tudo bem? Antes de agendar um procedimento, é comum a pessoa querer entender opções, cuidados e como será atendida. Um site bem organizado pode organizar essas respostas, valorizar a forma de atendimento e encurtar o caminho até o agendamento. Se fizer sentido, posso te mandar três ideias práticas para essa página?
+> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre procedimentos, cuidados e forma de agendamento. Minha proposta é desenvolver um site profissional para organizar essas respostas, valorizar a forma de atendimento e encurtar o caminho até o agendamento. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Advocacia**
 
-> Oi, tudo bem? Quem busca orientação jurídica primeiro precisa saber se o escritório atua naquele tipo de caso e como iniciar a conversa. Um site bem organizado pode apresentar as áreas de atuação com sobriedade e direcionar o contato inicial. Se fizer sentido, posso te mandar três ideias práticas para essa página?
+> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do escritório, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre áreas de atuação e como iniciar o atendimento. Minha proposta é desenvolver um site profissional para apresentar as áreas de atuação com sobriedade e direcionar o contato inicial. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Restaurante**
 
-> Oi, tudo bem? Cardápio, horário e forma de pedir costumam definir se o cliente avança ou procura outra opção. Um site bem organizado pode concentrar essas informações e reduzir etapas até a reserva ou o pedido. Se fizer sentido, posso te mandar três ideias práticas para essa página?
+> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do restaurante, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre cardápio, horários, reservas e pedidos. Minha proposta é desenvolver um site profissional para concentrar essas informações e reduzir etapas até a reserva ou o pedido. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Fotografia**
 
-> Oi, tudo bem? Quem contrata fotografia decide muito pelo estilo dos trabalhos anteriores e pela segurança no primeiro contato. Um site bem organizado pode valorizar o portfólio e preparar um pedido de orçamento mais completo. Se fizer sentido, posso te mandar três ideias práticas para essa página?
+> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do estúdio, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre estilo, trabalhos anteriores e orçamento. Minha proposta é desenvolver um site profissional para valorizar o portfólio e preparar um pedido de orçamento mais completo. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 ## Validação com 20 segmentos
 

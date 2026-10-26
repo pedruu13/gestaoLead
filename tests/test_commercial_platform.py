@@ -71,6 +71,18 @@ def sample_lead(name="Sorriso Centro", category="Dentistas"):
 
 
 class CommercialIntelligenceTests(unittest.TestCase):
+    def test_pitch_must_present_the_seller_and_make_an_explicit_site_offer(self):
+        analysis = analyze_lead(sample_lead())
+        generic = (
+            "Olá, tudo bem? Muita gente escolhe onde marcar uma consulta depois de entender os tratamentos. "
+            "Um site bem organizado pode explicar essas etapas e conduzir o paciente ao agendamento. "
+            "Se fizer sentido, posso te mandar três ideias práticas para essa página?"
+        )
+        review = review_pitch(generic, analysis, "consultiva")
+        self.assertFalse(review["approved"])
+        self.assertIn("não apresenta quem oferece o serviço", review["issues"])
+        self.assertIn("não faz uma proposta comercial explícita de site", review["issues"])
+
     def test_bad_legacy_pitch_is_rejected_by_quality_review(self):
         analysis = analyze_lead(sample_lead("Dra. Rosiene Silva de Brito", "Dentista"))
         legacy = (
@@ -122,8 +134,18 @@ class CommercialIntelligenceTests(unittest.TestCase):
                 self.assertNotIn(name, pitches["consultiva"])
                 self.assertNotIn("responsável pelo comercial", pitches["consultiva"].casefold())
                 self.assertNotIn("prévia", pitches["consultiva"].casefold())
-                self.assertNotIn("encontrei", pitches["consultiva"].casefold())
                 self.assertFalse(any(term in pitches["consultiva"].casefold() for term in forbidden))
+                self.assertTrue(
+                    any(term in pitches["consultiva"].casefold() for term in ("desenvolvo sites", "criação de sites", "criamos sites")),
+                    pitches["consultiva"],
+                )
+                self.assertIn("site próprio vinculado", pitches["consultiva"].casefold())
+                self.assertNotIn("se fizer sentido", pitches["consultiva"].casefold())
+                self.assertNotIn("três ideias práticas", pitches["consultiva"].casefold())
+                self.assertFalse(
+                    any(error in " ".join(pitches.values()).casefold() for error in ("uma atendimento", "uma escritório", "uma restaurante")),
+                    pitches,
+                )
                 self.assertIn("site", pitches["recepcao"].casefold())
                 self.assertTrue(pitches["email"].casefold().startswith(("assunto:", "subject:")))
                 opportunities.add(analysis["opportunity"])
@@ -157,6 +179,15 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertEqual(2, generator.call_count)
         self.assertIn("versão anterior foi rejeitada", generator.call_args_list[1].args[2])
         self.assertNotIn("perfil público consultado", result["mensagem"].casefold())
+
+    def test_configured_seller_identity_is_used_in_the_pitch(self):
+        result = application.gerar_copy_profissional(
+            sample_lead(),
+            {"vendedor_nome": "Pedro Henrique", "agencia_nome": "Norte Digital"},
+        )
+        self.assertIn("Sou Pedro, da Norte Digital", result["mensagem"])
+        self.assertIn("desenvolvo sites", result["mensagem"].casefold())
+        self.assertIn("minha proposta", result["mensagem"].casefold())
 
     def test_international_fallback_remains_approved(self):
         result = application.gerar_copy_profissional(sample_lead(), {}, is_intl=True)
@@ -262,7 +293,8 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.23-pitch-v3", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.26-pitch-v4", health.get_json()["commercial_release"])
+                self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)
