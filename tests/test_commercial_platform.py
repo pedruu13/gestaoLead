@@ -183,9 +183,9 @@ class CommercialIntelligenceTests(unittest.TestCase):
     def test_configured_seller_identity_is_used_in_the_pitch(self):
         result = application.gerar_copy_profissional(
             sample_lead(),
-            {"vendedor_nome": "Pedro Henrique", "agencia_nome": "Norte Digital"},
+            {"vendedor_nome": "Pedro Henrique", "agencia_nome": "PH Digital"},
         )
-        self.assertIn("Sou Pedro, da Norte Digital", result["mensagem"])
+        self.assertIn("Sou Pedro, da PH Digital", result["mensagem"])
         self.assertIn("desenvolvo sites", result["mensagem"].casefold())
         self.assertIn("minha proposta", result["mensagem"].casefold())
 

@@ -21,7 +21,7 @@
 
 ## Antes e depois — caso real
 
-Os exemplos abaixo usam “Pedro” e “Norte Digital” apenas para demonstrar os campos de vendedor e agência configuráveis na plataforma.
+Os exemplos abaixo usam “Pedro” e “PH Digital” para demonstrar os campos de vendedor e agência configuráveis na plataforma.
 
 ### Antes
 
@@ -29,25 +29,25 @@ Os exemplos abaixo usam “Pedro” e “Norte Digital” apenas para demonstrar
 
 ### Depois
 
-> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre tratamentos, primeira consulta e agendamento. Minha proposta é desenvolver um site profissional para explicar essas etapas com clareza e conduzir o paciente ao agendamento sem transformar o WhatsApp em um balcão de dúvidas. Posso encaminhar um escopo inicial para vocês avaliarem?
+> Olá, tudo bem? Sou Pedro, da PH Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre tratamentos, primeira consulta e agendamento. Minha proposta é desenvolver um site profissional para explicar essas etapas com clareza e conduzir o paciente ao agendamento sem transformar o WhatsApp em um balcão de dúvidas. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 ### Outros exemplos gerados pelo sistema
 
 **Estética**
 
-> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre procedimentos, cuidados e forma de agendamento. Minha proposta é desenvolver um site profissional para organizar essas respostas, valorizar a forma de atendimento e encurtar o caminho até o agendamento. Posso encaminhar um escopo inicial para vocês avaliarem?
+> Olá, tudo bem? Sou Pedro, da PH Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital da clínica, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre procedimentos, cuidados e forma de agendamento. Minha proposta é desenvolver um site profissional para organizar essas respostas, valorizar a forma de atendimento e encurtar o caminho até o agendamento. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Advocacia**
 
-> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do escritório, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre áreas de atuação e como iniciar o atendimento. Minha proposta é desenvolver um site profissional para apresentar as áreas de atuação com sobriedade e direcionar o contato inicial. Posso encaminhar um escopo inicial para vocês avaliarem?
+> Olá, tudo bem? Sou Pedro, da PH Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do escritório, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre áreas de atuação e como iniciar o atendimento. Minha proposta é desenvolver um site profissional para apresentar as áreas de atuação com sobriedade e direcionar o contato inicial. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Restaurante**
 
-> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do restaurante, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre cardápio, horários, reservas e pedidos. Minha proposta é desenvolver um site profissional para concentrar essas informações e reduzir etapas até a reserva ou o pedido. Posso encaminhar um escopo inicial para vocês avaliarem?
+> Olá, tudo bem? Sou Pedro, da PH Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do restaurante, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre cardápio, horários, reservas e pedidos. Minha proposta é desenvolver um site profissional para concentrar essas informações e reduzir etapas até a reserva ou o pedido. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 **Fotografia**
 
-> Olá, tudo bem? Sou Pedro, da Norte Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do estúdio, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre estilo, trabalhos anteriores e orçamento. Minha proposta é desenvolver um site profissional para valorizar o portfólio e preparar um pedido de orçamento mais completo. Posso encaminhar um escopo inicial para vocês avaliarem?
+> Olá, tudo bem? Sou Pedro, da PH Digital, e desenvolvo sites para empresas. Ao pesquisar a presença digital do estúdio, não encontrei um site próprio vinculado ao perfil do Google. Sem uma página própria, o potencial cliente pode chegar ao WhatsApp ainda com dúvidas sobre estilo, trabalhos anteriores e orçamento. Minha proposta é desenvolver um site profissional para valorizar o portfólio e preparar um pedido de orçamento mais completo. Posso encaminhar um escopo inicial para vocês avaliarem?
 
 ## Validação com 20 segmentos
 

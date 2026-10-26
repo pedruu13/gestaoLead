@@ -38,13 +38,19 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
 PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
+DEFAULT_AGENCY_NAME = "PH Digital"
 
 def load_config():
     if not os.path.exists(CONFIG_FILE):
-        return {"vendedor_nome": "", "agencia_nome": "", "velocidade": "normal", "headless": True}
+        return {"vendedor_nome": "", "agencia_nome": DEFAULT_AGENCY_NAME, "velocidade": "normal", "headless": True}
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        try: return json.load(f)
-        except: return {"vendedor_nome": "", "agencia_nome": "", "velocidade": "normal", "headless": True}
+        try:
+            config = json.load(f)
+            if not str(config.get("agencia_nome", "")).strip():
+                config["agencia_nome"] = DEFAULT_AGENCY_NAME
+            return config
+        except Exception:
+            return {"vendedor_nome": "", "agencia_nome": DEFAULT_AGENCY_NAME, "velocidade": "normal", "headless": True}
 
 def save_config(data):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
