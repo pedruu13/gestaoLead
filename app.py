@@ -922,7 +922,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.27-site-opportunities-v1",
+            "commercial_release": "2026.10.27-site-filter-v2",
             "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -2067,9 +2067,25 @@ def extrator_worker(data, config, queue):
 def api_status():
     return jsonify(ler_status())
 
+
+def normalizar_modo_filtro_site(data):
+    mode = str(data.get("site_filter_mode") or "").strip()
+    if mode not in {"only_without_site", "without_and_weak", "all"}:
+        if "strict_no_socials" in data or "include_site_opportunities" in data:
+            strict = bool(data.get("strict_no_socials"))
+            include_weak = bool(data.get("include_site_opportunities"))
+            mode = "without_and_weak" if strict and include_weak else "only_without_site" if strict else "all"
+        else:
+            mode = "only_without_site"
+    data["site_filter_mode"] = mode
+    data["strict_no_socials"] = mode != "all"
+    data["include_site_opportunities"] = mode == "without_and_weak"
+    return data
+
+
 @app.route("/api/search", methods=["POST"])
 def api_search():
-    data = request.get_json(silent=True) or {}
+    data = normalizar_modo_filtro_site(request.get_json(silent=True) or {})
     if not data.get("nichos") or not data.get("bairros"):
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
     if ler_status_investigacao().get("rodando"):

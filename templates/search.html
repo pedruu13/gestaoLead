@@ -67,14 +67,6 @@
                             <i class="fa-solid fa-briefcase text-cyan-400 mr-2"></i>Segmentos Comerciais Desejados
                         </label>
 
-                        <label class="filter-card">
-                            <input type="checkbox" id="include_site_opportunities" checked class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-screwdriver-wrench"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Incluir sites que precisam melhorar</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Mantém somente sites com sinais objetivos de melhoria ou que exigem revisão.</small>
-                            </div>
-                        </label>
                         <span id="nichos_count" class="text-[11px] font-bold text-slate-500">0 selecionados</span>
                     </div>
                     <div id="nichos_chips" class="min-h-14 rounded-2xl bg-[#080B12] border border-[#1F2B44] p-2.5 flex flex-wrap gap-2 items-center focus-within:border-blue-500 transition-colors">
@@ -124,13 +116,14 @@
                         <span class="text-[11px] text-slate-500">Filtros dinâmicos</span>
                     </div>
                     <div class="grid sm:grid-cols-2 gap-3">
-                        <label class="filter-card">
-                            <input type="checkbox" id="strict_no_socials" checked class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-shield-halved"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Priorizar quem precisa de site</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Exclui sites sem oportunidade, preservando os que precisam melhorar.</small>
-                            </div>
+                        <label class="sm:col-span-2 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-4">
+                            <span class="mb-2 block text-xs font-black text-white"><i class="fa-solid fa-globe mr-2 text-cyan-400"></i>Quais empresas devem entrar na busca?</span>
+                            <select id="site_filter_mode" class="w-full rounded-xl border border-[#1F2B44] bg-[#080B12] px-4 py-3 text-xs font-bold text-white outline-none focus:border-cyan-400">
+                                <option value="only_without_site">Somente empresas sem site — recomendado</option>
+                                <option value="without_and_weak">Empresas sem site + sites que precisam melhorar</option>
+                                <option value="all">Todas as empresas, mesmo com site</option>
+                            </select>
+                            <small class="mt-2 block text-[11px] leading-relaxed text-slate-400">No modo recomendado, qualquer empresa com site próprio identificado é ignorada.</small>
                         </label>
                         
                         <label class="filter-card">
@@ -373,14 +366,14 @@
 
 {% block scripts %}
 <script>
-    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'include_site_opportunities', 'strict_potencial', 'ai_copy'];
+    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'site_filter_mode', 'strict_potencial', 'ai_copy'];
     const pickerState = { nichos: [], bairros: [] };
     const presets = {
         br: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Arquitetura', 'Móveis Planejados', 'Imobiliária', 'Energia Solar', 'Contabilidade'], bairros: ['Moema - São Paulo', 'Itaim Bibi - São Paulo', 'Alphaville - SP', 'Campinas - SP', 'Balneário Camboriú - SC'] },
         us: { nichos: ['Med Spa', 'Personal Injury Lawyer', 'Cosmetic Dentist', 'Luxury Realtor', 'Roofing Company', 'Solar Installer', 'Custom Home Builder'], bairros: ['Miami - FL', 'Boca Raton - FL', 'Scottsdale - AZ', 'Austin - TX', 'Beverly Hills - CA'] },
         europa: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Imobiliária de Luxo', 'Arquitetura', 'Energia Solar', 'Contabilidade'], bairros: ['London - UK', 'Lisbon - Portugal', 'Madrid - Spain', 'Amsterdam - Netherlands', 'Milan - Italy'] }
     };
-    if (localStorage.getItem('search_preferences_version') !== '8') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('pref_include_site_opportunities', 'true'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '8'); }
+    if (localStorage.getItem('search_preferences_version') !== '9') { localStorage.setItem('pref_site_filter_mode', 'only_without_site'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '9'); }
     function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function loadPreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); const saved = localStorage.getItem(`pref_${id}`); if (!field || saved === null) return; field.type === 'checkbox' ? field.checked = saved === 'true' : field.value = saved; }); }
     function savePreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); if (field) localStorage.setItem(`pref_${id}`, field.type === 'checkbox' ? field.checked : field.value); }); }

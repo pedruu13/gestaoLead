@@ -157,6 +157,17 @@ class CommercialIntelligenceTests(unittest.TestCase):
         ]):
             self.assertEqual("https://public.example/page", application.validar_url_publica("https://public.example/page"))
 
+    def test_site_filter_defaults_to_only_businesses_without_a_site(self):
+        default = application.normalizar_modo_filtro_site({})
+        weak_sites = application.normalizar_modo_filtro_site({"site_filter_mode": "without_and_weak"})
+        all_businesses = application.normalizar_modo_filtro_site({"site_filter_mode": "all"})
+        self.assertEqual("only_without_site", default["site_filter_mode"])
+        self.assertTrue(default["strict_no_socials"])
+        self.assertFalse(default["include_site_opportunities"])
+        self.assertTrue(weak_sites["strict_no_socials"])
+        self.assertTrue(weak_sites["include_site_opportunities"])
+        self.assertFalse(all_businesses["strict_no_socials"])
+
     def test_twenty_business_types_generate_distinct_natural_approved_pitches(self):
         opportunities = set()
         personalized = set()
@@ -372,7 +383,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.27-site-opportunities-v1", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.27-site-filter-v2", health.get_json()["commercial_release"])
                 self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -420,13 +431,16 @@ class PreviewStudioTests(unittest.TestCase):
                         "mercado": "br",
                         "nichos": "Dentista",
                         "bairros": "Campinas - SP",
-                        "strict_no_socials": True,
+                        "site_filter_mode": "only_without_site",
                     })
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
                 self.assertTrue(data["success"])
                 self.assertTrue(data["run_id"])
                 thread.return_value.start.assert_called_once()
+                worker_payload = thread.call_args.kwargs["args"][0]
+                self.assertTrue(worker_payload["strict_no_socials"])
+                self.assertFalse(worker_payload["include_site_opportunities"])
                 conn = sqlite3.connect(application.DB_NAME)
                 run = conn.execute("SELECT name, market, status FROM search_runs WHERE run_id = ?", (data["run_id"],)).fetchone()
                 conn.close()
