@@ -82,6 +82,8 @@ STATUS_FILE = "search_status.json"
 SEARCH_LOCK = threading.Lock()
 TARGET_RESEARCH_STATUS_FILE = "target_research_status.json"
 TARGET_RESEARCH_LOCK = threading.Lock()
+SITE_AUDIT_STATUS_FILE = "site_audit_status.json"
+SITE_AUDIT_LOCK = threading.Lock()
 
 def atualizar_status(dados):
     try:
@@ -124,6 +126,25 @@ def ler_status_investigacao():
     except Exception:
         return {"rodando": False, "mensagem": "Status da investigação indisponível."}
 
+
+def atualizar_status_auditoria_sites(dados):
+    dados["pid"] = os.getpid()
+    with open(SITE_AUDIT_STATUS_FILE, "w", encoding="utf-8") as file:
+        json.dump(dados, file, ensure_ascii=False)
+
+
+def ler_status_auditoria_sites():
+    if not os.path.exists(SITE_AUDIT_STATUS_FILE):
+        return {"rodando": False, "mensagem": "Nenhuma auditoria de sites iniciada."}
+    try:
+        with open(SITE_AUDIT_STATUS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        if data.get("rodando") and data.get("pid") and not psutil.pid_exists(data["pid"]):
+            data.update({"rodando": False, "mensagem": "A auditoria anterior foi interrompida."})
+        return data
+    except Exception:
+        return {"rodando": False, "mensagem": "Status da auditoria indisponível."}
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -135,7 +156,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0"), ("search_run_id", "TEXT"), ("site_title", "TEXT"), ("site_description", "TEXT"), ("site_context", "TEXT"), ("site_opportunity_status", "TEXT"), ("site_opportunity_reasons", "TEXT")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -159,6 +180,15 @@ def init_db():
                   result_json TEXT, status TEXT NOT NULL, error TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   finished_at TIMESTAMP)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS search_runs
+                 (run_id TEXT PRIMARY KEY, name TEXT NOT NULL, market TEXT NOT NULL,
+                  niches_json TEXT NOT NULL, locations_json TEXT NOT NULL, filters_json TEXT NOT NULL,
+                  status TEXT NOT NULL, stats_json TEXT, started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  finished_at TIMESTAMP)""")
+    c.execute(
+        """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
+           WHERE status = 'running'"""
+    )
     legacy_rows = c.execute(
         """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
                   instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto, qualidade_pitch
@@ -230,6 +260,14 @@ def load_leads():
     leads = [dict(ix) for ix in rows]
     configured_weights = load_config().get("lead_score_weights")
     for lead in leads:
+        site_assessment = assess_site_opportunity(
+            lead.get("link_inicial"), lead.get("site_title"), lead.get("site_description"), lead.get("site_context")
+        )
+        lead["site_opportunity_status"] = lead.get("site_opportunity_status") or site_assessment["status"]
+        try:
+            lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
+        except (TypeError, json.JSONDecodeError):
+            lead["site_opportunity_reasons"] = site_assessment["reasons"]
         scoring = calcular_score_lead(lead, configured_weights=configured_weights)
         lead["potencial"] = scoring["score"]
         lead["motivo_potencial"] = scoring["reason"]
@@ -252,12 +290,12 @@ def save_lead_db(lead, place_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial, faixa_potencial, score_breakdown, score_version)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?, ?, ?, ?)""",
+        c.execute("""INSERT INTO leads (place_id, nome, nicho, bairro, nota, avaliacoes, telefone, whatsapp_link, email, instagram, facebook, linkedin, link_inicial, google_maps, prompt_design, status, copy_texto, analise_ia, estrategia_ia, potencial, motivo_potencial, faixa_potencial, score_breakdown, score_version, search_run_id, site_title, site_description, site_context, site_opportunity_status, site_opportunity_reasons)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Novo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                   (place_id, lead.get("Nome",""), lead.get("Nicho",""), lead.get("Bairro",""), lead.get("Nota Maps",""),
                    lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
                    lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
-                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária"), json.dumps(lead.get("Score Breakdown", {}), ensure_ascii=False), lead.get("Score Version", SCORE_VERSION)))
+                   lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária"), json.dumps(lead.get("Score Breakdown", {}), ensure_ascii=False), lead.get("Score Version", SCORE_VERSION), lead.get("Search Run ID", ""), lead.get("Título do Site", ""), lead.get("Descrição do Site", ""), lead.get("Contexto do Site", ""), lead.get("Oportunidade do Site", ""), json.dumps(lead.get("Motivos da Oportunidade", []), ensure_ascii=False)))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -879,7 +917,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.27-sales-workflow-v1",
+            "commercial_release": "2026.10.27-site-opportunities-v1",
             "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -894,9 +932,20 @@ def crm():
     ativos = [l for l in todos if l.get("status") != "Descartado"]
     for lead in ativos:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
-    leads_com_site = sum(1 for lead in ativos if possui_site_proprio(lead.get("link_inicial")))
+    leads_com_site = sum(
+        1 for lead in ativos
+        if possui_site_proprio(lead.get("link_inicial"))
+        and lead.get("site_opportunity_status") == "Site encontrado — sem sinal claro"
+    )
+    leads_site_para_auditar = sum(
+        1 for lead in ativos if lead.get("site_opportunity_status") == "Revisão manual"
+    )
     follow_up_counts = {state: sum(1 for lead in ativos if lead["follow_up_state"] == state) for state in ("atrasado", "hoje", "proximo", "sem_acao")}
-    return render_template("crm.html", leads=ativos, leads_com_site=leads_com_site, is_descartados=False, follow_up_counts=follow_up_counts)
+    return render_template(
+        "crm.html", leads=ativos, leads_com_site=leads_com_site,
+        leads_site_para_auditar=leads_site_para_auditar,
+        is_descartados=False, follow_up_counts=follow_up_counts,
+    )
 
 @app.route("/crm/descartados")
 def crm_descartados():
@@ -904,7 +953,10 @@ def crm_descartados():
     descartados = [l for l in todos if l.get("status") == "Descartado"]
     for lead in descartados:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
-    return render_template("crm.html", leads=descartados, leads_com_site=0, is_descartados=True, follow_up_counts={})
+    return render_template(
+        "crm.html", leads=descartados, leads_com_site=0,
+        leads_site_para_auditar=0, is_descartados=True, follow_up_counts={},
+    )
 
 
 def get_lead_by_id(place_id):
@@ -920,6 +972,14 @@ def get_lead_by_id(place_id):
             lead[field_name] = json.loads(lead.get(field_name) or "{}")
         except (TypeError, json.JSONDecodeError):
             lead[field_name] = {}
+    site_assessment = assess_site_opportunity(
+        lead.get("link_inicial"), lead.get("site_title"), lead.get("site_description"), lead.get("site_context")
+    )
+    lead["site_opportunity_status"] = lead.get("site_opportunity_status") or site_assessment["status"]
+    try:
+        lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
+    except (TypeError, json.JSONDecodeError):
+        lead["site_opportunity_reasons"] = site_assessment["reasons"]
     scoring = calcular_score_lead(lead, configured_weights=load_config().get("lead_score_weights"))
     lead["potencial"] = scoring["score"]
     lead["motivo_potencial"] = scoring["reason"]
@@ -937,7 +997,8 @@ def lead_to_raw_data(lead):
         "Telefone": lead.get("telefone", ""), "E-mail Encontrado": lead.get("email", ""),
         "Instagram": lead.get("instagram", ""), "Facebook": lead.get("facebook", ""),
         "LinkedIn": lead.get("linkedin", ""), "Link Inicial": lead.get("link_inicial", ""),
-        "Google Maps": lead.get("google_maps", ""),
+        "Google Maps": lead.get("google_maps", ""), "Título do Site": lead.get("site_title", ""),
+        "Descrição do Site": lead.get("site_description", ""), "Contexto do Site": lead.get("site_context", ""),
     }
 
 
@@ -1313,6 +1374,7 @@ def estatisticas():
         taxa_interesse=taxa_interesse,
         taxa_proposta=taxa_proposta,
         taxa_conversao_contato=taxa_conversao_contato,
+        search_runs=load_search_runs(),
         leads=leads,
     )
 
@@ -1470,6 +1532,32 @@ def possui_site_proprio(url):
     destino = extrair_destino_externo(url)
     return bool(destino and not is_social_or_directory(destino))
 
+
+def assess_site_opportunity(url, title="", description="", context=""):
+    destination = extrair_destino_externo(url)
+    if not possui_site_proprio(destination):
+        return {"status": "Construção de site", "score": 100, "reasons": ["Nenhum site próprio identificado no campo verificado"]}
+    if not any((title, description, context)):
+        return {"status": "Revisão manual", "score": 35, "reasons": ["Site encontrado, mas sem conteúdo suficiente para auditoria automática"]}
+    reasons = []
+    if destination.startswith("http://"):
+        reasons.append("endereço sem HTTPS")
+    if not clean_text(title, 180):
+        reasons.append("título da página não identificado")
+    if not clean_text(description, 400):
+        reasons.append("descrição para mecanismos de busca não identificada")
+    page_text = f"{title} {description} {context}".casefold()
+    if not any(term in page_text for term in ("contato", "agend", "orçamento", "orcamento", "fale", "contact", "book", "quote")):
+        reasons.append("caminho de contato não identificado no conteúdo coletado")
+    if len(clean_text(context, 700)) < 40:
+        reasons.append("pouca estrutura de conteúdo identificada")
+    score = min(90, 25 + len(reasons) * 15)
+    return {
+        "status": "Site com oportunidade de melhoria" if len(reasons) >= 2 else "Site encontrado — sem sinal claro",
+        "score": score,
+        "reasons": reasons or ["Nenhuma fragilidade objetiva identificada na coleta automática"],
+    }
+
 def texto_html_seguro(valor):
     return str(escape(valor or ""))
 
@@ -1535,6 +1623,66 @@ def cacar_dados_profundos(context, url, nome="", bairro=""):
         
     return dados
 
+
+def create_search_run(data):
+    run_id = uuid.uuid4().hex
+    niches = [item.strip() for item in str(data.get("nichos", "")).split(",") if item.strip()]
+    locations = [item.strip() for item in str(data.get("bairros", "")).split(",") if item.strip()]
+    label_niche = niches[0] if niches else "Pesquisa"
+    label_location = locations[0] if locations else "mercado selecionado"
+    name = normalizar_texto(data.get("campaign_name", ""), 120) or f"{label_niche} em {label_location}"
+    filters = {key: value for key, value in data.items() if key not in {"nichos", "bairros", "campaign_name"}}
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """INSERT INTO search_runs
+               (run_id, name, market, niches_json, locations_json, filters_json, status, stats_json)
+               VALUES (?, ?, ?, ?, ?, ?, 'running', '{}')""",
+            (run_id, name, normalizar_texto(data.get("mercado", "br"), 20),
+             json.dumps(niches, ensure_ascii=False), json.dumps(locations, ensure_ascii=False),
+             json.dumps(filters, ensure_ascii=False)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return run_id
+
+
+def finish_search_run(run_id, status, stats=None):
+    if not run_id:
+        return
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            "UPDATE search_runs SET status = ?, stats_json = ?, finished_at = CURRENT_TIMESTAMP WHERE run_id = ?",
+            (status, json.dumps(stats or {}, ensure_ascii=False), run_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def load_search_runs(limit=8):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT *, (SELECT COUNT(*) FROM leads WHERE leads.search_run_id = search_runs.run_id) AS lead_count FROM search_runs ORDER BY started_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    finally:
+        conn.close()
+    runs = []
+    for row in rows:
+        item = dict(row)
+        for field_name in ("niches_json", "locations_json", "filters_json", "stats_json"):
+            try:
+                item[field_name.removesuffix("_json")] = json.loads(item.pop(field_name) or "{}")
+            except (TypeError, json.JSONDecodeError):
+                item[field_name.removesuffix("_json")] = {}
+        runs.append(item)
+    return runs
+
 def extrator_worker(data, config, queue):
     try:
         from playwright.sync_api import sync_playwright  # Import aqui para spawn funcionar
@@ -1559,6 +1707,7 @@ def extrator_worker(data, config, queue):
             "erros": 0,
         }
         existing_place_ids = load_existing_place_ids()
+        search_run_id = data.get("search_run_id", "")
 
         def publicar_status(mensagem, rodando=True):
             cancelamento_solicitado = ler_status().get("cancelamento_solicitado", False)
@@ -1568,7 +1717,10 @@ def extrator_worker(data, config, queue):
                 "leads_salvos": stats["salvos"],
                 "metricas": stats.copy(),
                 "cancelamento_solicitado": cancelamento_solicitado,
+                "search_run_id": search_run_id,
             })
+            if not rodando:
+                finish_search_run(search_run_id, "cancelled" if cancelamento_solicitado else "completed", stats)
 
         def busca_cancelada():
             if not ler_status().get("cancelamento_solicitado", False):
@@ -1686,7 +1838,7 @@ def extrator_worker(data, config, queue):
                                         break
                                         
                             is_real_website = possui_site_proprio(link_encontrado)
-                            if data.get("strict_no_socials") and is_real_website:
+                            if data.get("strict_no_socials") and is_real_website and not data.get("include_site_opportunities"):
                                 stats["com_site"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo.")
                                 continue
@@ -1736,31 +1888,10 @@ def extrator_worker(data, config, queue):
                                 print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
                                 continue
 
-                            scoring = calcular_score_lead({
-                                "Nicho": nicho,
-                                "Categoria Maps": categoria_maps or nicho,
-                                "Bairro": bairro,
-                                "Nota Maps": nota_str,
-                                "Qtd Avaliacoes": avaliacoes_str,
-                                "Telefone": telefone_raw,
-                                "E-mail Encontrado": dados_profundos["email"],
-                                "Instagram": dados_profundos["instagram"],
-                                "Facebook": dados_profundos["facebook"],
-                                "LinkedIn": dados_profundos["linkedin"],
-                            }, tem_site=is_real_website, configured_weights=config.get("lead_score_weights"))
-                            potencial = scoring["score"]
-                            motivo_potencial = scoring["reason"]
                             try:
                                 minimo_potencial = max(0, min(100, int(data.get("min_potencial", 55))))
                             except (TypeError, ValueError):
                                 minimo_potencial = 55
-                            faixa_potencial = classificar_potencial(potencial, minimo_prioridade=minimo_potencial)
-                            if faixa_potencial == "Prioridade":
-                                stats["prioridade"] += 1
-                            elif faixa_potencial == "Oportunidade secundária":
-                                stats["oportunidade_secundaria"] += 1
-                            else:
-                                stats["exploracao"] += 1
                             
                             dados_raw = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
@@ -1769,6 +1900,8 @@ def extrator_worker(data, config, queue):
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
                                 "Telefone": telefone_raw, "E-mail Encontrado": dados_profundos["email"],
                                 "Instagram": dados_profundos["instagram"],
+                                "Facebook": dados_profundos["facebook"],
+                                "LinkedIn": dados_profundos["linkedin"],
                                 "Link Inicial": link_encontrado,
                                 "Título do Site": dados_profundos["titulo_site"],
                                 "Descrição do Site": dados_profundos["descricao_site"],
@@ -1788,15 +1921,55 @@ def extrator_worker(data, config, queue):
                                 "Link Inicial": link_encontrado,
                                 "Google Maps": href,
                                 "Prompt Prototipo": gerar_prompt_prototipo(nome, nicho),
+                                "Copy Texto": "",
+                                "Analise IA": "",
+                                "Estrategia IA": "",
+                                "Search Run ID": search_run_id,
+                                "Título do Site": dados_profundos["titulo_site"],
+                                "Descrição do Site": dados_profundos["descricao_site"],
+                                "Contexto do Site": dados_profundos["contexto_site"],
+                            }
+                            site_assessment = assess_site_opportunity(
+                                link_encontrado, dados_profundos["titulo_site"],
+                                dados_profundos["descricao_site"], dados_profundos["contexto_site"]
+                            )
+                            if is_real_website:
+                                stats["com_site"] += 1
+                            if (
+                                is_real_website
+                                and data.get("strict_no_socials")
+                                and data.get("include_site_opportunities")
+                                and site_assessment["status"] == "Site encontrado — sem sinal claro"
+                            ):
+                                publicar_status(f"Site sem oportunidade objetiva ignorado: {nome}")
+                                continue
+                            lead_data["Oportunidade do Site"] = site_assessment["status"]
+                            lead_data["Motivos da Oportunidade"] = site_assessment["reasons"]
+                            scoring_input = dict(dados_raw)
+                            scoring_input["Oportunidade do Site"] = site_assessment["status"]
+                            scoring = calcular_score_lead(
+                                scoring_input,
+                                tem_site=is_real_website,
+                                configured_weights=config.get("lead_score_weights"),
+                            )
+                            potencial = scoring["score"]
+                            motivo_potencial = scoring["reason"]
+                            faixa_potencial = classificar_potencial(
+                                potencial, minimo_prioridade=minimo_potencial
+                            )
+                            lead_data.update({
                                 "Potencial": potencial,
                                 "Motivo Potencial": motivo_potencial,
                                 "Faixa Potencial": faixa_potencial,
                                 "Score Breakdown": scoring,
                                 "Score Version": scoring["version"],
-                                "Copy Texto": "",
-                                "Analise IA": "",
-                                "Estrategia IA": ""
-                            }
+                            })
+                            if faixa_potencial == "Prioridade":
+                                stats["prioridade"] += 1
+                            elif faixa_potencial == "Oportunidade secundária":
+                                stats["oportunidade_secundaria"] += 1
+                            else:
+                                stats["exploracao"] += 1
                             salvo = save_lead_db(lead_data, place_id)
                             if salvo:
                                 print(f"[WORKER] Salvo com sucesso: {nome}")
@@ -1837,6 +2010,7 @@ def extrator_worker(data, config, queue):
         print("[WORKER] Finalizado com sucesso.")
     except Exception as e:
         print(f"[WORKER] ERRO FATAL: {e}")
+        finish_search_run((data or {}).get("search_run_id", ""), "failed", {"error": str(e)})
         atualizar_status({"rodando": False, "mensagem": f"Erro: {e}", "leads_salvos": 0})
 
 @app.route("/api/status")
@@ -1854,10 +2028,11 @@ def api_search():
         if ler_status().get("rodando"):
             return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
         config = load_config()
-        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0, "cancelamento_solicitado": False})
+        data["search_run_id"] = create_search_run(data)
+        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0, "cancelamento_solicitado": False, "search_run_id": data["search_run_id"]})
         t = threading.Thread(target=extrator_worker, args=(data, config, None), daemon=True)
         t.start()
-    return jsonify({"success": True, "salvos": "Em andamento", "message": "Busca iniciada em segundo plano."})
+    return jsonify({"success": True, "salvos": "Em andamento", "run_id": data["search_run_id"], "message": "Busca iniciada em segundo plano."})
 
 @app.route("/api/cancelar_busca", methods=["POST"])
 def cancelar_busca():
@@ -2058,11 +2233,23 @@ def limpar_crm():
 @app.route("/api/descartar_com_site", methods=["POST"])
 def descartar_com_site():
     conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute(
-            "SELECT place_id, link_inicial FROM leads WHERE status != 'Descartado'"
+            """SELECT place_id, link_inicial, site_title, site_description, site_context,
+                      site_opportunity_status
+               FROM leads WHERE status != 'Descartado'"""
         ).fetchall()
-        place_ids = [place_id for place_id, link in rows if possui_site_proprio(link)]
+        place_ids = []
+        for row in rows:
+            if not possui_site_proprio(row["link_inicial"]):
+                continue
+            assessment = assess_site_opportunity(
+                row["link_inicial"], row["site_title"], row["site_description"], row["site_context"]
+            )
+            status = row["site_opportunity_status"] or assessment["status"]
+            if status == "Site encontrado — sem sinal claro":
+                place_ids.append(row["place_id"])
         if place_ids:
             conn.executemany(
                 "UPDATE leads SET status = 'Descartado' WHERE place_id = ?",
@@ -2075,6 +2262,77 @@ def descartar_com_site():
         return jsonify({"success": False, "error": "Não foi possível classificar os leads"}), 500
     finally:
         conn.close()
+
+
+def worker_auditar_sites_existentes():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """SELECT place_id, nome, link_inicial FROM leads
+               WHERE status != 'Descartado' AND link_inicial IS NOT NULL AND link_inicial != ''"""
+        ).fetchall()
+        rows = [row for row in rows if possui_site_proprio(row["link_inicial"])]
+        stats = {"total": len(rows), "analisados": 0, "melhoria": 0, "sem_sinal": 0, "revisao": 0}
+        atualizar_status_auditoria_sites({
+            "rodando": True, "mensagem": f"Preparando auditoria de {len(rows)} site(s)...", **stats,
+        })
+        for row in rows:
+            dados = cacar_dados_profundos(None, row["link_inicial"])
+            assessment = assess_site_opportunity(
+                row["link_inicial"], dados["titulo_site"],
+                dados["descricao_site"], dados["contexto_site"],
+            )
+            conn.execute(
+                """UPDATE leads SET site_title = ?, site_description = ?, site_context = ?,
+                          site_opportunity_status = ?, site_opportunity_reasons = ?
+                   WHERE place_id = ?""",
+                (dados["titulo_site"], dados["descricao_site"], dados["contexto_site"],
+                 assessment["status"], json.dumps(assessment["reasons"], ensure_ascii=False),
+                 row["place_id"]),
+            )
+            conn.commit()
+            stats["analisados"] += 1
+            if assessment["status"] == "Site com oportunidade de melhoria":
+                stats["melhoria"] += 1
+            elif assessment["status"] == "Site encontrado — sem sinal claro":
+                stats["sem_sinal"] += 1
+            else:
+                stats["revisao"] += 1
+            atualizar_status_auditoria_sites({
+                "rodando": True,
+                "mensagem": f"Auditando {row['nome']} ({stats['analisados']}/{stats['total']})",
+                **stats,
+            })
+        atualizar_status_auditoria_sites({
+            "rodando": False,
+            "mensagem": "Auditoria concluída. A fila foi reorganizada.",
+            **stats,
+        })
+    except Exception as error:
+        atualizar_status_auditoria_sites({
+            "rodando": False, "mensagem": "A auditoria encontrou um erro e foi encerrada.",
+            "erro": str(error),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/auditar_sites", methods=["POST"])
+def iniciar_auditoria_sites():
+    with SITE_AUDIT_LOCK:
+        status = ler_status_auditoria_sites()
+        if status.get("rodando"):
+            return jsonify({"success": False, "error": "A auditoria de sites já está em andamento."}), 409
+        atualizar_status_auditoria_sites({"rodando": True, "mensagem": "Iniciando auditoria dos sites..."})
+        thread = threading.Thread(target=worker_auditar_sites_existentes, daemon=True)
+        thread.start()
+    return jsonify({"success": True})
+
+
+@app.route("/api/auditar_sites/status")
+def status_auditoria_sites():
+    return jsonify(ler_status_auditoria_sites())
 
 @app.route("/api/test_gemini", methods=["POST"])
 def test_gemini():

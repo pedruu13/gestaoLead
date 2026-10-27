@@ -56,11 +56,24 @@
                 <input type="hidden" id="nichos" aria-hidden="true">
                 <input type="hidden" id="bairros" aria-hidden="true">
 
+                <label class="block text-xs font-bold text-white">Nome da campanha <span class="font-normal text-slate-500">(opcional)</span>
+                    <input id="campaign_name" type="text" maxlength="120" class="mt-2 w-full rounded-xl border border-[#1F2B44] bg-[#080B12] px-4 py-3 text-xs text-white outline-none focus:border-cyan-500" placeholder="Ex.: Dentistas do interior de SP — outubro">
+                </label>
+
                 <!-- Segmentos / Nichos -->
                 <div>
                     <div class="flex items-center justify-between gap-4 mb-2">
                         <label for="nicho_input" class="text-xs font-bold text-white flex items-center">
                             <i class="fa-solid fa-briefcase text-cyan-400 mr-2"></i>Segmentos Comerciais Desejados
+                        </label>
+
+                        <label class="filter-card">
+                            <input type="checkbox" id="include_site_opportunities" checked class="peer sr-only">
+                            <span class="filter-check"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+                            <div>
+                                <strong class="block text-xs font-bold text-white">Incluir sites que precisam melhorar</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Mantém somente sites com sinais objetivos de melhoria ou que exigem revisão.</small>
+                            </div>
                         </label>
                         <span id="nichos_count" class="text-[11px] font-bold text-slate-500">0 selecionados</span>
                     </div>
@@ -115,8 +128,8 @@
                             <input type="checkbox" id="strict_no_socials" checked class="peer sr-only">
                             <span class="filter-check"><i class="fa-solid fa-shield-halved"></i></span>
                             <div>
-                                <strong class="block text-xs font-bold text-white">Excluir quem já tem site</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Identifica oportunidades de construção de novo site.</small>
+                                <strong class="block text-xs font-bold text-white">Priorizar quem precisa de site</strong>
+                                <small class="block text-[11px] text-slate-400 mt-0.5">Exclui sites sem oportunidade, preservando os que precisam melhorar.</small>
                             </div>
                         </label>
                         
@@ -360,14 +373,14 @@
 
 {% block scripts %}
 <script>
-    const preferenceIds = ['mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'strict_potencial', 'ai_copy'];
+    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'strict_no_socials', 'include_site_opportunities', 'strict_potencial', 'ai_copy'];
     const pickerState = { nichos: [], bairros: [] };
     const presets = {
         br: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Arquitetura', 'Móveis Planejados', 'Imobiliária', 'Energia Solar', 'Contabilidade'], bairros: ['Moema - São Paulo', 'Itaim Bibi - São Paulo', 'Alphaville - SP', 'Campinas - SP', 'Balneário Camboriú - SC'] },
         us: { nichos: ['Med Spa', 'Personal Injury Lawyer', 'Cosmetic Dentist', 'Luxury Realtor', 'Roofing Company', 'Solar Installer', 'Custom Home Builder'], bairros: ['Miami - FL', 'Boca Raton - FL', 'Scottsdale - AZ', 'Austin - TX', 'Beverly Hills - CA'] },
         europa: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Imobiliária de Luxo', 'Arquitetura', 'Energia Solar', 'Contabilidade'], bairros: ['London - UK', 'Lisbon - Portugal', 'Madrid - Spain', 'Amsterdam - Netherlands', 'Milan - Italy'] }
     };
-    if (localStorage.getItem('search_preferences_version') !== '7') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '7'); }
+    if (localStorage.getItem('search_preferences_version') !== '8') { localStorage.setItem('pref_strict_no_socials', 'true'); localStorage.setItem('pref_include_site_opportunities', 'true'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '8'); }
     function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function loadPreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); const saved = localStorage.getItem(`pref_${id}`); if (!field || saved === null) return; field.type === 'checkbox' ? field.checked = saved === 'true' : field.value = saved; }); }
     function savePreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); if (field) localStorage.setItem(`pref_${id}`, field.type === 'checkbox' ? field.checked : field.value); }); }
@@ -385,7 +398,7 @@
     async function verificarStatus() { try { const response = await fetch('/api/status'); const data = await response.json(); renderMetrics(data); if (data.rodando) { setRunningState(); log.textContent = data.mensagem || 'Buscando alvos...'; cancelBtn.disabled = Boolean(data.cancelamento_solicitado); cancelBtn.classList.toggle('opacity-50', Boolean(data.cancelamento_solicitado)); } else if (timer) { log.textContent = data.mensagem || 'Operação concluída.'; setIdleState(); clearInterval(timer); timer = null; } } catch (error) { log.textContent = 'Não foi possível atualizar o radar.'; } }
     function iniciarRadar() { if (timer) clearInterval(timer); timer = setInterval(verificarStatus, 2000); verificarStatus(); }
     verificarStatus();
-    btn.addEventListener('click', async () => { const payload = Object.fromEntries(preferenceIds.map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); if (!payload.nichos.trim() || !payload.bairros.trim()) return alert('Selecione pelo menos um segmento e uma cidade ou região.'); savePreferences(); setRunningState(); log.textContent = 'Disparando o robô de busca...'; try { const response = await fetch('/api/search', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Falha ao iniciar a busca.'); iniciarRadar(); } catch (error) { alert(error.message || 'Erro de conexão.'); setIdleState(); } });
+    btn.addEventListener('click', async () => { const payload = Object.fromEntries(preferenceIds.map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); if (!payload.nichos.trim() || !payload.bairros.trim()) return showAppToast('Selecione pelo menos um segmento e uma cidade ou região.', 'error'); savePreferences(); setRunningState(); log.textContent = 'Iniciando a campanha...'; try { const response = await fetch('/api/search', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Falha ao iniciar a busca.'); showAppToast('Campanha iniciada e registrada no histórico.'); iniciarRadar(); } catch (error) { showAppToast(error.message || 'Erro de conexão.', 'error'); setIdleState(); } });
     cancelBtn.addEventListener('click', async () => { const confirmed = await showAppConfirm({ title: 'Cancelar esta busca?', message: 'O robô vai concluir a análise atual e parar. Os leads já salvos permanecerão no CRM.', confirmLabel: 'Cancelar busca', danger: true }); if (!confirmed) return; cancelBtn.disabled = true; try { const response = await fetch('/api/cancelar_busca', { method: 'POST' }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível cancelar a busca.'); showAppToast(data.message); verificarStatus(); } catch (error) { cancelBtn.disabled = false; showAppToast(error.message, 'error'); } });
     let targetResearchTimer = null;
     let activeTargetResearchRegion = null;

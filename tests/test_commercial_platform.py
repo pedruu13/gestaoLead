@@ -118,6 +118,31 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertEqual(5, len(priority["dimensions"]))
         self.assertIn("não probabilidade", priority["disclaimer"])
 
+    def test_site_opportunity_changes_need_score_without_discarding_the_lead(self):
+        weak_site = sample_lead()
+        weak_site["Oportunidade do Site"] = "Site com oportunidade de melhoria"
+        healthy_site = sample_lead()
+        healthy_site["Oportunidade do Site"] = "Site encontrado — sem sinal claro"
+        weak_score = score_lead(weak_site, has_own_site=True)
+        healthy_score = score_lead(healthy_site, has_own_site=True)
+        self.assertGreater(weak_score["score"], healthy_score["score"])
+        self.assertIn("sinais objetivos", weak_score["dimensions"]["necessidade_digital"]["evidence"])
+
+    def test_site_audit_uses_only_objective_signals(self):
+        missing = application.assess_site_opportunity("")
+        weak = application.assess_site_opportunity(
+            "http://example.com", "", "", "Página inicial curta"
+        )
+        healthy = application.assess_site_opportunity(
+            "https://example.com",
+            "Clínica Exemplo",
+            "Conheça os tratamentos e fale com nossa equipe.",
+            "Informações sobre tratamentos, equipe, contato e agendamento online.",
+        )
+        self.assertEqual("Construção de site", missing["status"])
+        self.assertEqual("Site com oportunidade de melhoria", weak["status"])
+        self.assertEqual("Site encontrado — sem sinal claro", healthy["status"])
+
     def test_twenty_business_types_generate_distinct_natural_approved_pitches(self):
         opportunities = set()
         personalized = set()
@@ -331,7 +356,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.27-sales-workflow-v1", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.27-site-opportunities-v1", health.get_json()["commercial_release"])
                 self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -352,6 +377,88 @@ class PreviewStudioTests(unittest.TestCase):
                 application.DB_NAME = old_db
                 application.PREVIEW_DIR = old_preview_dir
                 application.load_config = old_load_config
+
+    def test_search_creates_a_traceable_campaign(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "campaigns.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                with mock.patch.object(application, "ler_status", return_value={"rodando": False}), \
+                     mock.patch.object(application, "ler_status_investigacao", return_value={"rodando": False}), \
+                     mock.patch.object(application, "atualizar_status"), \
+                     mock.patch.object(application.threading, "Thread") as thread:
+                    response = client.post("/api/search", json={
+                        "campaign_name": "Dentistas de Campinas",
+                        "mercado": "br",
+                        "nichos": "Dentista",
+                        "bairros": "Campinas - SP",
+                        "strict_no_socials": True,
+                    })
+                self.assertEqual(200, response.status_code)
+                data = response.get_json()
+                self.assertTrue(data["success"])
+                self.assertTrue(data["run_id"])
+                thread.return_value.start.assert_called_once()
+                conn = sqlite3.connect(application.DB_NAME)
+                run = conn.execute("SELECT name, market, status FROM search_runs WHERE run_id = ?", (data["run_id"],)).fetchone()
+                conn.close()
+                self.assertEqual(("Dentistas de Campinas", "br", "running"), run)
+                application.finish_search_run(data["run_id"], "completed", {"salvos": 3})
+                dashboard = client.get("/estatisticas")
+                self.assertIn("Dentistas de Campinas", dashboard.get_data(as_text=True))
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
+
+    def test_site_audit_preserves_weak_sites_and_discards_only_sites_without_signal(self):
+        old_db = application.DB_NAME
+        old_status_file = application.SITE_AUDIT_STATUS_FILE
+        old_hunter = application.cacar_dados_profundos
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "site-audit.db")
+            application.SITE_AUDIT_STATUS_FILE = os.path.join(temp_dir, "site-audit-status.json")
+            try:
+                application.init_db()
+                weak = sample_lead("Site Fraco", "Dentistas")
+                weak["Link Inicial"] = "http://weak.example"
+                healthy = sample_lead("Site Saudável", "Dentistas")
+                healthy["Link Inicial"] = "https://healthy.example"
+                self.assertTrue(application.save_lead_db(weak, "weak-site"))
+                self.assertTrue(application.save_lead_db(healthy, "healthy-site"))
+
+                def fake_hunter(context, url, nome="", bairro=""):
+                    if "weak" in url:
+                        return {"email": "", "instagram": "", "facebook": "", "linkedin": "", "titulo_site": "", "descricao_site": "", "contexto_site": "Página curta"}
+                    return {"email": "", "instagram": "", "facebook": "", "linkedin": "", "titulo_site": "Clínica", "descricao_site": "Tratamentos e contato com a equipe.", "contexto_site": "Conheça tratamentos, equipe e faça seu agendamento pelo formulário de contato."}
+
+                application.cacar_dados_profundos = fake_hunter
+                application.worker_auditar_sites_existentes()
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                response = client.post("/api/descartar_com_site")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(1, response.get_json()["descartados"])
+                conn = sqlite3.connect(application.DB_NAME)
+                states = dict(conn.execute("SELECT place_id, status FROM leads").fetchall())
+                opportunities = dict(conn.execute("SELECT place_id, site_opportunity_status FROM leads").fetchall())
+                conn.close()
+                self.assertNotEqual("Descartado", states["weak-site"])
+                self.assertEqual("Descartado", states["healthy-site"])
+                self.assertEqual("Site com oportunidade de melhoria", opportunities["weak-site"])
+                self.assertEqual("Site encontrado — sem sinal claro", opportunities["healthy-site"])
+            finally:
+                application.DB_NAME = old_db
+                application.SITE_AUDIT_STATUS_FILE = old_status_file
+                application.cacar_dados_profundos = old_hunter
 
 
 if __name__ == "__main__":

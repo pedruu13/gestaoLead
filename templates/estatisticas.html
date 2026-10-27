@@ -126,6 +126,34 @@
         {% endfor %}
     </div>
 
+    <section class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 shadow-xl md:p-6">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Histórico de origem</span>
+                <h2 class="mt-1 text-lg font-black text-white">Campanhas de prospecção</h2>
+                <p class="mt-1 text-xs text-slate-500">Cada nova busca passa a guardar os filtros usados e os leads que trouxe.</p>
+            </div>
+            <a href="/" class="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-xs font-black text-cyan-300">Nova campanha</a>
+        </div>
+        <div class="mt-5 grid gap-3 lg:grid-cols-2">
+            {% for run in search_runs %}
+            <article class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div><strong class="text-sm text-white">{{ run.name }}</strong><p class="mt-1 text-[10px] text-slate-500">{{ run.started_at }} · {{ run.market | upper }}</p></div>
+                    <span class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase {% if run.status == 'completed' %}bg-emerald-500/10 text-emerald-300{% elif run.status == 'running' %}bg-blue-500/10 text-cyan-300{% elif run.status == 'cancelled' %}bg-amber-500/10 text-amber-300{% else %}bg-rose-500/10 text-rose-300{% endif %}">{{ run.status }}</span>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2 text-[10px] text-slate-300">
+                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.lead_count }} leads</span>
+                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.niches | join(', ') }}</span>
+                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.locations | join(', ') }}</span>
+                </div>
+            </article>
+            {% else %}
+            <div class="rounded-xl border border-dashed border-[#263550] p-6 text-center text-xs text-slate-500 lg:col-span-2">As próximas buscas aparecerão aqui com origem, filtros e quantidade de leads.</div>
+            {% endfor %}
+        </div>
+    </section>
+
     <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Gráfico 1: Funil de Conversão Comercial -->

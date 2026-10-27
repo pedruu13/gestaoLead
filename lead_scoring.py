@@ -1,7 +1,7 @@
 import re
 
 
-SCORE_VERSION = "2.0"
+SCORE_VERSION = "2.1"
 DEFAULT_WEIGHTS = {
     "necessidade_digital": 30,
     "adequacao_servico": 25,
@@ -60,7 +60,23 @@ def score_lead(lead, has_own_site, configured_weights=None):
     rating = _rating(lead.get("Nota Maps") or lead.get("nota"))
     reviews = _number(lead.get("Qtd Avaliacoes") or lead.get("avaliacoes"))
 
-    need_raw = 10 if not has_own_site else 2
+    site_opportunity = str(
+        lead.get("Oportunidade do Site")
+        or lead.get("site_opportunity_status")
+        or ""
+    ).strip()
+    if not has_own_site:
+        need_raw = 10
+        need_evidence = "Nenhum site próprio identificado no perfil consultado"
+    elif site_opportunity == "Site com oportunidade de melhoria":
+        need_raw = 7
+        need_evidence = "Site próprio com sinais objetivos de melhoria na auditoria automática"
+    elif site_opportunity == "Revisão manual":
+        need_raw = 4
+        need_evidence = "Site próprio encontrado, mas sem conteúdo suficiente para avaliação automática"
+    else:
+        need_raw = 2
+        need_evidence = "Site próprio encontrado sem fragilidade objetiva confirmada"
     fit_raw = 10 if any(term in category for term in HIGH_FIT_TERMS) else 8 if any(term in category for term in MEDIUM_FIT_TERMS) else 6 if category else 3
     contact_raw = min(10, (4 if phone else 0) + (4 if email else 0) + (2 if instagram or facebook or linkedin else 0))
     rating_raw = 5 if rating >= 4.5 else 4 if rating >= 4.2 else 3 if rating >= 3.8 else 1 if rating else 0
@@ -79,7 +95,7 @@ def score_lead(lead, has_own_site, configured_weights=None):
             "label": "Necessidade digital",
             "score": _scaled(need_raw, 10, weights["necessidade_digital"]),
             "max": weights["necessidade_digital"],
-            "evidence": "Nenhum site próprio identificado no perfil consultado" if not has_own_site else "Site próprio identificado; qualidade ainda não auditada",
+            "evidence": need_evidence,
         },
         "adequacao_servico": {
             "label": "Adequação ao serviço",
