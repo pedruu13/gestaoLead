@@ -4,10 +4,14 @@ import time
 import random
 import re
 import urllib.parse
+import urllib.error
 import sqlite3
 import multiprocessing
 import hmac
 import uuid
+import ipaddress
+import socket
+import zipfile
 from datetime import datetime, timedelta
 import threading
 import psutil
@@ -41,6 +45,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
 PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
+BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 DEFAULT_AGENCY_NAME = "PH Digital"
 
 
@@ -1533,6 +1538,56 @@ def possui_site_proprio(url):
     return bool(destino and not is_social_or_directory(destino))
 
 
+def validar_url_publica(url):
+    parsed = urllib.parse.urlparse(str(url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("Endereço de site inválido para auditoria")
+    hostname = parsed.hostname.casefold().rstrip(".")
+    if hostname == "localhost" or hostname.endswith((".localhost", ".local")):
+        raise ValueError("Endereço interno bloqueado na auditoria")
+    try:
+        addresses = {
+            info[4][0]
+            for info in socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+        }
+    except socket.gaierror as error:
+        raise ValueError("Não foi possível localizar o domínio do site") from error
+    if not addresses or any(not ipaddress.ip_address(address).is_global for address in addresses):
+        raise ValueError("Endereço interno ou reservado bloqueado na auditoria")
+    return parsed.geturl()
+
+
+class _SemRedirecionamentoAutomatico(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def baixar_html_publico(url, timeout=10, max_bytes=400_000):
+    current_url = validar_url_publica(url)
+    opener = urllib.request.build_opener(_SemRedirecionamentoAutomatico)
+    for _ in range(4):
+        request_site = urllib.request.Request(
+            current_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml",
+            },
+        )
+        try:
+            response = opener.open(request_site, timeout=timeout)
+        except urllib.error.HTTPError as error:
+            if error.code not in {301, 302, 303, 307, 308} or not error.headers.get("Location"):
+                raise
+            current_url = validar_url_publica(urllib.parse.urljoin(current_url, error.headers["Location"]))
+            continue
+        with response:
+            content_type = response.headers.get_content_type()
+            if content_type not in {"text/html", "application/xhtml+xml"}:
+                raise ValueError("O endereço não retornou uma página HTML")
+            return response.read(max_bytes + 1)[:max_bytes].decode("utf-8", "replace")
+    raise ValueError("O site excedeu o limite de redirecionamentos")
+
+
 def assess_site_opportunity(url, title="", description="", context=""):
     destination = extrair_destino_externo(url)
     if not possui_site_proprio(destination):
@@ -1571,12 +1626,7 @@ def cacar_dados_profundos(context, url, nome="", bairro=""):
     if url and not is_social_or_directory(url):
         try:
             req_url = url if url.startswith(("http://", "https://")) else "http://" + url
-            req = urllib.request.Request(
-                req_url, 
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept": "text/html"}
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                content = resp.read(400_000).decode("utf-8", "replace")
+            content = baixar_html_publico(req_url)
             soup = BeautifulSoup(content, "html.parser")
             dados["titulo_site"] = normalizar_texto(
                 soup.title.get_text(" ", strip=True) if soup.title else "", 180
@@ -2213,6 +2263,7 @@ def status_sugerir_alvos():
 @app.route("/api/limpar_crm", methods=["POST"])
 def limpar_crm():
     try:
+        backup_path = criar_backup_crm()
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         screenshot_paths = [row[0] for row in c.execute("SELECT screenshot_path FROM preview_versions WHERE screenshot_path IS NOT NULL").fetchall()]
@@ -2226,9 +2277,59 @@ def limpar_crm():
             absolute_path = os.path.abspath(screenshot_path)
             if os.path.commonpath((preview_root, absolute_path)) == preview_root and os.path.isfile(absolute_path):
                 os.remove(absolute_path)
-        return jsonify({"success": True})
+        return jsonify({
+            "success": True,
+            "backup": os.path.basename(backup_path),
+            "backup_url": url_for("baixar_backup_crm", filename=os.path.basename(backup_path)),
+        })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        return jsonify({"success": False, "error": "Não foi possível criar o backup e limpar a base."}), 500
+
+
+def criar_backup_crm():
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    snapshot_path = os.path.join(BACKUP_DIR, f"crm-{timestamp}.db")
+    archive_path = os.path.join(BACKUP_DIR, f"crm-{timestamp}.zip")
+    source = sqlite3.connect(DB_NAME)
+    snapshot = sqlite3.connect(snapshot_path)
+    try:
+        source.backup(snapshot)
+    finally:
+        snapshot.close()
+        source.close()
+    try:
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(snapshot_path, "gestao_leads.db")
+            if os.path.isdir(PREVIEW_DIR):
+                for root, _, filenames in os.walk(PREVIEW_DIR):
+                    for filename in filenames:
+                        source_path = os.path.join(root, filename)
+                        archive_name = os.path.join("generated_previews", os.path.relpath(source_path, PREVIEW_DIR))
+                        archive.write(source_path, archive_name)
+    finally:
+        if os.path.exists(snapshot_path):
+            os.remove(snapshot_path)
+    archives = sorted(
+        (os.path.join(BACKUP_DIR, name) for name in os.listdir(BACKUP_DIR) if name.endswith(".zip")),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+    for expired_path in archives[10:]:
+        os.remove(expired_path)
+    return archive_path
+
+
+@app.route("/api/backups/<filename>")
+def baixar_backup_crm(filename):
+    safe_name = os.path.basename(filename)
+    if safe_name != filename or not safe_name.endswith(".zip"):
+        return "Backup inválido", 400
+    backup_path = os.path.abspath(os.path.join(BACKUP_DIR, safe_name))
+    backup_root = os.path.abspath(BACKUP_DIR)
+    if os.path.commonpath((backup_root, backup_path)) != backup_root or not os.path.isfile(backup_path):
+        return "Backup não encontrado", 404
+    return send_file(backup_path, as_attachment=True, download_name=safe_name)
 
 @app.route("/api/descartar_com_site", methods=["POST"])
 def descartar_com_site():

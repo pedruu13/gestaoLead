@@ -606,7 +606,7 @@
     async function limparCRM() {
         const confirmed = await showAppConfirm({
             title: 'Apagar toda a base?',
-            message: 'Esta ação exclui permanentemente todos os leads do banco de dados e não pode ser desfeita.',
+            message: 'A plataforma criará e baixará um backup antes de excluir os leads e as prévias da base atual.',
             confirmLabel: 'Apagar todos os leads',
             danger: true
         });
@@ -615,7 +615,15 @@
                 let res = await fetch('/api/limpar_crm', { method: 'POST' });
                 let data = await res.json();
                 if(data.success) {
-                    showAppToast('Base limpa com sucesso.');
+                    if (data.backup_url) {
+                        const download = document.createElement('a');
+                        download.href = data.backup_url;
+                        download.download = data.backup || 'backup-crm.zip';
+                        document.body.appendChild(download);
+                        download.click();
+                        download.remove();
+                    }
+                    showAppToast('Base limpa com segurança. O backup foi criado antes da exclusão.');
                     setTimeout(() => window.location.reload(), 700);
                 } else {
                     showAppToast('Erro ao limpar base.', 'error');

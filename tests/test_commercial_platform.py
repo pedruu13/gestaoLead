@@ -3,6 +3,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import zipfile
 from unittest import mock
 
 import app as application
@@ -143,6 +144,19 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertEqual("Site com oportunidade de melhoria", weak["status"])
         self.assertEqual("Site encontrado — sem sinal claro", healthy["status"])
 
+    def test_site_audit_blocks_internal_and_unsafe_urls(self):
+        with self.assertRaises(ValueError):
+            application.validar_url_publica("file:///etc/passwd")
+        with mock.patch.object(application.socket, "getaddrinfo", return_value=[
+            (application.socket.AF_INET, application.socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+        ]):
+            with self.assertRaises(ValueError):
+                application.validar_url_publica("http://internal.example")
+        with mock.patch.object(application.socket, "getaddrinfo", return_value=[
+            (application.socket.AF_INET, application.socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))
+        ]):
+            self.assertEqual("https://public.example/page", application.validar_url_publica("https://public.example/page"))
+
     def test_twenty_business_types_generate_distinct_natural_approved_pitches(self):
         opportunities = set()
         personalized = set()
@@ -250,10 +264,12 @@ class PreviewStudioTests(unittest.TestCase):
     def test_generate_preview_route_persists_version_and_exports_real_png(self):
         old_db = application.DB_NAME
         old_preview_dir = application.PREVIEW_DIR
+        old_backup_dir = application.BACKUP_DIR
         old_load_config = application.load_config
         with tempfile.TemporaryDirectory() as temp_dir:
             application.DB_NAME = os.path.join(temp_dir, "test.db")
             application.PREVIEW_DIR = os.path.join(temp_dir, "previews")
+            application.BACKUP_DIR = os.path.join(temp_dir, "backups")
             application.load_config = lambda: {}
             try:
                 application.init_db()
@@ -367,6 +383,10 @@ class PreviewStudioTests(unittest.TestCase):
 
                 cleared = client.post("/api/limpar_crm")
                 self.assertEqual(200, cleared.status_code)
+                backup_path = os.path.join(application.BACKUP_DIR, cleared.get_json()["backup"])
+                self.assertTrue(os.path.isfile(backup_path))
+                with zipfile.ZipFile(backup_path) as archive:
+                    self.assertIn("gestao_leads.db", archive.namelist())
                 conn = sqlite3.connect(application.DB_NAME)
                 self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM leads").fetchone()[0])
                 self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM preview_versions").fetchone()[0])
@@ -376,6 +396,7 @@ class PreviewStudioTests(unittest.TestCase):
             finally:
                 application.DB_NAME = old_db
                 application.PREVIEW_DIR = old_preview_dir
+                application.BACKUP_DIR = old_backup_dir
                 application.load_config = old_load_config
 
     def test_search_creates_a_traceable_campaign(self):

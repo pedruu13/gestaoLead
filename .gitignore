@@ -17,6 +17,8 @@ playwright-log.txt
 generated_previews/
 search_status.json
 target_research_status.json
+site_audit_status.json
+backups/
 
 # OS
 .DS_Store
