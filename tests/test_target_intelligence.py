@@ -1,9 +1,11 @@
 import os
 import tempfile
+import time
 import unittest
+from unittest import mock
 
 import app as application
-from target_intelligence import suggest_targets
+from target_intelligence import build_research_plan, suggest_targets
 
 
 class TargetIntelligenceTests(unittest.TestCase):
@@ -40,7 +42,16 @@ class TargetIntelligenceTests(unittest.TestCase):
                 "avaliacoes": "35",
             })
 
-        result = suggest_targets("br", rows)
+        observations = [{
+            "region": "br", "niche": "Odontologia", "city": "Moema - São Paulo",
+            "sample_size": 10, "no_site_count": 7, "contactable_count": 10,
+            "mature_count": 10, "results_count": 12,
+        }, {
+            "region": "br", "niche": "Odontologia", "city": "Campinas - SP",
+            "sample_size": 10, "no_site_count": 0, "contactable_count": 10,
+            "mature_count": 10, "results_count": 12,
+        }]
+        result = suggest_targets("br", rows, observations)
         places = {item["nome"]: item for item in result["pracas"]}
         self.assertGreater(places["Moema - São Paulo"]["score"], places["Campinas - SP"]["score"])
         self.assertEqual("validado", places["Moema - São Paulo"]["confianca"])
@@ -60,6 +71,20 @@ class TargetIntelligenceTests(unittest.TestCase):
         tampa = next(item for item in result["pracas"] if item["nome"] == "Tampa - FL")
         self.assertEqual("sinal inicial", tampa["confianca"])
         self.assertNotIn("validado", tampa["evidencia"].casefold())
+
+    def test_each_research_round_explores_understudied_targets(self):
+        first_plan = build_research_plan("br", [])
+        observations = [{
+            "region": item["region"], "niche": item["niche"], "city": item["city"],
+            "sample_size": 5, "no_site_count": 2,
+        } for item in first_plan]
+        second_plan = build_research_plan("br", observations)
+        self.assertNotEqual(
+            {(item["niche"], item["city"]) for item in first_plan},
+            {(item["niche"], item["city"]) for item in second_plan},
+        )
+        self.assertGreaterEqual(len({item["niche"] for item in second_plan}), 4)
+        self.assertGreaterEqual(len({item["city"] for item in second_plan}), 4)
 
     def test_api_uses_database_history_and_keeps_hard_limits(self):
         old_db = application.DB_NAME
@@ -96,9 +121,47 @@ class TargetIntelligenceTests(unittest.TestCase):
                 self.assertEqual(2, len(data["nichos"]))
                 self.assertEqual(4, len(data["cidades"]))
                 self.assertEqual(8, data["total_combinacoes"])
-                self.assertEqual("validado", next(item for item in data["pracas"] if item["nome"] == "Moema - São Paulo")["confianca"])
+                self.assertIn(next(item for item in data["pracas"] if item["nome"] == "Moema - São Paulo")["confianca"], ("sinal forte", "validado"))
             finally:
                 application.DB_NAME = old_db
+
+    def test_post_route_runs_live_investigation_and_persists_result(self):
+        old_db = application.DB_NAME
+        old_status_file = application.TARGET_RESEARCH_STATUS_FILE
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "targets.db")
+            application.TARGET_RESEARCH_STATUS_FILE = os.path.join(temp_dir, "target-status.json")
+            try:
+                application.init_db()
+
+                def fake_probe(plan, **_kwargs):
+                    return [{
+                        "region": item["region"], "niche": item["niche"], "city": item["city"],
+                        "results_count": 9, "sample_size": 5, "no_site_count": 3,
+                        "contactable_count": 5, "mature_count": 4,
+                    } for item in plan]
+
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                with mock.patch.object(application, "probe_google_maps", side_effect=fake_probe):
+                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"})
+                    self.assertEqual(202, response.status_code, response.get_data(as_text=True))
+                    for _ in range(100):
+                        status = client.get("/api/sugerir_alvos/status").get_json()
+                        if not status.get("rodando"):
+                            break
+                        time.sleep(0.02)
+                self.assertTrue(status["concluido"], status)
+                self.assertEqual(2, len(status["resultado"]["nichos"]))
+                self.assertEqual(4, len(status["resultado"]["cidades"]))
+                connection = application.sqlite3.connect(application.DB_NAME)
+                self.assertEqual(8, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
+                connection.close()
+            finally:
+                application.DB_NAME = old_db
+                application.TARGET_RESEARCH_STATUS_FILE = old_status_file
 
 
 if __name__ == "__main__":

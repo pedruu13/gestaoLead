@@ -10,6 +10,7 @@ O principal objetivo desta ferramenta é identificar negócios locais que **não
 
 * 🌐 **Interface Web Amigável**: Painel completo e fácil de usar construído com Flask.
 * 🎛️ **Filtros de Qualificação Inteligentes**: Prioriza empresas sem site próprio, com filtros de nota, WhatsApp, região e grandes redes.
+* 🕵️ **Investigação de mercados**: Testa nichos e cidades no Google Maps, mede presença de site e atividade local, guarda o histórico e explora combinações diferentes em cada rodada.
 * 🤖 **Inteligência comercial baseada em evidências**: Separa dados verificados, inferências e informações desconhecidas antes de gerar uma abordagem.
 * ✍️ **Pitches revisáveis**: Gera versões consultiva, direta e personalizada. A versão com prévia só é liberada quando existe uma demonstração real.
 * 🎨 **Studio de Prévias**: Cria homepage HTML/CSS responsiva, visualização desktop/mobile, histórico de versões e exportação PNG.

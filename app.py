@@ -7,6 +7,7 @@ import urllib.parse
 import sqlite3
 import multiprocessing
 import hmac
+import uuid
 from datetime import datetime, timedelta
 import threading
 import psutil
@@ -17,7 +18,8 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
-from target_intelligence import suggest_targets
+from target_intelligence import build_research_plan, suggest_targets
+from target_research import probe_google_maps
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -67,6 +69,8 @@ def config_publica(config):
 
 STATUS_FILE = "search_status.json"
 SEARCH_LOCK = threading.Lock()
+TARGET_RESEARCH_STATUS_FILE = "target_research_status.json"
+TARGET_RESEARCH_LOCK = threading.Lock()
 
 def atualizar_status(dados):
     try:
@@ -89,6 +93,25 @@ def ler_status():
             return data
     except Exception:
         return {"rodando": False, "mensagem": "Status indisponivel.", "leads_salvos": 0}
+
+
+def atualizar_status_investigacao(dados):
+    dados["pid"] = os.getpid()
+    with open(TARGET_RESEARCH_STATUS_FILE, "w", encoding="utf-8") as file:
+        json.dump(dados, file, ensure_ascii=False)
+
+
+def ler_status_investigacao():
+    if not os.path.exists(TARGET_RESEARCH_STATUS_FILE):
+        return {"rodando": False, "mensagem": "Nenhuma investigação iniciada."}
+    try:
+        with open(TARGET_RESEARCH_STATUS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        if data.get("rodando") and data.get("pid") and not psutil.pid_exists(data["pid"]):
+            data.update({"rodando": False, "erro": "A investigação foi interrompida pelo servidor."})
+        return data
+    except Exception:
+        return {"rodando": False, "mensagem": "Status da investigação indisponível."}
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -114,6 +137,17 @@ def init_db():
                   interaction_type TEXT NOT NULL, channel TEXT, content TEXT NOT NULL,
                   sentiment TEXT, next_action TEXT, next_action_at TIMESTAMP,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS target_research_observations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, region TEXT NOT NULL,
+                  niche TEXT NOT NULL, city TEXT NOT NULL, results_count INTEGER DEFAULT 0,
+                  sample_size INTEGER DEFAULT 0, no_site_count INTEGER DEFAULT 0,
+                  contactable_count INTEGER DEFAULT 0, mature_count INTEGER DEFAULT 0,
+                  error TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS target_research_runs
+                 (run_id TEXT PRIMARY KEY, region TEXT NOT NULL, plan_json TEXT NOT NULL,
+                  result_json TEXT, status TEXT NOT NULL, error TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  finished_at TIMESTAMP)""")
     legacy_rows = c.execute(
         """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
                   instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto, qualidade_pitch
@@ -841,7 +875,7 @@ def health():
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
             "commercial_release": "2026.10.26-pitch-v4",
-            "target_engine_version": "2026.10.26-target-v1",
+            "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
@@ -1750,6 +1784,8 @@ def api_search():
     data = request.get_json(silent=True) or {}
     if not data.get("nichos") or not data.get("bairros"):
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
+    if ler_status_investigacao().get("rodando"):
+        return jsonify({"success": False, "error": "Aguarde a investigação de mercado terminar antes de iniciar a busca de leads."}), 409
     with SEARCH_LOCK:
         if ler_status().get("rodando"):
             return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
@@ -1770,24 +1806,170 @@ def cancelar_busca():
         atualizar_status(status)
     return jsonify({"success": True, "message": "Cancelamento solicitado."})
 
-@app.route("/api/sugerir_alvos", methods=["GET"])
+def carregar_dados_investigacao(regiao=None):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    where = " WHERE region = ?" if regiao else ""
+    params = (regiao,) if regiao else ()
+    observations = [dict(row) for row in conn.execute(
+        f"""SELECT region, niche, city, results_count, sample_size, no_site_count,
+                   contactable_count, mature_count, error, created_at
+            FROM target_research_observations{where}
+            ORDER BY created_at DESC""",
+        params,
+    ).fetchall()]
+    conn.close()
+    return observations
+
+
+def carregar_leads_para_investigacao():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    rows = [dict(row) for row in conn.execute(
+        """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes
+           FROM leads WHERE COALESCE(status, '') != 'Descartado'"""
+    ).fetchall()]
+    conn.close()
+    return rows
+
+
+def carregar_nichos_recentes(regiao, limite=2):
+    conn = sqlite3.connect(DB_NAME)
+    rows = conn.execute(
+        """SELECT result_json FROM target_research_runs
+           WHERE region = ? AND status = 'concluido' AND result_json IS NOT NULL
+           ORDER BY finished_at DESC LIMIT ?""",
+        (regiao, limite),
+    ).fetchall()
+    conn.close()
+    niches = []
+    for row in rows:
+        try:
+            niches.extend(json.loads(row[0]).get("nichos", []))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    return niches
+
+
+def worker_investigar_alvos(regiao, run_id, config):
+    try:
+        observations = carregar_dados_investigacao(regiao)
+        plan = build_research_plan(regiao, observations)
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute(
+            """INSERT INTO target_research_runs (run_id, region, plan_json, status)
+               VALUES (?, ?, ?, 'executando')""",
+            (run_id, regiao, json.dumps(plan, ensure_ascii=False)),
+        )
+        conn.commit()
+        conn.close()
+
+        def progress(index, total, message):
+            atualizar_status_investigacao({
+                "rodando": True, "run_id": run_id, "regiao": regiao,
+                "mensagem": message, "etapa_atual": index + 1, "total_etapas": total,
+                "progresso": round(index * 100 / max(total, 1)),
+            })
+
+        results = probe_google_maps(
+            plan,
+            headless=config.get("headless", True),
+            sample_per_pair=5,
+            progress=progress,
+        )
+        successful_samples = sum(item.get("sample_size", 0) for item in results)
+        if not successful_samples:
+            raise RuntimeError("O Google Maps não retornou empresas analisáveis nesta rodada.")
+
+        conn = sqlite3.connect(DB_NAME)
+        for item in results:
+            conn.execute(
+                """INSERT INTO target_research_observations
+                   (run_id, region, niche, city, results_count, sample_size, no_site_count,
+                    contactable_count, mature_count, error)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (run_id, item["region"], item["niche"], item["city"], item["results_count"],
+                 item["sample_size"], item["no_site_count"], item["contactable_count"],
+                 item["mature_count"], item.get("error")),
+            )
+        conn.commit()
+        conn.close()
+
+        result = suggest_targets(
+            regiao,
+            carregar_leads_para_investigacao(),
+            carregar_dados_investigacao(regiao),
+            carregar_nichos_recentes(regiao),
+        )
+        result["run_id"] = run_id
+        result["investigacao"]["amostra_nova"] = successful_samples
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute(
+            """UPDATE target_research_runs
+               SET result_json = ?, status = 'concluido', finished_at = CURRENT_TIMESTAMP
+               WHERE run_id = ?""",
+            (json.dumps(result, ensure_ascii=False), run_id),
+        )
+        conn.commit()
+        conn.close()
+        atualizar_status_investigacao({
+            "rodando": False, "concluido": True, "run_id": run_id, "regiao": regiao,
+            "mensagem": f"Investigação concluída com {successful_samples} empresas analisadas.",
+            "progresso": 100, "resultado": result,
+        })
+    except Exception as error:
+        print("[ERRO INVESTIGACAO DE ALVOS]:", error)
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute(
+            """UPDATE target_research_runs SET status = 'erro', error = ?, finished_at = CURRENT_TIMESTAMP
+               WHERE run_id = ?""",
+            (str(error)[:500], run_id),
+        )
+        conn.commit()
+        conn.close()
+        atualizar_status_investigacao({
+            "rodando": False, "concluido": False, "run_id": run_id, "regiao": regiao,
+            "erro": str(error), "mensagem": "A investigação não conseguiu concluir esta rodada.",
+        })
+
+
+@app.route("/api/sugerir_alvos", methods=["GET", "POST"])
 def sugerir_alvos():
     try:
-        regiao = request.args.get('regiao', 'br').lower()
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        rows = [dict(row) for row in conn.execute(
-            """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes
-               FROM leads
-               WHERE COALESCE(status, '') != 'Descartado'"""
-        ).fetchall()]
-        conn.close()
-        return jsonify(suggest_targets(regiao, rows))
-    except ValueError as e:
-        return jsonify({"erro": str(e)}), 400
-    except Exception as e:
-        print("[ERRO SUGESTAO DE ALVOS]:", e)
-        return jsonify({"erro": "Não foi possível calcular os melhores alvos agora."}), 500
+        payload = request.get_json(silent=True) or {}
+        regiao = (payload.get("regiao") or request.args.get("regiao") or "br").lower()
+        if request.method == "GET":
+            return jsonify(suggest_targets(
+                regiao,
+                carregar_leads_para_investigacao(),
+                carregar_dados_investigacao(regiao),
+                carregar_nichos_recentes(regiao),
+            ))
+        if ler_status().get("rodando"):
+            return jsonify({"erro": "Aguarde a busca de leads terminar antes de investigar novos mercados."}), 409
+        with TARGET_RESEARCH_LOCK:
+            current = ler_status_investigacao()
+            if current.get("rodando"):
+                return jsonify({"erro": "Já existe uma investigação em andamento.", "status": current}), 409
+            build_research_plan(regiao, carregar_dados_investigacao(regiao))
+            run_id = uuid.uuid4().hex
+            atualizar_status_investigacao({
+                "rodando": True, "run_id": run_id, "regiao": regiao,
+                "mensagem": "Montando o plano de investigação...", "progresso": 0,
+            })
+            thread = threading.Thread(target=worker_investigar_alvos, args=(regiao, run_id, load_config()), daemon=True)
+            thread.start()
+        return jsonify({"success": True, "run_id": run_id, "mensagem": "Investigação de mercado iniciada."}), 202
+    except ValueError as error:
+        return jsonify({"erro": str(error)}), 400
+    except Exception as error:
+        print("[ERRO SUGESTAO DE ALVOS]:", error)
+        return jsonify({"erro": "Não foi possível iniciar a investigação agora."}), 500
+
+
+@app.route("/api/sugerir_alvos/status", methods=["GET"])
+def status_sugerir_alvos():
+    return jsonify(ler_status_investigacao())
 
 @app.route("/api/limpar_crm", methods=["POST"])
 def limpar_crm():
