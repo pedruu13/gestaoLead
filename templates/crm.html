@@ -11,8 +11,8 @@
                 <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                 <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Mesa Comercial de Atendimento</p>
             </div>
-            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Pipeline de Oportunidades</h1>
-            <p class="text-xs text-slate-400 mt-1">Gerencie alvos qualificados, controle o ciclo de vendas e dispare abordagens diretas.</p>
+            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Sua fila comercial</h1>
+            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo.</p>
             
             {% if not is_descartados %}
             <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-bold text-cyan-300">
@@ -20,9 +20,9 @@
                 <span>{{ leads_com_site }} lead(s) com website identificado na base</span>
             </div>
             <div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
-                <span class="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-rose-300">{{ follow_up_counts.atrasado or 0 }} atrasados</span>
-                <span class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-amber-300">{{ follow_up_counts.hoje or 0 }} para hoje</span>
-                <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-blue-300">{{ follow_up_counts.proximo or 0 }} próximos</span>
+                <button type="button" onclick="aplicarFiltroRapido('atrasado')" class="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-rose-300">{{ follow_up_counts.atrasado or 0 }} atrasados</button>
+                <button type="button" onclick="aplicarFiltroRapido('hoje')" class="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-amber-300">{{ follow_up_counts.hoje or 0 }} para hoje</button>
+                <button type="button" onclick="aplicarFiltroRapido('sem_acao')" class="rounded-full border border-slate-500/30 bg-slate-500/10 px-3 py-1.5 text-slate-300">{{ follow_up_counts.sem_acao or 0 }} sem próxima ação</button>
             </div>
             {% endif %}
         </div>
@@ -119,8 +119,42 @@
         </div>
     </div>
     
+    <!-- Cartões operacionais para celular -->
+    <div class="grid gap-3 md:hidden" id="mobile-lead-list">
+        {% for lead in leads %}
+        <article class="lead-item rounded-2xl border border-[#1E293B] bg-[#0E1422] p-4 shadow-xl" data-place-id="{{ lead.place_id }}"
+                 data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}"
+                 data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}"
+                 data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-sm font-black leading-snug text-white">{{ lead.nome }}</h2>
+                    <p class="mt-1 text-[11px] text-slate-500"><i class="fa-solid fa-location-dot mr-1"></i>{{ lead.bairro }}</p>
+                </div>
+                <span class="shrink-0 rounded-full px-2 py-1 text-[9px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}">{{ lead.potencial }}/100</span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2 text-[10px]">
+                <span class="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 font-bold text-cyan-300">{{ lead.nicho }}</span>
+                <span class="rounded-lg border border-[#263550] bg-[#090D15] px-2 py-1 font-bold text-slate-300">{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}</span>
+                {% if lead.next_action_at %}<span class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 font-bold text-amber-300">Retorno {{ lead.next_action_at }}</span>{% endif %}
+            </div>
+            {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-cyan-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
+            <div class="mt-4 grid grid-cols-2 gap-2">
+                {% if lead.do_not_contact %}
+                <span class="col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i>Não contatar</span>
+                {% elif lead.whatsapp_link %}
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-1.5"></i>Abordar</button>
+                {% elif lead.email %}
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-1.5"></i>Abordar</button>
+                {% endif %}
+                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="rounded-xl border border-[#263550] bg-[#111827] px-3 py-2.5 text-center text-xs font-black text-slate-200"><i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i>Detalhes</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
     <!-- Tabela Executiva de Leads -->
-    <div class="rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl overflow-hidden">
+    <div class="hidden md:block rounded-2xl bg-[#0E1422] border border-[#1E293B] shadow-2xl overflow-hidden">
         <div class="overflow-x-auto w-full">
             <table class="w-full text-left border-collapse min-w-[850px]">
                 <thead>
@@ -135,7 +169,7 @@
                 </thead>
                 <tbody class="divide-y divide-[#1A2338] text-slate-200">
                     {% for lead in leads %}
-                    <tr class="hover:bg-[#121828] transition-colors group" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}">
+                    <tr class="lead-item hover:bg-[#121828] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}">
                         <td class="px-6 py-4">
                             <div class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">{{ lead.nome }}</div>
                             <div class="text-xs text-slate-400 mt-0.5 truncate max-w-[220px] flex items-center gap-1">
@@ -184,13 +218,13 @@
                             {% if lead.do_not_contact %}
                             <span class="flex w-max items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i> Não contatar</span>
                             {% elif lead.whatsapp_link %}
-                            <button type="button" onclick="abrirCentralContato(this)" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
+                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
                                 <i class="fa-brands fa-whatsapp text-sm mr-1.5"></i> Abordar
                             </button>
                             {% elif lead.email %}
-                            <a href="mailto:{{ lead.email }}" class="bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
+                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' class="bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
                                 <i class="fa-solid fa-envelope text-xs mr-1.5"></i> E-mail
-                            </a>
+                            </button>
                             {% else %}
                             <span class="text-slate-500 text-xs italic">Sem contato</span>
                             {% endif %}
@@ -288,13 +322,14 @@
         
         <footer class="border-t border-[#1E293B] px-6 py-5 md:px-8 bg-[#0D1322]">
             <div class="grid gap-3 sm:grid-cols-2">
-                <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
+                <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" onclick="registrarAbordagem('WhatsApp')" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
                     <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Abrir WhatsApp
                 </a>
-                <a id="central_email" href="#" class="hidden items-center justify-center rounded-xl border border-[#1F2B44] bg-[#121828] text-slate-200 hover:text-white hover:bg-[#1A2338] font-bold py-3.5 px-4 text-xs transition-colors">
+                <a id="central_email" href="#" onclick="registrarAbordagem('E-mail')" class="hidden items-center justify-center rounded-xl border border-[#1F2B44] bg-[#121828] text-slate-200 hover:text-white hover:bg-[#1A2338] font-bold py-3.5 px-4 text-xs transition-colors">
                     <i class="fa-solid fa-envelope mr-2"></i> Enviar E-mail
                 </a>
             </div>
+            <button type="button" onclick="registrarEAvancar()" class="mt-3 w-full rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-forward-step mr-2 text-cyan-400"></i>Marcar abordado e abrir o próximo</button>
         </footer>
     </section>
 </div>
@@ -392,14 +427,12 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         let select = document.getElementById('filter_nicho');
-        let trs = document.querySelectorAll('tbody tr');
         let niches = new Set();
-        
-        trs.forEach(tr => {
-            if(tr.children.length > 1) {
-                let nichoRaw = tr.children[1].innerText.trim();
-                if(nichoRaw) niches.add(nichoRaw);
-            }
+        document.querySelectorAll('select[onchange^="updateStatus"]').forEach(statusSelect => {
+            statusSelect.dataset.previousValue = statusSelect.value;
+        });
+        document.querySelectorAll('.lead-item[data-niche]').forEach(item => {
+            if (item.dataset.niche) niches.add(item.dataset.niche);
         });
         
         niches.forEach(nicho => {
@@ -417,28 +450,23 @@
         let potencial = document.getElementById('filter_potencial').value;
         let followup = document.getElementById('filter_followup').value;
         
-        let trs = document.querySelectorAll('tbody tr');
-        
-        trs.forEach(tr => {
-            if(tr.children.length === 1) return;
-            
-            let leadNome = tr.children[0].innerText.toLowerCase();
-            let leadNicho = tr.children[1].innerText.trim().toLowerCase();
-            let selectStatus = tr.children[3].querySelector('select');
-            let leadStatus = selectStatus ? selectStatus.value : '';
-            
+        document.querySelectorAll('.lead-item').forEach(item => {
+            let leadNome = item.dataset.name || '';
+            let leadNicho = item.dataset.niche || '';
+            let leadStatus = item.dataset.status || '';
             let matchNome = leadNome.includes(nome);
             let matchStatus = !status || leadStatus === status;
             let matchNicho = !nicho || leadNicho === nicho;
-            let matchPotencial = !potencial || tr.dataset.faixaPotential === potencial;
-            let matchFollowup = !followup || tr.dataset.followup === followup;
-            
-            if(matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup) {
-                tr.style.display = '';
-            } else {
-                tr.style.display = 'none';
-            }
+            let matchPotencial = !potencial || item.dataset.faixaPotential === potencial;
+            let matchFollowup = !followup || item.dataset.followup === followup;
+            item.style.display = matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup ? '' : 'none';
         });
+    }
+
+    function aplicarFiltroRapido(followup) {
+        document.getElementById('filter_followup').value = followup;
+        filterTable();
+        document.getElementById('mobile-lead-list')?.scrollIntoView({behavior:'smooth', block:'start'});
     }
 
     async function gerarPreviaRapida(placeId, button) {
@@ -460,7 +488,7 @@
 
     async function updateStatus(e, placeId, novoStatus) {
         let select = e.target;
-        let originalValue = select.value;
+        let originalValue = select.dataset.previousValue || select.value;
         select.disabled = true;
         
         try {
@@ -474,6 +502,10 @@
                 showAppToast('Erro ao atualizar status.', 'error');
                 select.value = originalValue;
             } else {
+                select.dataset.previousValue = novoStatus;
+                document.querySelectorAll('.lead-item').forEach(item => {
+                    if (item.dataset.placeId === placeId) item.dataset.status = novoStatus;
+                });
                 showAppToast('Status atualizado com sucesso.');
             }
         } catch(err) {
@@ -532,6 +564,7 @@
     }
 
     function abrirCentralContato(button) {
+        const placeId = button.getAttribute('data-place-id') || '';
         const nome = button.getAttribute('data-nome') || 'Lead';
         const whatsapp = button.getAttribute('data-whatsapp') || '';
         const email = button.getAttribute('data-email') || '';
@@ -544,12 +577,16 @@
         document.getElementById('central_nome').textContent = nome;
         document.getElementById('central_canal').textContent = email ? `Canais: WhatsApp & ${email}` : 'Contato direto via WhatsApp';
         const textarea = document.getElementById('central_copy');
+        textarea.dataset.placeId = placeId;
         textarea.dataset.copies = JSON.stringify(copies);
         textarea.dataset.whatsappBase = (whatsapp || '').split('?')[0];
         textarea.dataset.email = email;
         textarea.value = copies.consultiva;
         selecionarVariacaoPitch('consultiva');
         const emailButton = document.getElementById('central_email');
+        const whatsappButton = document.getElementById('central_whatsapp');
+        whatsappButton.classList.toggle('hidden', !whatsapp);
+        whatsappButton.classList.toggle('flex', Boolean(whatsapp));
         if (email) {
             emailButton.classList.remove('hidden');
             emailButton.classList.add('flex');
@@ -567,6 +604,7 @@
         let copies = {};
         try { copies = JSON.parse(textarea.dataset.copies || '{}'); } catch (error) { copies = {}; }
         if (copies[style]) textarea.value = copies[style];
+        textarea.dataset.pitchMode = style;
         document.querySelectorAll('.pitch-style').forEach(button => {
             const active = button.dataset.style === style;
             button.classList.toggle('border-cyan-400/40', active);
@@ -607,6 +645,53 @@
             campo.select();
             document.execCommand('copy');
             showAppToast('Mensagem copiada. Agora é só abrir o WhatsApp.');
+        }
+    }
+
+    async function registrarAbordagem(channel, options = {}) {
+        const textarea = document.getElementById('central_copy');
+        const placeId = textarea.dataset.placeId || '';
+        if (!placeId || !textarea.value.trim()) return false;
+        try {
+            const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/contacted`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    channel,
+                    message: textarea.value,
+                    pitch_mode: textarea.dataset.pitchMode || 'consultiva'
+                }),
+                keepalive: true
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível registrar a abordagem.');
+            document.querySelectorAll('.lead-item').forEach(item => {
+                if (item.dataset.placeId === placeId) item.dataset.status = data.status;
+            });
+            if (!options.silent) showAppToast(`Abordagem registrada. Retorno agendado para ${data.next_action_at.replace('T', ' ')}.`);
+            return true;
+        } catch (error) {
+            showAppToast(error.message || 'A mensagem abriu, mas o registro automático falhou.', 'error');
+            return false;
+        }
+    }
+
+    async function registrarEAvancar() {
+        const editor = document.getElementById('central_copy');
+        const currentPlaceId = editor.dataset.placeId || '';
+        const channel = editor.dataset.whatsappBase ? 'WhatsApp' : 'E-mail';
+        const registered = await registrarAbordagem(channel, {silent:true});
+        if (!registered) return;
+        const scope = window.innerWidth < 768 ? '#mobile-lead-list' : 'table';
+        const buttons = [...document.querySelectorAll(`${scope} .lead-item button[data-place-id]`)].filter(button => button.closest('.lead-item').style.display !== 'none');
+        const currentIndex = buttons.findIndex(button => button.dataset.placeId === currentPlaceId);
+        const nextButton = buttons[currentIndex + 1] || buttons[0];
+        if (nextButton && nextButton.dataset.placeId !== currentPlaceId) {
+            abrirCentralContato(nextButton);
+            showAppToast('Abordagem registrada. Próximo lead carregado.');
+        } else {
+            fecharCentralContato();
+            showAppToast('Abordagem registrada. Você concluiu esta fila.');
         }
     }
 

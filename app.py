@@ -43,6 +43,17 @@ CONFIG_FILE = "config.json"
 PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
 DEFAULT_AGENCY_NAME = "PH Digital"
 
+
+def seller_profile(config):
+    return {
+        "name": clean_text(config.get("vendedor_nome", ""), 80),
+        "agency": clean_text(config.get("agencia_nome", DEFAULT_AGENCY_NAME), 100),
+        "positioning": clean_text(config.get("posicionamento_comercial", ""), 240),
+        "proof": clean_text(config.get("prova_comercial", ""), 240),
+        "portfolio_url": clean_text(config.get("portfolio_url", ""), 240),
+        "signature": clean_text(config.get("assinatura_comercial", ""), 160),
+    }
+
 def load_config():
     if not os.path.exists(CONFIG_FILE):
         return {"vendedor_nome": "", "agencia_nome": DEFAULT_AGENCY_NAME, "velocidade": "normal", "headless": True}
@@ -124,7 +135,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -189,10 +200,7 @@ def init_db():
             "Google Maps": row[12] or "",
         }
         intelligence = analyze_lead(raw, preview_available=preview_available)
-        intelligence["seller"] = {
-            "name": clean_text(configured_identity.get("vendedor_nome", ""), 80),
-            "agency": clean_text(configured_identity.get("agencia_nome", ""), 100),
-        }
+        intelligence["seller"] = seller_profile(configured_identity)
         pitches = generate_fallback_pitches(intelligence)
         quality = evaluate_pitches(pitches, intelligence, require_preview=preview_available)
         diagnosis = f"Confiança da análise: {intelligence['confidence']}%. Oportunidade: {intelligence['opportunity']}."
@@ -691,10 +699,7 @@ Retorne estritamente um objeto JSON com as chaves:
 def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False):
     inteligencia = analyze_lead(dados_lead, preview_available=preview_available)
     inteligencia["language"] = "en" if is_intl else "pt-BR"
-    inteligencia["seller"] = {
-        "name": clean_text(config.get("vendedor_nome", ""), 80),
-        "agency": clean_text(config.get("agencia_nome", ""), 100),
-    }
+    inteligencia["seller"] = seller_profile(config)
     fallback = generate_fallback_pitches(inteligencia, is_intl=is_intl)
     qualidade_fallback = evaluate_pitches(fallback, inteligencia, require_preview=preview_available)
     api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
@@ -874,7 +879,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.26-pitch-v4",
+            "commercial_release": "2026.10.27-sales-workflow-v1",
             "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -988,6 +993,65 @@ def suggest_next_action(response_text, sentiment, preview_available=False):
     if response_text:
         return "Revisar a resposta, esclarecer a dúvida apresentada e definir um único próximo passo."
     return "Fazer um acompanhamento curto em três dias úteis, sem repetir a mensagem inicial."
+
+
+def add_business_days(start, days):
+    current = start
+    added = 0
+    while added < days:
+        current += timedelta(days=1)
+        if current.weekday() < 5:
+            added += 1
+    return current
+
+
+@app.route("/api/leads/<path:place_id>/contacted", methods=["POST"])
+def register_lead_contact(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    if lead.get("do_not_contact"):
+        return jsonify({"success": False, "error": "Este lead está marcado como não contatar"}), 409
+
+    payload = request.get_json(silent=True) or {}
+    channel = normalizar_texto(payload.get("channel", "WhatsApp"), 40)
+    if channel not in {"WhatsApp", "E-mail", "Telefone", "Outro"}:
+        return jsonify({"success": False, "error": "Canal de contato inválido"}), 400
+    pitch_mode = normalizar_texto(payload.get("pitch_mode", "consultiva"), 40)
+    message = normalizar_texto(payload.get("message", ""), 3000)
+    if not message:
+        return jsonify({"success": False, "error": "A mensagem enviada não pode ficar vazia"}), 400
+
+    now = datetime.now()
+    next_action_at = add_business_days(now, 3).replace(hour=10, minute=0, second=0, microsecond=0)
+    next_action = "Confirmar se a mensagem foi recebida e fazer um retorno curto, sem repetir a abordagem inicial."
+    advanced_statuses = {"Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    next_status = lead.get("status") if lead.get("status") in advanced_statuses else "Contatado"
+
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """INSERT INTO lead_interactions
+               (place_id, interaction_type, channel, content, sentiment, next_action, next_action_at)
+               VALUES (?, 'abordagem', ?, ?, 'aguardando resposta', ?, ?)""",
+            (place_id, channel, message, next_action, next_action_at.isoformat(timespec="minutes")),
+        )
+        conn.execute(
+            """UPDATE leads SET status = ?, last_contact_at = ?, last_contact_channel = ?,
+               last_pitch_mode = ?, contact_count = COALESCE(contact_count, 0) + 1,
+               next_action = ?, next_action_at = ? WHERE place_id = ?""",
+            (next_status, now.isoformat(timespec="seconds"), channel, pitch_mode, next_action,
+             next_action_at.isoformat(timespec="minutes"), place_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({
+        "success": True,
+        "status": next_status,
+        "next_action": next_action,
+        "next_action_at": next_action_at.isoformat(timespec="minutes"),
+    })
 
 
 @app.route("/leads/<path:place_id>")

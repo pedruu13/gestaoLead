@@ -583,6 +583,8 @@ REGRAS OBRIGATÓRIAS:
 - Não afirme que o negócio tem um problema nem que está sem site.
 - Não use: perfil público consultado, oportunidade mais clara, estrutura que recomendaria, pelas informações públicas disponíveis, se fizer sentido, três ideias práticas.
 - Não invente serviços, números, elogios, resultados, urgência, preço ou desconto.
+- Use positioning e proof apenas quando estiverem preenchidos no perfil do vendedor; nunca invente prova social.
+- Não coloque o link do portfólio na primeira mensagem sem que o modo peça apresentação de material.
 - Não mencione prévia, demonstração ou conceito visual se preview_available for falso.
 - Crie argumentos e encerramentos realmente diferentes entre os modos.
 - Em recepcao, considere que o número pode ser de atendimento ou agendamento e peça encaminhamento com educação.

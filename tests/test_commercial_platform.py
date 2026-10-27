@@ -8,6 +8,7 @@ from unittest import mock
 import app as application
 from commercial_intelligence import (
     analyze_lead,
+    build_generation_prompt,
     evaluate_pitches,
     generate_fallback_pitches,
     normalize_lead_context,
@@ -183,11 +184,20 @@ class CommercialIntelligenceTests(unittest.TestCase):
     def test_configured_seller_identity_is_used_in_the_pitch(self):
         result = application.gerar_copy_profissional(
             sample_lead(),
-            {"vendedor_nome": "Pedro Henrique", "agencia_nome": "PH Digital"},
+            {
+                "vendedor_nome": "Pedro Henrique",
+                "agencia_nome": "PH Digital",
+                "posicionamento_comercial": "Sites comerciais claros e rápidos",
+                "prova_comercial": "Case documentado disponível para avaliação",
+                "portfolio_url": "https://phdigital.example",
+            },
         )
         self.assertIn("Sou Pedro, da PH Digital", result["mensagem"])
         self.assertIn("desenvolvo sites", result["mensagem"].casefold())
         self.assertIn("minha proposta", result["mensagem"].casefold())
+        prompt = build_generation_prompt(result["inteligencia"], ["consultiva"])
+        self.assertIn("Sites comerciais claros e rápidos", prompt)
+        self.assertIn("Case documentado disponível", prompt)
 
     def test_international_fallback_remains_approved(self):
         result = application.gerar_copy_profissional(sample_lead(), {}, is_intl=True)
@@ -259,6 +269,29 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertIn("Demonstração conceitual não oficial", row[2])
                 self.assertTrue(os.path.exists(row[3]))
 
+                contacted = client.post("/api/leads/test-place/contacted", json={
+                    "channel": "WhatsApp",
+                    "pitch_mode": "consultiva",
+                    "message": regenerated_data["versoes"]["consultiva"],
+                })
+                self.assertEqual(200, contacted.status_code, contacted.get_data(as_text=True))
+                contacted_data = contacted.get_json()
+                self.assertEqual("Contatado", contacted_data["status"])
+                self.assertIn("T", contacted_data["next_action_at"])
+                conn = sqlite3.connect(application.DB_NAME)
+                contact_state = conn.execute(
+                    "SELECT status, contact_count, last_contact_channel, last_pitch_mode, next_action_at FROM leads WHERE place_id = 'test-place'"
+                ).fetchone()
+                contact_interaction = conn.execute(
+                    "SELECT interaction_type, channel, content FROM lead_interactions WHERE place_id = 'test-place' ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                conn.close()
+                self.assertEqual(("Contatado", 1, "WhatsApp", "consultiva"), contact_state[:4])
+                self.assertTrue(contact_state[4])
+                self.assertEqual("abordagem", contact_interaction[0])
+                self.assertEqual("WhatsApp", contact_interaction[1])
+                self.assertIn("site", contact_interaction[2].casefold())
+
                 follow_up = client.post("/api/leads/test-place/follow-up", json={
                     "response": "Gostei da ideia, pode enviar a demonstração.",
                     "channel": "WhatsApp",
@@ -275,6 +308,11 @@ class PreviewStudioTests(unittest.TestCase):
                     "reason": "Solicitou encerramento do contato",
                 })
                 self.assertEqual(200, blocked.status_code)
+                blocked_contact = client.post("/api/leads/test-place/contacted", json={
+                    "channel": "WhatsApp",
+                    "message": "Nova tentativa de contato",
+                })
+                self.assertEqual(409, blocked_contact.status_code)
                 detail = client.get("/leads/test-place")
                 self.assertEqual(200, detail.status_code)
                 detail_html = detail.get_data(as_text=True)
@@ -288,12 +326,12 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(1, lead_state[0])
                 self.assertEqual("Perdido", lead_state[1])
                 self.assertTrue(lead_state[2])
-                self.assertEqual(2, interaction_count)
+                self.assertEqual(3, interaction_count)
 
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.26-pitch-v4", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.27-sales-workflow-v1", health.get_json()["commercial_release"])
                 self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})

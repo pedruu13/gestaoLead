@@ -31,6 +31,20 @@
                     <input type="text" name="agencia_nome" value="{{ config.get('agencia_nome', '') }}" placeholder="Ex: Agência Elevate" class="w-full bg-[#090d14] border border-[#262c3a] text-white rounded-xl px-4 py-3 text-sm focus:border-white focus:ring-1 focus:ring-white outline-none transition-all shadow-inner">
                 </div>
             </div>
+            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Posicionamento da PH Digital
+                    <textarea name="posicionamento_comercial" maxlength="240" placeholder="Ex.: Sites comerciais rápidos, claros e focados em transformar visitas em contatos." class="mt-2 min-h-24 w-full rounded-xl border border-[#262c3a] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">{{ config.get('posicionamento_comercial', '') }}</textarea>
+                </label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Prova comercial verificável
+                    <textarea name="prova_comercial" maxlength="240" placeholder="Inclua apenas experiência, cases ou números que você possa comprovar." class="mt-2 min-h-24 w-full rounded-xl border border-[#262c3a] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">{{ config.get('prova_comercial', '') }}</textarea>
+                </label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Link do portfólio
+                    <input type="url" name="portfolio_url" value="{{ config.get('portfolio_url', '') }}" placeholder="https://..." class="mt-2 w-full rounded-xl border border-[#262c3a] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">
+                </label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Assinatura comercial
+                    <input type="text" name="assinatura_comercial" maxlength="160" value="{{ config.get('assinatura_comercial', '') }}" placeholder="Pedro | PH Digital" class="mt-2 w-full rounded-xl border border-[#262c3a] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">
+                </label>
+            </div>
 
             <hr class="border-[#222733]">
 
