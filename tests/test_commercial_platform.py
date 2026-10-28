@@ -14,6 +14,7 @@ from commercial_intelligence import (
     generate_fallback_pitches,
     normalize_lead_context,
     plan_commercial_angle,
+    recommend_contact_strategy,
     review_pitch,
 )
 from preview_studio import build_preview_config, render_preview_html
@@ -107,6 +108,25 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertNotIn("Rosiene Silva de Brito", context["salutation"])
         self.assertIn("agendamento", plan["benefit"])
         self.assertNotIn("perfil público", json.dumps(plan, ensure_ascii=False).casefold())
+
+    def test_health_whatsapp_defaults_to_reception_forwarding_message(self):
+        lead = sample_lead("Sorriso Centro", "Dentistas")
+        strategy = recommend_contact_strategy(lead)
+        analysis = analyze_lead(lead)
+        message = generate_fallback_pitches(analysis)["recepcao"]
+        self.assertEqual("recepcao", strategy["recommended_mode"])
+        self.assertIn("Recepção/agendamento", strategy["label"])
+        self.assertIn("encaminhar", message.casefold())
+        self.assertIn("melhor contato", message.casefold())
+        self.assertIn("proposta de site", message.casefold())
+        self.assertNotIn(lead["Nome"], message)
+
+    def test_general_business_keeps_consultative_mode_and_email_only_uses_email(self):
+        architecture = sample_lead("Ateliê Norte", "Arquitetos")
+        email_only = sample_lead("Sorriso Centro", "Dentistas")
+        email_only["Telefone"] = ""
+        self.assertEqual("consultiva", recommend_contact_strategy(architecture)["recommended_mode"])
+        self.assertEqual("email", recommend_contact_strategy(email_only)["recommended_mode"])
 
     def test_score_v2_is_transparent_and_keeps_lower_potential_leads(self):
         priority = score_lead(sample_lead(), has_own_site=False)
@@ -402,8 +422,8 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.28-preview-performance-v1", health.get_json()["commercial_release"])
-                self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
+                self.assertEqual("2026.10.28-contact-routing-v1", health.get_json()["commercial_release"])
+                self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)

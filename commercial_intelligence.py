@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 
 
-PITCH_PIPELINE_VERSION = "4.0"
+PITCH_PIPELINE_VERSION = "4.1"
 
 
 SOCIAL_OR_DIRECTORY_HOSTS = (
@@ -182,6 +182,11 @@ SEGMENT_BUSINESS_REFERENCES = {
     "serviços locais": "da empresa",
 }
 
+RECEPTION_FIRST_SEGMENTS = frozenset({
+    "odontologia", "estética", "veterinária", "fisioterapia", "psicologia",
+    "saúde", "educação", "academia", "hotelaria",
+})
+
 
 def clean_text(value, limit=600):
     return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
@@ -279,6 +284,33 @@ def normalize_lead_context(lead, preview_available=False):
     }
 
 
+def _contact_strategy_from_context(context):
+    channels = context.get("channels") or []
+    has_whatsapp = "WhatsApp" in channels
+    has_email = "e-mail" in channels
+    if not has_whatsapp and has_email:
+        return {
+            "recommended_mode": "email",
+            "label": "E-mail disponível",
+            "reason": "Não há telefone cadastrado; a abordagem deve começar pelo e-mail.",
+        }
+    if has_whatsapp and context.get("segment") in RECEPTION_FIRST_SEGMENTS:
+        return {
+            "recommended_mode": "recepcao",
+            "label": "Recepção/agendamento provável",
+            "reason": "Nesse segmento, o telefone público costuma atender clientes e agendamentos; a primeira mensagem deve pedir encaminhamento sem presumir quem recebeu.",
+        }
+    return {
+        "recommended_mode": "consultiva",
+        "label": "Contato geral",
+        "reason": "Não há evidência suficiente para tratar o número como recepção ou como contato direto do responsável.",
+    }
+
+
+def recommend_contact_strategy(lead, preview_available=False):
+    return _contact_strategy_from_context(normalize_lead_context(lead, preview_available=preview_available))
+
+
 def plan_commercial_angle(context):
     channel = context["channels"][0] if context["channels"] else "canal de atendimento"
     if context["site_verified"]:
@@ -291,6 +323,7 @@ def plan_commercial_angle(context):
         offer_action = "desenvolver um site profissional"
     hook, site_value = SEGMENT_COPY_ANGLES.get(context["segment"], SEGMENT_COPY_ANGLES["serviços locais"])
     entity_reference = SEGMENT_BUSINESS_REFERENCES.get(context["segment"], "da empresa")
+    proposal_target = re.sub(r"^d([ao])\s+", r"\1 ", entity_reference)
     masculine_categories = ("atendimento", "escritório", "restaurante", "hotel", "serviço", "negócio")
     article = "um" if context["commercial_category"].casefold().startswith(masculine_categories) else "uma"
     return {
@@ -305,6 +338,7 @@ def plan_commercial_angle(context):
         "hook": hook,
         "site_value": site_value,
         "entity_reference": entity_reference,
+        "proposal_target": proposal_target,
         "category_with_article": f"{article} {context['commercial_category']}",
         "required_terms": context["required_terms"],
         "claims_policy": "Tratar o benefício como possibilidade; não afirmar falhas, resultados ou ausência absoluta de site.",
@@ -352,6 +386,7 @@ def _site_observation_for_pitch(context, plan):
 def analyze_lead(lead, preview_available=False):
     context = normalize_lead_context(lead, preview_available=preview_available)
     plan = plan_commercial_angle(context)
+    contact_strategy = _contact_strategy_from_context(context)
     rating = clean_text(field(lead, "Nota Maps", "nota"), 20)
     reviews = clean_text(field(lead, "Qtd Avaliacoes", "avaliacoes"), 30)
     verified = []
@@ -386,6 +421,7 @@ def analyze_lead(lead, preview_available=False):
         "opportunity": context["benefit"],
         "main_argument": plan["primary_angle"],
         "commercial_plan": plan,
+        "contact_strategy": contact_strategy,
         "normalized_context": context,
         "verified": verified,
         "inferred": [
@@ -413,7 +449,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
             "consultiva": f"Hello, how are you? {introduction} I could not find a company website linked to the Google profile. Without a website, potential customers may reach the team before understanding the service or the next step. My proposal is to build a professional website that presents the business clearly and directs qualified visitors to the current contact channel. May I send an initial project scope?",
             "direta": f"Hello. {introduction} I could not find a website linked to the company profile. I would like to present a website proposal focused on explaining the service, building trust and giving visitors a clear path to contact the team. Who would be the best person to review the initial scope?",
             "personalizada": f"Hello, how are you? {introduction} Without a website linked to the business profile, visitors may depend on scattered information before contacting the team. My proposal is to build a website that organizes the decision process and sends better-prepared enquiries to the business. Could we discuss the project briefly?",
-            "recepcao": f"Hello, how are you? {introduction} I could not find a company website linked to the Google profile, and I would like to present a website proposal. If this number is mainly used for customer service or appointments, could you forward my contact to the person who handles website projects?",
+            "recepcao": f"Hello, how are you? {introduction} I would like to present a professional website proposal for the business. I could not find a company website linked to the Google profile. Since this number may be used for customer service or appointments, could you please forward this message to the person who evaluates website or commercial projects? If easier, you can share the best business contact.",
             "email": f"Subject: Website proposal for the business\n\nHello, {agency_introduction} I could not find a company website linked to the Google profile. Without a website, prospects may contact the team before understanding the service. Our proposal is to build a professional website that presents the business and directs qualified visitors to the right channel. Reply to this email, and I will send an initial scope for review.",
         }
         if analysis.get("preview_available"):
@@ -429,7 +465,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
         "consultiva": f"Olá, tudo bem? {introduction} {observation} {plan['need_statement']} Minha proposta é {plan['offer_action']} para {plan['site_value']}. Posso encaminhar um escopo inicial para vocês avaliarem?",
         "direta": f"Olá. {introduction} {observation} Para {plan['category_with_article']}, um site profissional pode {plan['site_value']}. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
         "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']}. Podemos conversar sobre esse projeto?",
-        "recepcao": f"Olá, tudo bem? {introduction} Estou entrando em contato porque {observation[0].lower() + observation[1:]} Tenho uma proposta de site para a empresa. O projeto teria como objetivo {plan['site_value']}. Se este número for de atendimento ou agendamento, você pode encaminhar meu contato a quem avalia esse tipo de projeto?",
+        "recepcao": f"Olá, tudo bem? {introduction} Gostaria de apresentar uma proposta de site profissional para {plan['proposal_target']}. {observation} A ideia é {plan['site_value']}. Como este número pode ser da recepção ou do agendamento, você poderia encaminhar esta mensagem à pessoa que cuida do site ou me informar o melhor contato?",
         "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} {plan['need_statement']} Nossa proposta é {plan['offer_action']} para {plan['site_value']}. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
     }
     if analysis.get("preview_available"):
@@ -482,7 +518,7 @@ def review_pitch(text, analysis, mode):
     repeated = _repeated_content_words(value)
     if repeated:
         issues.append(f"repete palavras em excesso: {', '.join(repeated[:3])}")
-    required_terms = analysis.get("commercial_plan", {}).get("required_terms", ()) if mode != "previa_visual" else ()
+    required_terms = analysis.get("commercial_plan", {}).get("required_terms", ()) if mode not in {"previa_visual", "recepcao"} else ()
     if is_english:
         required_terms = ("service", "appointment", "contact", "project", "booking", "website", "visitor")
     if required_terms and not any(_fold(term) in _fold(value) for term in required_terms):
@@ -587,7 +623,8 @@ REGRAS OBRIGATÓRIAS:
 - Não coloque o link do portfólio na primeira mensagem sem que o modo peça apresentação de material.
 - Não mencione prévia, demonstração ou conceito visual se preview_available for falso.
 - Crie argumentos e encerramentos realmente diferentes entre os modos.
-- Em recepcao, considere que o número pode ser de atendimento ou agendamento e peça encaminhamento com educação.
+- Em recepcao, não tente vender tudo para quem atende. Apresente brevemente a PH Digital, diga claramente que é uma proposta de site e peça encaminhamento à pessoa que cuida do site ou das decisões comerciais.
+- Em recepcao, trate recepção/agendamento apenas como possibilidade e ofereça a alternativa de informar o melhor contato.
 - Em email, comece com Assunto: e escreva como e-mail.
 
 MODOS: {', '.join(modes)}

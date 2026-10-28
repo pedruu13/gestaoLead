@@ -69,6 +69,7 @@
 
             <section class="executive-panel rounded-2xl p-6">
                 <h2 class="text-sm font-black uppercase tracking-widest text-white">Canais e fontes</h2>
+                <div class="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs font-bold text-cyan-200">{{ lead.contact_strategy.label }}: {{ lead.contact_strategy.reason }}</div>
                 <div class="mt-4 grid gap-2 text-xs">
                     {% if lead.telefone %}<div class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-phone mr-2 text-cyan-400"></i>{{ lead.telefone }}</div>{% endif %}
                     {% if lead.email %}<a href="mailto:{{ lead.email }}" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-envelope mr-2 text-cyan-400"></i>{{ lead.email }}</a>{% endif %}
@@ -138,7 +139,8 @@ const pitchCopies = {{ lead.copies_pitch | tojson }};
 const placeId = {{ lead.place_id | tojson }};
 const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
 const emailAddress = {{ (lead.email or '') | tojson }};
-let activeMode = pitchCopies.consultiva ? 'consultiva' : Object.keys(pitchCopies)[0];
+const recommendedMode = {{ lead.recommended_pitch_mode | tojson }};
+let activeMode = pitchCopies[recommendedMode] ? recommendedMode : (pitchCopies.consultiva ? 'consultiva' : Object.keys(pitchCopies)[0]);
 function selectPitch(mode) {
     if (!pitchCopies[mode]) return;
     activeMode = mode;

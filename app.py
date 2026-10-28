@@ -19,7 +19,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
-from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches
+from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 from target_intelligence import build_research_plan, suggest_targets
@@ -301,6 +301,11 @@ def load_leads(status_scope=None, limit=None, offset=0):
                 lead[field_name] = json.loads(lead.get(field_name) or "{}")
             except (TypeError, json.JSONDecodeError):
                 lead[field_name] = {}
+        contact_strategy = lead["inteligencia_comercial"].get("contact_strategy")
+        if not contact_strategy:
+            contact_strategy = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=bool(lead.get("latest_preview_id")))
+        lead["contact_strategy"] = contact_strategy
+        lead["recommended_pitch_mode"] = contact_strategy["recommended_mode"]
     return leads
 
 def save_lead_db(lead, place_id):
@@ -934,7 +939,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.28-preview-performance-v1",
+            "commercial_release": "2026.10.28-contact-routing-v1",
             "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1025,6 +1030,11 @@ def get_lead_by_id(place_id):
     lead["faixa_potencial"] = scoring["range"]
     lead["score_breakdown"] = scoring
     lead["score_version"] = scoring["version"]
+    contact_strategy = lead["inteligencia_comercial"].get("contact_strategy")
+    if not contact_strategy:
+        contact_strategy = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=bool(get_preview_versions(place_id)))
+    lead["contact_strategy"] = contact_strategy
+    lead["recommended_pitch_mode"] = contact_strategy["recommended_mode"]
     return lead
 
 
