@@ -109,6 +109,27 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertIn("agendamento", plan["benefit"])
         self.assertNotIn("perfil público", json.dumps(plan, ensure_ascii=False).casefold())
 
+    def test_fast_search_pitch_does_not_wait_for_external_ai(self):
+        with mock.patch.object(application, "generate_text") as generator:
+            result = application.gerar_copy_profissional(
+                sample_lead(), {"gemini_api_key": "configured"}, use_external_ai=False
+            )
+        generator.assert_not_called()
+        self.assertTrue(result["qualidade"]["approved"])
+        self.assertIn("site", result["mensagem"].casefold())
+
+    def test_deep_contact_search_only_uses_web_email_lookup_when_requested(self):
+        with mock.patch.object(application, "buscar_email_web", return_value="contato@empresa.com") as lookup:
+            without_lookup = application.cacar_dados_profundos(
+                None, "", nome="Empresa Teste", bairro="Campinas", buscar_email_externo=False
+            )
+            with_lookup = application.cacar_dados_profundos(
+                None, "", nome="Empresa Teste", bairro="Campinas", buscar_email_externo=True
+            )
+        self.assertEqual("", without_lookup["email"])
+        self.assertEqual("contato@empresa.com", with_lookup["email"])
+        lookup.assert_called_once()
+
     def test_health_whatsapp_defaults_to_reception_forwarding_message(self):
         lead = sample_lead("Sorriso Centro", "Dentistas")
         strategy = recommend_contact_strategy(lead)
@@ -422,7 +443,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.28-contact-routing-v1", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.28-search-speed-v1", health.get_json()["commercial_release"])
                 self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})

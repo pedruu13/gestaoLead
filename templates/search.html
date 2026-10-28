@@ -201,13 +201,25 @@
                     <div class="flex items-center gap-2"><input type="number" id="min_potencial" value="55" step="5" min="0" max="100" class="w-24 rounded-xl bg-[#111728] border border-cyan-400/30 text-cyan-200 text-center font-black px-3 py-2 text-xs outline-none focus:border-cyan-400"><span class="text-xs font-black text-cyan-300">/100</span></div>
                 </div>
 
+                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-[#080B12] border border-[#1F2B44]">
+                    <div>
+                        <label for="max_leads" class="text-xs font-bold text-white block">Quantidade máxima por campanha</label>
+                        <p class="text-[11px] text-slate-400 mt-0.5">A busca encerra ao atingir a meta ou 15 minutos, evitando campanhas que ficam rodando por horas.</p>
+                    </div>
+                    <select id="max_leads" class="w-28 rounded-xl bg-[#111728] border border-[#1F2B44] text-white text-center font-black px-3 py-2 text-xs outline-none focus:border-blue-500">
+                        <option value="20">20 leads</option>
+                        <option value="30" selected>30 leads</option>
+                        <option value="50">50 leads</option>
+                    </select>
+                </div>
+
                 <!-- Toggle IA Copy -->
                 <label class="flex items-center gap-4 rounded-2xl p-4 bg-blue-500/10 border border-blue-500/25 cursor-pointer hover:border-blue-500/40 transition-colors">
                     <input type="checkbox" id="ai_copy" checked class="sr-only peer">
                     <span class="w-11 h-6 rounded-full bg-slate-800 relative transition-colors peer-checked:bg-blue-600 after:content-[''] after:absolute after:w-5 after:h-5 after:bg-white after:rounded-full after:top-0.5 after:left-0.5 after:transition-transform peer-checked:after:translate-x-5"></span>
                     <div>
-                        <strong class="text-xs text-white block">Gerar Pitch Comercial Automatizado com IA</strong>
-                        <small class="block text-[11px] text-blue-200/80 mt-0.5">Diagnostica a ausência de site e gera abordagem personalizada para WhatsApp.</small>
+                        <strong class="text-xs text-white block">Gerar pitch profissional durante a busca</strong>
+                        <small class="block text-[11px] text-blue-200/80 mt-0.5">Usa o gerador local revisado para deixar a mensagem pronta sem esperar uma API externa em cada lead.</small>
                     </div>
                 </label>
 
@@ -366,7 +378,7 @@
 
 {% block scripts %}
 <script>
-    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'site_filter_mode', 'strict_potencial', 'ai_copy'];
+    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'max_leads', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'site_filter_mode', 'strict_potencial', 'ai_copy'];
     const pickerState = { nichos: [], bairros: [] };
     const presets = {
         br: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Arquitetura', 'Móveis Planejados', 'Imobiliária', 'Energia Solar', 'Contabilidade'], bairros: ['Moema - São Paulo', 'Itaim Bibi - São Paulo', 'Alphaville - SP', 'Campinas - SP', 'Balneário Camboriú - SC'] },

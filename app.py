@@ -756,7 +756,7 @@ Retorne estritamente um objeto JSON com as chaves:
         return obter_copy_contingencia(dados_lead, vendedor, motivo=f"Erro na execução da IA: {e}", is_intl=is_intl)
 
 
-def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False):
+def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available=False, use_external_ai=True):
     inteligencia = analyze_lead(dados_lead, preview_available=preview_available)
     inteligencia["language"] = "en" if is_intl else "pt-BR"
     inteligencia["seller"] = seller_profile(config)
@@ -767,7 +767,7 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
     gerada_por_ia = False
     motivo = "Modelo profissional local aplicado"
 
-    if api_key:
+    if api_key and use_external_ai:
         modos = ["consultiva", "direta", "personalizada", "recepcao", "email"]
         if preview_available:
             modos.append("previa_visual")
@@ -939,7 +939,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.28-contact-routing-v1",
+            "commercial_release": "2026.10.28-search-speed-v1",
             "target_engine_version": "2026.10.28-detective-fast-v3",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1655,7 +1655,7 @@ def assess_site_opportunity(url, title="", description="", context=""):
 def texto_html_seguro(valor):
     return str(escape(valor or ""))
 
-def cacar_dados_profundos(context, url, nome="", bairro=""):
+def cacar_dados_profundos(context, url, nome="", bairro="", buscar_email_externo=True):
     dados = {
         "email": "", "instagram": "", "facebook": "", "linkedin": "",
         "titulo_site": "", "descricao_site": "", "contexto_site": "",
@@ -1706,7 +1706,7 @@ def cacar_dados_profundos(context, url, nome="", bairro=""):
         if "linkedin.com" in url_lower: dados["linkedin"] = url
 
     # Se ainda nao tem email (ex: empresa sem site), faz busca web profunda!
-    if not dados["email"] and nome:
+    if buscar_email_externo and not dados["email"] and nome:
         print(f"[WORKER] Sem email no site/sem site para {nome}. Buscando na web...")
         dados["email"] = buscar_email_web(nome, bairro)
         
@@ -1797,6 +1797,20 @@ def extrator_worker(data, config, queue):
         }
         existing_place_ids = load_existing_place_ids()
         search_run_id = data.get("search_run_id", "")
+        started_at = time.monotonic()
+        max_leads = max(5, min(100, int(data.get("max_leads", 30))))
+        max_analyzed = max(40, max_leads * 3)
+        max_duration_seconds = 15 * 60
+        max_results_per_query = 20
+
+        def search_limit_reason():
+            if stats["salvos"] >= max_leads:
+                return f"Meta de {max_leads} leads alcançada."
+            if stats["analisados"] >= max_analyzed:
+                return f"Limite de {max_analyzed} empresas analisadas alcançado."
+            if time.monotonic() - started_at >= max_duration_seconds:
+                return "Limite de 15 minutos da campanha alcançado."
+            return ""
 
         def publicar_status(mensagem, rodando=True):
             cancelamento_solicitado = ler_status().get("cancelamento_solicitado", False)
@@ -1839,10 +1853,14 @@ def extrator_worker(data, config, queue):
                 page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
             consent_ok = False
             for bairro in bairros:
+                if search_limit_reason():
+                    break
                 if busca_cancelada():
                     browser.close()
                     return
                 for nicho in nichos:
+                    if search_limit_reason():
+                        break
                     if busca_cancelada():
                         browser.close()
                         return
@@ -1851,12 +1869,12 @@ def extrator_worker(data, config, queue):
                     publicar_status(f"Buscando '{nicho}' em '{bairro}'...")
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
                     try:
-                        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        page.goto(url, wait_until="domcontentloaded", timeout=30000)
                         print(f"[WORKER] Pagina: {page.title()} | {page.url}")
                         if not consent_ok:
                             tratar_consentimento_cookies(page)
                             consent_ok = True
-                        time.sleep(3)
+                        page.wait_for_timeout(700)
                     except Exception as e:
                         print(f"[WORKER] Erro ao carregar pagina: {e}"); continue
                     try:
@@ -1867,9 +1885,9 @@ def extrator_worker(data, config, queue):
                     try:
                         painel = page.locator("div[role='feed']").first
                         if painel.count() > 0:
-                            for _ in range(8):
+                            for _ in range(4):
                                 painel.evaluate("node => node.scrollTop = node.scrollHeight")
-                                time.sleep(random.uniform(0.5, 1.2))
+                                time.sleep(random.uniform(0.35, 0.65))
                                 page.keyboard.press("PageDown") # Fallback
                     except Exception as e: print("Aviso interno painel:", e)
                     
@@ -1881,11 +1899,13 @@ def extrator_worker(data, config, queue):
                         print("[WORKER] Definitivamente nenhum lead encontrado.")
                         continue
                     hrefs = []
-                    for i in range(min(links.count(), 50)):
+                    for i in range(min(links.count(), max_results_per_query)):
                         h = links.nth(i).get_attribute("href")
                         if h and h not in hrefs: hrefs.append(h)
                     stats["encontrados"] += len(hrefs)
                     for index, href in enumerate(hrefs):
+                        if search_limit_reason():
+                            break
                         if busca_cancelada():
                             browser.close()
                             return
@@ -1897,14 +1917,14 @@ def extrator_worker(data, config, queue):
                         try:
                             stats["analisados"] += 1
                             publicar_status(f"Analisando lead {index+1}/{len(hrefs)}...")
-                            page.goto(href, wait_until="domcontentloaded", timeout=20000)
-                            try: page.wait_for_selector("h1", timeout=5000)
+                            page.goto(href, wait_until="domcontentloaded", timeout=12000)
+                            try: page.wait_for_selector("h1", timeout=3500)
                             except Exception as e: print("Aviso interno:", e)
                             
-                            time.sleep(2) # Aguarda renderizacao basica
+                            page.wait_for_timeout(350)
                             
                             # Tenta esperar explicitamente pelo elemento do site caso ele demore mais que o h1
-                            try: page.wait_for_selector("a[data-item-id='authority']", timeout=3000)
+                            try: page.wait_for_selector("a[data-item-id='authority']", timeout=1200)
                             except: pass
                             
                             nome_el = page.locator("h1").first
@@ -1971,7 +1991,11 @@ def extrator_worker(data, config, queue):
                                 pass
 
                             print(f"[WORKER] Iniciando cacador profundo para {nome}...")
-                            dados_profundos = cacar_dados_profundos(context, link_encontrado, nome=nome, bairro=bairro)
+                            buscar_email_externo = bool(data.get("req_email") or data.get("mercado", "br") != "br")
+                            dados_profundos = cacar_dados_profundos(
+                                context, link_encontrado, nome=nome, bairro=bairro,
+                                buscar_email_externo=buscar_email_externo,
+                            )
                             if data.get("req_email") and not dados_profundos["email"]:
                                 stats["sem_email"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
@@ -2068,15 +2092,13 @@ def extrator_worker(data, config, queue):
 
                                 if data.get("ai_copy"):
                                     publicar_status(f"Gerando mensagem para: {nome}")
-                                    resultado_ia = gerar_copy_inteligente(dados_raw, config, is_intl)
+                                    resultado_ia = gerar_copy_inteligente(
+                                        dados_raw, config, is_intl, use_external_ai=False
+                                    )
                                     copy_texto = resultado_ia.get("mensagem", "")
                                     analise_ia = resultado_ia.get("analise", "")
                                     estrategia_ia = resultado_ia.get("estrategia", "")
-                                    if resultado_ia.get("gerada_por_ia"):
-                                        publicar_status(f"Mensagem personalizada pronta: {nome}")
-                                    else:
-                                        publicar_status(f"Mensagem de contingência criada: {nome}")
-                                        print(f"[WORKER] Gemini indisponível para {nome}; revise a mensagem antes de enviar.")
+                                    publicar_status(f"Pitch profissional pronto: {nome}")
                                     whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
                                     update_lead_ai(
                                         place_id,
@@ -2091,10 +2113,13 @@ def extrator_worker(data, config, queue):
                         except Exception as e:
                             stats["erros"] += 1
                             print(f"[WORKER] Erro no lead {href}: {e}")
+            limit_reason = search_limit_reason()
+            stats["tempo_segundos"] = round(time.monotonic() - started_at, 1)
+            stats["limite"] = limit_reason
             print("[WORKER] Fechando navegador.")
             mem_final = process.memory_info().rss / (1024 * 1024)
             print(f"[WORKER] Finalizando. Memoria RAM uso final: {mem_final:.2f} MB")
-            publicar_status("Busca finalizada.", rodando=False)
+            publicar_status(limit_reason or "Busca finalizada.", rodando=False)
             browser.close()
         print("[WORKER] Finalizado com sucesso.")
     except Exception as e:
@@ -2129,6 +2154,10 @@ def api_search():
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
     if ler_status_investigacao().get("rodando"):
         return jsonify({"success": False, "error": "Aguarde a investigação de mercado terminar antes de iniciar a busca de leads."}), 409
+    try:
+        data["max_leads"] = max(5, min(100, int(data.get("max_leads", 30))))
+    except (TypeError, ValueError):
+        data["max_leads"] = 30
     with SEARCH_LOCK:
         if ler_status().get("rodando"):
             return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
