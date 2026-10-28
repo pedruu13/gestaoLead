@@ -940,7 +940,7 @@ def health():
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
             "commercial_release": "2026.10.28-contact-routing-v1",
-            "target_engine_version": "2026.10.27-detective-v2",
+            "target_engine_version": "2026.10.28-detective-fast-v3",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
@@ -2195,10 +2195,34 @@ def carregar_nichos_recentes(regiao, limite=2):
     return niches
 
 
+def carregar_resultado_investigacao_recente(regiao, max_age_days=2, min_sample=12):
+    conn = sqlite3.connect(DB_NAME)
+    row = conn.execute(
+        """SELECT result_json, finished_at FROM target_research_runs
+           WHERE region = ? AND status = 'concluido' AND result_json IS NOT NULL
+             AND finished_at >= datetime('now', ?)
+           ORDER BY finished_at DESC LIMIT 1""",
+        (regiao, f"-{int(max_age_days)} days"),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        result = json.loads(row[0])
+    except (TypeError, json.JSONDecodeError):
+        return None
+    investigation = result.setdefault("investigacao", {})
+    if int(investigation.get("amostra_nova") or 0) < min_sample:
+        return None
+    investigation["reutilizado"] = True
+    investigation["atualizado_em"] = row[1]
+    return result
+
+
 def worker_investigar_alvos(regiao, run_id, config):
     try:
         observations = carregar_dados_investigacao(regiao)
-        plan = build_research_plan(regiao, observations)
+        plan = build_research_plan(regiao, observations, pair_limit=4)
         conn = sqlite3.connect(DB_NAME)
         conn.execute(
             """INSERT INTO target_research_runs (run_id, region, plan_json, status)
@@ -2211,14 +2235,15 @@ def worker_investigar_alvos(regiao, run_id, config):
         def progress(index, total, message):
             atualizar_status_investigacao({
                 "rodando": True, "run_id": run_id, "regiao": regiao,
-                "mensagem": message, "etapa_atual": index + 1, "total_etapas": total,
-                "progresso": round(index * 100 / max(total, 1)),
+                "mensagem": message, "etapa_atual": min(int(index) + 1, total), "total_etapas": total,
+                "progresso": round(min(index, total) * 100 / max(total, 1)),
             })
 
         results = probe_google_maps(
             plan,
             headless=config.get("headless", True),
-            sample_per_pair=5,
+            sample_per_pair=3,
+            max_seconds=35,
             progress=progress,
         )
         successful_samples = sum(item.get("sample_size", 0) for item in results)
@@ -2289,13 +2314,20 @@ def sugerir_alvos():
                 carregar_dados_investigacao(regiao),
                 carregar_nichos_recentes(regiao),
             ))
+        if not payload.get("atualizar"):
+            cached_result = carregar_resultado_investigacao_recente(regiao)
+            if cached_result:
+                return jsonify({
+                    "success": True, "cached": True, "resultado": cached_result,
+                    "mensagem": "Sugestão carregada da investigação recente.",
+                })
         if ler_status().get("rodando"):
             return jsonify({"erro": "Aguarde a busca de leads terminar antes de investigar novos mercados."}), 409
         with TARGET_RESEARCH_LOCK:
             current = ler_status_investigacao()
             if current.get("rodando"):
                 return jsonify({"erro": "Já existe uma investigação em andamento.", "status": current}), 409
-            build_research_plan(regiao, carregar_dados_investigacao(regiao))
+            build_research_plan(regiao, carregar_dados_investigacao(regiao), pair_limit=4)
             run_id = uuid.uuid4().hex
             atualizar_status_investigacao({
                 "rodando": True, "run_id": run_id, "regiao": regiao,

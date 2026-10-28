@@ -135,6 +135,9 @@ class TargetIntelligenceTests(unittest.TestCase):
                 application.init_db()
 
                 def fake_probe(plan, **_kwargs):
+                    self.assertEqual(4, len(plan))
+                    self.assertEqual(3, _kwargs["sample_per_pair"])
+                    self.assertEqual(35, _kwargs["max_seconds"])
                     return [{
                         "region": item["region"], "niche": item["niche"], "city": item["city"],
                         "results_count": 9, "sample_size": 5, "no_site_count": 3,
@@ -157,8 +160,41 @@ class TargetIntelligenceTests(unittest.TestCase):
                 self.assertEqual(2, len(status["resultado"]["nichos"]))
                 self.assertEqual(4, len(status["resultado"]["cidades"]))
                 connection = application.sqlite3.connect(application.DB_NAME)
-                self.assertEqual(8, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
+                self.assertEqual(4, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
                 connection.close()
+            finally:
+                application.DB_NAME = old_db
+                application.TARGET_RESEARCH_STATUS_FILE = old_status_file
+
+    def test_post_route_reuses_recent_validated_result_without_live_browser(self):
+        old_db = application.DB_NAME
+        old_status_file = application.TARGET_RESEARCH_STATUS_FILE
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "targets.db")
+            application.TARGET_RESEARCH_STATUS_FILE = os.path.join(temp_dir, "target-status.json")
+            try:
+                application.init_db()
+                result = suggest_targets("br", [])
+                result["investigacao"]["amostra_nova"] = 20
+                connection = application.sqlite3.connect(application.DB_NAME)
+                connection.execute(
+                    """INSERT INTO target_research_runs
+                       (run_id, region, plan_json, result_json, status, finished_at)
+                       VALUES ('cached-run', 'br', '[]', ?, 'concluido', CURRENT_TIMESTAMP)""",
+                    (application.json.dumps(result, ensure_ascii=False),),
+                )
+                connection.commit()
+                connection.close()
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                with mock.patch.object(application, "probe_google_maps") as probe:
+                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"})
+                self.assertEqual(200, response.status_code)
+                self.assertTrue(response.get_json()["cached"])
+                self.assertTrue(response.get_json()["resultado"]["investigacao"]["reutilizado"])
+                probe.assert_not_called()
             finally:
                 application.DB_NAME = old_db
                 application.TARGET_RESEARCH_STATUS_FILE = old_status_file

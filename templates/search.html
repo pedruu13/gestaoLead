@@ -395,6 +395,7 @@
     cancelBtn.addEventListener('click', async () => { const confirmed = await showAppConfirm({ title: 'Cancelar esta busca?', message: 'O robô vai concluir a análise atual e parar. Os leads já salvos permanecerão no CRM.', confirmLabel: 'Cancelar busca', danger: true }); if (!confirmed) return; cancelBtn.disabled = true; try { const response = await fetch('/api/cancelar_busca', { method: 'POST' }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível cancelar a busca.'); showAppToast(data.message); verificarStatus(); } catch (error) { cancelBtn.disabled = false; showAppToast(error.message, 'error'); } });
     let targetResearchTimer = null;
     let activeTargetResearchRegion = null;
+    let lastTargetRecommendationWasCached = false;
     function setTargetResearchState(message, progress = 0) {
         const panel = document.getElementById('target_recommendation');
         panel.classList.remove('hidden');
@@ -409,7 +410,10 @@
     function renderTargetRecommendation(data) {
         const panel = document.getElementById('target_recommendation');
         const investigation = data.investigacao || {};
-        document.getElementById('target_recommendation_summary').textContent = `${data.nichos.join(' + ')} em ${data.cidades.length} praças, após analisar ${investigation.amostra_nova || 0} empresas nesta rodada.`;
+        const evidenceSummary = investigation.reutilizado
+            ? `com base em ${investigation.amostra_nova || 0} empresas da investigação recente`
+            : `após analisar ${investigation.amostra_nova || 0} empresas nesta rodada`;
+        document.getElementById('target_recommendation_summary').textContent = `${data.nichos.join(' + ')} em ${data.cidades.length} praças, ${evidenceSummary}.`;
         document.getElementById('target_recommendation_volume').textContent = `${data.total_combinacoes} buscas objetivas`;
         document.getElementById('target_recommendation_method').textContent = data.metodologia;
         document.getElementById('target_research_progress_wrap').classList.add('hidden');
@@ -426,6 +430,15 @@
         }).join('');
         panel.classList.remove('hidden');
     }
+    function applyTargetRecommendation(data, message = 'Investigação concluída. Novos alvos aplicados.', cached = false) {
+        lastTargetRecommendationWasCached = cached;
+        pickerState.nichos = []; pickerState.bairros = [];
+        data.nichos.forEach(value => addPickerValue('nichos', value)); data.cidades.forEach(value => addPickerValue('bairros', value));
+        aplicarMercado(); renderTargetRecommendation(data);
+        const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
+        button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-user-secret text-cyan-400';
+        showAppToast(message);
+    }
     async function pollTargetResearch() {
         try {
             const response = await fetch('/api/sugerir_alvos/status');
@@ -439,11 +452,7 @@
             const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
             button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-user-secret text-cyan-400';
             if (!status.concluido || !status.resultado) throw new Error(status.erro || 'A investigação não encontrou dados suficientes.');
-            const data = status.resultado;
-            pickerState.nichos = []; pickerState.bairros = [];
-            data.nichos.forEach(value => addPickerValue('nichos', value)); data.cidades.forEach(value => addPickerValue('bairros', value));
-            aplicarMercado(); renderTargetRecommendation(data);
-            showAppToast('Investigação concluída. Novos alvos aplicados.');
+            applyTargetRecommendation(status.resultado);
         } catch (error) {
             if (targetResearchTimer) { clearInterval(targetResearchTimer); targetResearchTimer = null; }
             const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
@@ -451,15 +460,21 @@
             showAppToast(error.message || 'Não foi possível investigar novos alvos.', 'error');
         }
     }
-    async function sugerirAlvosIA() {
+    async function sugerirAlvosIA(forceRefresh = false) {
         const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value;
         activeTargetResearchRegion = mercado;
         button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-cyan-400';
         setTargetResearchState('Montando uma nova rota de investigação...', 0);
         try {
-            const response = await fetch('/api/sugerir_alvos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({regiao: mercado}) });
+            const atualizar = forceRefresh || lastTargetRecommendationWasCached;
+            const response = await fetch('/api/sugerir_alvos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({regiao: mercado, atualizar}) });
             const data = await response.json();
             if (!response.ok && !(response.status === 409 && data.status?.rodando && data.status.regiao === mercado)) throw new Error(data.erro || 'Não foi possível iniciar a investigação.');
+            if (data.cached && data.resultado) {
+                applyTargetRecommendation(data.resultado, 'Sugestão recente carregada na hora. Clique novamente para investigar novos alvos.', true);
+                return;
+            }
+            lastTargetRecommendationWasCached = false;
             if (targetResearchTimer) clearInterval(targetResearchTimer);
             targetResearchTimer = setInterval(pollTargetResearch, 2000); pollTargetResearch();
         } catch (error) {
