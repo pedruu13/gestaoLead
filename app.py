@@ -8,6 +8,7 @@ import urllib.error
 import sqlite3
 import multiprocessing
 import hmac
+import secrets
 import uuid
 import ipaddress
 import socket
@@ -31,23 +32,77 @@ import traceback
 from bs4 import BeautifulSoup
 from multiprocessing import Process
 from dotenv import load_dotenv
+from dotenv import set_key
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Carrega ou cria .env para variáveis de ambiente seguras
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(env_path)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+flask_secret_key = os.environ.get("FLASK_SECRET_KEY", "").strip()
+if not flask_secret_key:
+    raise RuntimeError("FLASK_SECRET_KEY não configurada. Defina uma chave estável no arquivo .env.")
+app.secret_key = flask_secret_key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=60)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get("SESSION_COOKIE_SECURE", "false").strip().lower() in {"1", "true", "yes", "on"}
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024
+if os.environ.get("TRUST_PROXY_HEADERS", "false").strip().lower() in {"1", "true", "yes", "on"}:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
 PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
 BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 DEFAULT_AGENCY_NAME = "PH Digital"
+LOGIN_ATTEMPTS = {}
+LOGIN_ATTEMPT_LOCK = threading.Lock()
+LOGIN_WINDOW_SECONDS = 15 * 60
+LOGIN_MAX_ATTEMPTS = 8
+
+
+def csrf_token():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+def persist_secret(name, value):
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return False
+    set_key(env_path, name, cleaned, quote_mode="always")
+    os.environ[name] = cleaned
+    return True
+
+
+def login_rate_state(client_key, now=None):
+    now = now or time.time()
+    with LOGIN_ATTEMPT_LOCK:
+        attempts = [stamp for stamp in LOGIN_ATTEMPTS.get(client_key, []) if now - stamp < LOGIN_WINDOW_SECONDS]
+        LOGIN_ATTEMPTS[client_key] = attempts
+        return attempts
+
+
+def record_login_failure(client_key, now=None):
+    now = now or time.time()
+    with LOGIN_ATTEMPT_LOCK:
+        attempts = [stamp for stamp in LOGIN_ATTEMPTS.get(client_key, []) if now - stamp < LOGIN_WINDOW_SECONDS]
+        attempts.append(now)
+        LOGIN_ATTEMPTS[client_key] = attempts
+        return len(attempts)
+
+
+def clear_login_failures(client_key):
+    with LOGIN_ATTEMPT_LOCK:
+        LOGIN_ATTEMPTS.pop(client_key, None)
 
 
 def seller_profile(config):
@@ -66,6 +121,10 @@ def load_config():
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         try:
             config = json.load(f)
+            legacy_api_key = str(config.pop("gemini_api_key", "") or "").strip()
+            if legacy_api_key and not os.environ.get("GEMINI_API_KEY"):
+                persist_secret("GEMINI_API_KEY", legacy_api_key)
+                save_config(config)
             if not str(config.get("agencia_nome", "")).strip():
                 config["agencia_nome"] = DEFAULT_AGENCY_NAME
             return config
@@ -73,14 +132,14 @@ def load_config():
             return {"vendedor_nome": "", "agencia_nome": DEFAULT_AGENCY_NAME, "velocidade": "normal", "headless": True}
 
 def save_config(data):
+    data = dict(data)
+    data.pop("gemini_api_key", None)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
 def config_publica(config):
     config_segura = dict(config)
-    config_segura["gemini_configurada"] = bool(
-        os.environ.get("GEMINI_API_KEY") or config_segura.get("gemini_api_key")
-    )
+    config_segura["gemini_configurada"] = bool(os.environ.get("GEMINI_API_KEY"))
     config_segura.pop("gemini_api_key", None)
     return config_segura
 
@@ -90,6 +149,91 @@ TARGET_RESEARCH_STATUS_FILE = "target_research_status.json"
 TARGET_RESEARCH_LOCK = threading.Lock()
 SITE_AUDIT_STATUS_FILE = "site_audit_status.json"
 SITE_AUDIT_LOCK = threading.Lock()
+REGEN_STATUS_FILE = "regeneration_status.json"
+BACKUP_LOCK = threading.Lock()
+
+COMMON_MOJIBAKE_REPLACEMENTS = {
+    "Cl�nica": "Clínica",
+    "cl�nica": "clínica",
+    "S�o": "São",
+    "s�o": "são",
+    "Tatuap�": "Tatuapé",
+    "Fl�or": "Flúor",
+    "Odontol�gica": "Odontológica",
+    "odontol�gica": "odontológica",
+    "Est�tica": "Estética",
+    "est�tica": "estética",
+    "M�dica": "Médica",
+    "m�dica": "médica",
+    "Jo�o": "João",
+    "Jos�": "José",
+}
+
+
+def repair_known_mojibake(value):
+    repaired = str(value or "")
+    for broken, correct in COMMON_MOJIBAKE_REPLACEMENTS.items():
+        repaired = repaired.replace(broken, correct)
+    return repaired
+
+
+def lead_data_quality(lead):
+    issues = []
+    name = str(lead.get("nome") or lead.get("Nome") or "").strip()
+    location = str(lead.get("bairro") or lead.get("Bairro") or "").strip()
+    rating = str(lead.get("nota") or lead.get("Nota Maps") or "").strip()
+    reviews = str(lead.get("avaliacoes") or lead.get("Qtd Avaliacoes") or "").strip()
+    site_status = str(lead.get("site_opportunity_status") or lead.get("Oportunidade do Site") or "").strip()
+    campaign = str(lead.get("search_run_id") or lead.get("Search Run ID") or "").strip()
+    email = str(lead.get("email") or lead.get("E-mail Encontrado") or "").strip()
+    phone = str(lead.get("telefone") or lead.get("Telefone") or "").strip()
+    if "�" in name or "�" in location:
+        issues.append("texto corrompido")
+    if not rating or rating in {"0", "0.0", "0,0"}:
+        issues.append("nota não confirmada")
+    if not reviews or reviews == "0":
+        issues.append("avaliações não confirmadas")
+    if not site_status:
+        issues.append("site não auditado")
+    if not campaign:
+        issues.append("origem da campanha desconhecida")
+    if not email:
+        issues.append("e-mail não localizado")
+    if not phone:
+        issues.append("telefone não localizado")
+    confidence = max(10, 100 - len(issues) * 14)
+    if "texto corrompido" in issues or "site não auditado" in issues:
+        status = "Revisar"
+    elif len(issues) >= 3:
+        status = "Incompleto"
+    else:
+        status = "Confiável"
+    return {"status": status, "issues": issues, "confidence": confidence}
+
+
+def save_regeneration_status(data):
+    payload = dict(data)
+    payload["pid"] = os.getpid()
+    payload["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    temporary_path = f"{REGEN_STATUS_FILE}.tmp"
+    with open(temporary_path, "w", encoding="utf-8") as status_file:
+        json.dump(payload, status_file, ensure_ascii=False)
+    os.replace(temporary_path, REGEN_STATUS_FILE)
+
+
+def load_regeneration_status():
+    default = {"rodando": False, "total": 0, "processados": 0, "atualizados": 0, "falhas": 0, "mensagem": "", "concluido": False}
+    if not os.path.exists(REGEN_STATUS_FILE):
+        return default
+    try:
+        with open(REGEN_STATUS_FILE, "r", encoding="utf-8") as status_file:
+            data = {**default, **json.load(status_file)}
+        if data.get("rodando") and data.get("pid") and not psutil.pid_exists(int(data["pid"])):
+            data.update({"rodando": False, "concluido": False, "mensagem": "A regeneração anterior foi interrompida pelo reinício do servidor."})
+            save_regeneration_status(data)
+        return data
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return default
 
 def atualizar_status(dados):
     try:
@@ -151,8 +295,52 @@ def ler_status_auditoria_sites():
     except Exception:
         return {"rodando": False, "mensagem": "Status da auditoria indisponível."}
 
+
+def _create_daily_backup(retention=14):
+    if not os.path.isfile(DB_NAME) or os.path.getsize(DB_NAME) == 0:
+        return ""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    date_label = datetime.now().strftime("%Y-%m-%d")
+    archive_path = os.path.join(BACKUP_DIR, f"automatic-{date_label}.zip")
+    if os.path.exists(archive_path):
+        return archive_path
+    snapshot_path = os.path.join(BACKUP_DIR, f"automatic-{date_label}.db")
+    source = sqlite3.connect(DB_NAME)
+    snapshot = sqlite3.connect(snapshot_path)
+    try:
+        source.backup(snapshot)
+    finally:
+        snapshot.close()
+        source.close()
+    try:
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(snapshot_path, "gestao_leads.db")
+    finally:
+        if os.path.exists(snapshot_path):
+            os.remove(snapshot_path)
+    automatic_backups = sorted(
+        (
+            os.path.join(BACKUP_DIR, name)
+            for name in os.listdir(BACKUP_DIR)
+            if name.startswith("automatic-") and name.endswith(".zip")
+        ),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+    for old_backup in automatic_backups[max(1, retention):]:
+        os.remove(old_backup)
+    return archive_path
+
+
+def create_daily_backup(retention=14):
+    with BACKUP_LOCK:
+        return _create_daily_backup(retention)
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     c = conn.cursor()
     configured_identity = load_config()
     c.execute("""CREATE TABLE IF NOT EXISTS leads
@@ -162,7 +350,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0"), ("search_run_id", "TEXT"), ("site_title", "TEXT"), ("site_description", "TEXT"), ("site_context", "TEXT"), ("site_opportunity_status", "TEXT"), ("site_opportunity_reasons", "TEXT")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0"), ("search_run_id", "TEXT"), ("site_title", "TEXT"), ("site_description", "TEXT"), ("site_context", "TEXT"), ("site_opportunity_status", "TEXT"), ("site_opportunity_reasons", "TEXT"), ("data_quality_status", "TEXT"), ("data_quality_issues", "TEXT"), ("data_confidence", "INTEGER DEFAULT 0"), ("last_audited_at", "TIMESTAMP")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -199,6 +387,33 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_leads_next_action ON leads(next_action_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_preview_place_version ON preview_versions(place_id, version DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
+    for row in c.execute("SELECT place_id, nome, nicho, bairro FROM leads").fetchall():
+        repaired_values = tuple(repair_known_mojibake(value) for value in row[1:])
+        if repaired_values != tuple(value or "" for value in row[1:]):
+            c.execute(
+                "UPDATE leads SET nome = ?, nicho = ?, bairro = ? WHERE place_id = ?",
+                (*repaired_values, row[0]),
+            )
+    c.execute(
+        """UPDATE leads
+           SET site_opportunity_status = CASE
+               WHEN trim(coalesce(link_inicial, '')) = '' THEN 'Construção de site'
+               WHEN lower(link_inicial) LIKE '%instagram.com%'
+                 OR lower(link_inicial) LIKE '%facebook.com%'
+                 OR lower(link_inicial) LIKE '%wa.me%'
+                 OR lower(link_inicial) LIKE '%whatsapp.com%' THEN 'Construção de site'
+               ELSE 'Revisão manual'
+           END
+           WHERE site_opportunity_status IS NULL OR trim(site_opportunity_status) = ''"""
+    )
+    quality_rows = c.execute("SELECT * FROM leads").fetchall()
+    quality_columns = [description[0] for description in c.description]
+    for quality_row in quality_rows:
+        quality = lead_data_quality(dict(zip(quality_columns, quality_row)))
+        c.execute(
+            "UPDATE leads SET data_quality_status = ?, data_quality_issues = ?, data_confidence = ? WHERE place_id = ?",
+            (quality["status"], json.dumps(quality["issues"], ensure_ascii=False), quality["confidence"], quality_row[0]),
+        )
     legacy_rows = c.execute(
         """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
                   instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto, qualidade_pitch
@@ -256,6 +471,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+create_daily_backup()
 init_db()
 
 def load_leads(status_scope=None, limit=None, offset=0):
@@ -277,6 +493,9 @@ def load_leads(status_scope=None, limit=None, offset=0):
     leads = [dict(ix) for ix in rows]
     configured_weights = load_config().get("lead_score_weights")
     for lead in leads:
+        lead["nome"] = repair_known_mojibake(lead.get("nome"))
+        lead["nicho"] = repair_known_mojibake(lead.get("nicho"))
+        lead["bairro"] = repair_known_mojibake(lead.get("bairro"))
         site_assessment = assess_site_opportunity(
             lead.get("link_inicial"), lead.get("site_title"), lead.get("site_description"), lead.get("site_context")
         )
@@ -291,6 +510,10 @@ def load_leads(status_scope=None, limit=None, offset=0):
         lead["faixa_potencial"] = scoring["range"]
         lead["score_breakdown"] = scoring
         lead["score_version"] = scoring["version"]
+        data_quality = lead_data_quality(lead)
+        lead["data_quality_status"] = data_quality["status"]
+        lead["data_quality_issues"] = data_quality["issues"]
+        lead["data_confidence"] = data_quality["confidence"]
     for lead in leads:
         try:
             lead["copies_pitch"] = json.loads(lead.get("copies_pitch") or "{}")
@@ -318,6 +541,11 @@ def save_lead_db(lead, place_id):
                    lead.get("Qtd Avaliacoes",""), lead.get("Telefone",""), lead.get("WhatsApp Link",""), lead.get("E-mail Encontrado",""),
                    lead.get("Instagram",""), lead.get("Facebook",""), lead.get("LinkedIn",""), lead.get("Link Inicial",""),
                    lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária"), json.dumps(lead.get("Score Breakdown", {}), ensure_ascii=False), lead.get("Score Version", SCORE_VERSION), lead.get("Search Run ID", ""), lead.get("Título do Site", ""), lead.get("Descrição do Site", ""), lead.get("Contexto do Site", ""), lead.get("Oportunidade do Site", ""), json.dumps(lead.get("Motivos da Oportunidade", []), ensure_ascii=False)))
+        quality = lead_data_quality(lead)
+        c.execute(
+            "UPDATE leads SET data_quality_status = ?, data_quality_issues = ?, data_confidence = ? WHERE place_id = ?",
+            (quality["status"], json.dumps(quality["issues"], ensure_ascii=False), quality["confidence"], place_id),
+        )
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -640,7 +868,7 @@ def gerar_copy_inteligente(dados_lead, config, is_intl=False):
     
     nome_curto = dados_lead.get('Nome', '').split(' - ')[0].split('|')[0].strip()
     vendedor = config.get('vendedor_nome', '').strip() or 'aqui'
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get('gemini_api_key', '').strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or str(config.get("gemini_api_key", "")).strip()
     
     if not api_key:
         return obter_copy_contingencia(dados_lead, vendedor, motivo="Chave de API do Gemini não configurada", is_intl=is_intl)
@@ -762,7 +990,7 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
     inteligencia["seller"] = seller_profile(config)
     fallback = generate_fallback_pitches(inteligencia, is_intl=is_intl)
     qualidade_fallback = evaluate_pitches(fallback, inteligencia, require_preview=preview_available)
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or config.get("gemini_api_key", "").strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or str(config.get("gemini_api_key", "")).strip()
     versoes = fallback
     gerada_por_ia = False
     motivo = "Modelo profissional local aplicado"
@@ -874,10 +1102,14 @@ def require_login():
         return redirect(url_for("login", next=dest))
 
     # Validação de origem em requisições de mutação
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and not app.config.get("TESTING"):
         origin = request.headers.get("Origin")
         if origin and urllib.parse.urlparse(origin).netloc != request.host:
             return jsonify({"success": False, "error": "Origem da requisição não permitida"}), 403
+        expected_token = session.get("csrf_token", "")
+        supplied_token = request.headers.get("X-CSRF-Token", "") or request.form.get("csrf_token", "")
+        if not expected_token or not supplied_token or not hmac.compare_digest(expected_token, supplied_token):
+            return jsonify({"success": False, "error": "Sessão de segurança expirada. Atualize a página e tente novamente."}), 403
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -886,19 +1118,30 @@ def login():
     
     erro = None
     if request.method == "POST":
+        client_key = request.remote_addr or "unknown"
+        attempts = login_rate_state(client_key)
+        if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+            return render_template(
+                "login.html",
+                erro="Muitas tentativas incorretas. Aguarde alguns minutos antes de tentar novamente.",
+            ), 429
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
         
         if check_auth(username, password):
+            clear_login_failures(client_key)
+            session.clear()
             session.permanent = True
             session["authenticated"] = True
             session["user"] = username
+            csrf_token()
             
             next_url = request.args.get("next")
             if not next_url or not next_url.startswith("/") or next_url.startswith("//"):
                 next_url = url_for("index")
             return redirect(next_url)
         else:
+            record_login_failure(client_key)
             erro = "Usuário ou senha incorretos. Verifique suas credenciais."
             
     return render_template("login.html", erro=erro)
@@ -916,8 +1159,18 @@ def aplicar_cabecalhos_seguranca(response):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     if request.endpoint == "preview_document":
         response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
-    if request.headers.get("X-Forwarded-Proto") == "https":
+    else:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+            "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+            "img-src 'self' data: https:; connect-src 'self'; object-src 'none'; "
+            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
+    if request.is_secure:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if session.get("authenticated"):
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 @app.route("/")
@@ -928,6 +1181,7 @@ def index():
 @app.route("/health")
 def health():
     try:
+        create_daily_backup()
         conn = sqlite3.connect(DB_NAME)
         conn.execute("SELECT 1").fetchone()
         preview_table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='preview_versions'").fetchone()
@@ -939,11 +1193,13 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.28-search-speed-v1",
+            "commercial_release": "2026.10.28-audit-hardening-v1",
             "target_engine_version": "2026.10.28-detective-fast-v3",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
+            "secure_cookie": bool(app.config.get("SESSION_COOKIE_SECURE")),
+            "proxy_headers": isinstance(app.wsgi_app, ProxyFix),
         }), 200 if ready else 503
     except Exception:
         return jsonify({"status": "error", "database": "unavailable"}), 503
@@ -951,7 +1207,7 @@ def health():
 @app.route("/crm")
 def crm():
     page = max(1, request.args.get("page", 1, type=int))
-    per_page = 40
+    per_page = 20
     conn = sqlite3.connect(DB_NAME)
     total = conn.execute("SELECT COUNT(*) FROM leads WHERE status != 'Descartado'").fetchone()[0]
     site_counts = conn.execute(
@@ -987,7 +1243,7 @@ def crm():
 @app.route("/crm/descartados")
 def crm_descartados():
     page = max(1, request.args.get("page", 1, type=int))
-    per_page = 40
+    per_page = 20
     conn = sqlite3.connect(DB_NAME)
     total = conn.execute("SELECT COUNT(*) FROM leads WHERE status = 'Descartado'").fetchone()[0]
     conn.close()
@@ -1011,6 +1267,9 @@ def get_lead_by_id(place_id):
     if not row:
         return None
     lead = dict(row)
+    lead["nome"] = repair_known_mojibake(lead.get("nome"))
+    lead["nicho"] = repair_known_mojibake(lead.get("nicho"))
+    lead["bairro"] = repair_known_mojibake(lead.get("bairro"))
     for field_name in ("copies_pitch", "inteligencia_comercial", "qualidade_pitch", "score_breakdown"):
         try:
             lead[field_name] = json.loads(lead.get(field_name) or "{}")
@@ -1030,6 +1289,10 @@ def get_lead_by_id(place_id):
     lead["faixa_potencial"] = scoring["range"]
     lead["score_breakdown"] = scoring
     lead["score_version"] = scoring["version"]
+    data_quality = lead_data_quality(lead)
+    lead["data_quality_status"] = data_quality["status"]
+    lead["data_quality_issues"] = data_quality["issues"]
+    lead["data_confidence"] = data_quality["confidence"]
     contact_strategy = lead["inteligencia_comercial"].get("contact_strategy")
     if not contact_strategy:
         contact_strategy = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=bool(get_preview_versions(place_id)))
@@ -1395,6 +1658,40 @@ def estatisticas():
     taxa_proposta = round((propostas / interessados * 100), 1) if interessados else 0
     taxa_conversao_contato = round((fechados / contato_feito * 100), 1) if contato_feito else 0
 
+    dashboard_data = {
+        "total": total_leads,
+        "sem_site": sem_site,
+        "whatsapp": com_whats,
+        "email": com_email,
+        "nichos": {},
+        "nichos_sem_site": {},
+        "nichos_whatsapp": {},
+        "regioes": {},
+        "status": {"Preparação": 0, "Contato": 0, "Negociação": 0, "Fechado": 0, "Encerrado": 0},
+    }
+    for lead in leads:
+        niche = str(lead.get("nicho") or "Geral").strip().capitalize()
+        dashboard_data["nichos"][niche] = dashboard_data["nichos"].get(niche, 0) + 1
+        if not possui_site_proprio(lead.get("link_inicial")):
+            dashboard_data["nichos_sem_site"][niche] = dashboard_data["nichos_sem_site"].get(niche, 0) + 1
+        if lead.get("whatsapp_link"):
+            dashboard_data["nichos_whatsapp"][niche] = dashboard_data["nichos_whatsapp"].get(niche, 0) + 1
+        region = re.split(r"[,\-]", str(lead.get("bairro") or "Não informado"), maxsplit=1)[0].strip()
+        if len(region) > 2:
+            dashboard_data["regioes"][region] = dashboard_data["regioes"].get(region, 0) + 1
+        lead_status = lead.get("status") or "Novo"
+        if lead_status in {"Novo", "Analisado", "Mensagem preparada"}:
+            stage = "Preparação"
+        elif lead_status in {"Contato Feito", "Contatado", "Respondeu"}:
+            stage = "Contato"
+        elif lead_status in {"Interessado", "Proposta enviada", "Em Negociação", "Negociação"}:
+            stage = "Negociação"
+        elif lead_status == "Fechado":
+            stage = "Fechado"
+        else:
+            stage = "Encerrado"
+        dashboard_data["status"][stage] += 1
+
     return render_template(
         "estatisticas.html",
         total=total_leads,
@@ -1419,7 +1716,7 @@ def estatisticas():
         taxa_proposta=taxa_proposta,
         taxa_conversao_contato=taxa_conversao_contato,
         search_runs=load_search_runs(),
-        leads=leads,
+        dashboard_data=dashboard_data,
     )
 
 @app.route("/configuracoes", methods=["GET", "POST"])
@@ -1439,7 +1736,7 @@ def configuracoes():
             data["lead_score_weights"] = score_weights
         data.update(nova_configuracao)
         if api_key:
-            data["gemini_api_key"] = api_key
+            persist_secret("GEMINI_API_KEY", api_key)
         data["headless"] = "headless" in nova_configuracao
         save_config(data)
         return render_template("configuracoes.html", config=config_publica(data), success=True)
@@ -1548,7 +1845,7 @@ def buscar_email_web(nome, bairro):
             url, 
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=6) as resp:
             content = resp.read().decode("utf-8", "ignore")
         emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", content)
         emails = [e for e in emails if not e.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4")) and "sentry" not in e and "example" not in e and "wix" not in e and "sitedobem" not in e]
@@ -1601,7 +1898,7 @@ class _SemRedirecionamentoAutomatico(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def baixar_html_publico(url, timeout=10, max_bytes=400_000):
+def baixar_html_publico(url, timeout=6, max_bytes=400_000):
     current_url = validar_url_publica(url)
     opener = urllib.request.build_opener(_SemRedirecionamentoAutomatico)
     for _ in range(4):
@@ -1814,6 +2111,12 @@ def extrator_worker(data, config, queue):
 
         def publicar_status(mensagem, rodando=True):
             cancelamento_solicitado = ler_status().get("cancelamento_solicitado", False)
+            elapsed = round(time.monotonic() - started_at, 1)
+            average = elapsed / stats["analisados"] if stats["analisados"] else 0
+            remaining = max(0, min(max_analyzed - stats["analisados"], max_leads - stats["salvos"]))
+            eta = round(min(max_duration_seconds - elapsed, average * remaining)) if average else None
+            stats["tempo_segundos"] = elapsed
+            stats["estimativa_segundos"] = max(0, eta) if eta is not None else None
             atualizar_status({
                 "rodando": rodando,
                 "mensagem": mensagem,
@@ -2125,7 +2428,7 @@ def extrator_worker(data, config, queue):
     except Exception as e:
         print(f"[WORKER] ERRO FATAL: {e}")
         finish_search_run((data or {}).get("search_run_id", ""), "failed", {"error": str(e)})
-        atualizar_status({"rodando": False, "mensagem": f"Erro: {e}", "leads_salvos": 0})
+        atualizar_status({"rodando": False, "mensagem": "A busca foi interrompida por uma falha interna. Tente novamente.", "leads_salvos": 0})
 
 @app.route("/api/status")
 def api_status():
@@ -2558,7 +2861,7 @@ def test_gemini():
     chave_enviada = bool(api_key)
     
     if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip() or load_config().get("gemini_api_key", "").strip()
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
         
     if not api_key:
         return jsonify({"success": False, "error": "Informe uma API Key para testar."})
@@ -2566,21 +2869,13 @@ def test_gemini():
     try:
         _, model_name = first_available_response(api_key, "Diga apenas 'ok'", attempt_limit=2)
         if chave_enviada:
-            cfg = load_config()
-            cfg["gemini_api_key"] = api_key
-            save_config(cfg)
-            os.environ["GEMINI_API_KEY"] = api_key
+            persist_secret("GEMINI_API_KEY", api_key)
         return jsonify({"success": True, "message": f"Conexão bem-sucedida! Modelo ativo: {model_name}"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+    except Exception as error:
+        print(f"[GEMINI] Falha no teste da API: {type(error).__name__}: {str(error)[:240]}")
+        return jsonify({"success": False, "error": "A chave não pôde ser validada. Confira a chave, a cota e a conexão do servidor."}), 502
 
-STATUS_REGEN = {
-    "rodando": False,
-    "total": 0,
-    "processados": 0,
-    "mensagem": "",
-    "concluido": False,
-}
+STATUS_REGEN = load_regeneration_status()
 REGEN_LOCK = threading.Lock()
 
 def worker_regenerar_copys():
@@ -2595,12 +2890,17 @@ def worker_regenerar_copys():
         conn.close()
 
         total = len(leads)
+        atualizados = 0
+        falhas = 0
         with REGEN_LOCK:
             STATUS_REGEN["rodando"] = True
             STATUS_REGEN["total"] = total
             STATUS_REGEN["processados"] = 0
+            STATUS_REGEN["atualizados"] = 0
+            STATUS_REGEN["falhas"] = 0
             STATUS_REGEN["concluido"] = False
             STATUS_REGEN["mensagem"] = f"Iniciando regeneração de {total} copys..."
+            save_regeneration_status(STATUS_REGEN)
 
         for idx, lead in enumerate(leads, 1):
             place_id = lead.get("place_id")
@@ -2608,6 +2908,7 @@ def worker_regenerar_copys():
             with REGEN_LOCK:
                 STATUS_REGEN["processados"] = idx
                 STATUS_REGEN["mensagem"] = f"Atualizando ({idx}/{total}): {nome[:30]}"
+                save_regeneration_status(STATUS_REGEN)
 
             dados_raw = {
                 "Nome": lead.get("nome", "") or "",
@@ -2652,23 +2953,39 @@ def worker_regenerar_copys():
                     res_ia.get("inteligencia", {}),
                     res_ia.get("qualidade", {}),
                 )
+                atualizados += 1
             except Exception as e:
+                falhas += 1
                 print(f"[REGEN] Erro no lead {nome}: {e}")
+            with REGEN_LOCK:
+                STATUS_REGEN["atualizados"] = atualizados
+                STATUS_REGEN["falhas"] = falhas
+                save_regeneration_status(STATUS_REGEN)
 
             time.sleep(0.8)
 
         with REGEN_LOCK:
             STATUS_REGEN["rodando"] = False
             STATUS_REGEN["concluido"] = True
-            STATUS_REGEN["mensagem"] = f"Todas as {total} copys foram atualizadas com sucesso!"
+            STATUS_REGEN["atualizados"] = atualizados
+            STATUS_REGEN["falhas"] = falhas
+            if falhas:
+                STATUS_REGEN["mensagem"] = f"Regeneração concluída: {atualizados} atualizadas e {falhas} com falha."
+            else:
+                STATUS_REGEN["mensagem"] = f"Todas as {atualizados} copys foram atualizadas com sucesso."
+            save_regeneration_status(STATUS_REGEN)
     except Exception as e:
         with REGEN_LOCK:
             STATUS_REGEN["rodando"] = False
             STATUS_REGEN["mensagem"] = f"Erro na regeneração: {e}"
+            STATUS_REGEN["concluido"] = False
+            save_regeneration_status(STATUS_REGEN)
 
 @app.route("/api/regenerar_copys", methods=["POST"])
 def api_regenerar_copys():
+    global STATUS_REGEN
     with REGEN_LOCK:
+        STATUS_REGEN = load_regeneration_status()
         if STATUS_REGEN["rodando"]:
             return jsonify({"success": False, "error": "Já existe uma regeneração em andamento."}), 409
         t = threading.Thread(target=worker_regenerar_copys, daemon=True)
@@ -2677,7 +2994,9 @@ def api_regenerar_copys():
 
 @app.route("/api/status_regenerar_copys", methods=["GET"])
 def api_status_regenerar_copys():
+    global STATUS_REGEN
     with REGEN_LOCK:
+        STATUS_REGEN = load_regeneration_status()
         return jsonify(dict(STATUS_REGEN))
 
 

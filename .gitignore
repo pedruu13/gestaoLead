@@ -18,6 +18,8 @@ generated_previews/
 search_status.json
 target_research_status.json
 site_audit_status.json
+regeneration_status.json
+regeneration_status.json.tmp
 backups/
 
 # OS

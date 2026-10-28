@@ -254,58 +254,15 @@
 
 {% block scripts %}
 <script>
-    const leadsData = {{ leads | tojson | safe }};
-
-    // Agregações de Dados
-    const nichoCounts = {};
-    const nichoSemSiteCounts = {};
-    const nichoWhatsCounts = {};
-    const regiaoCounts = {};
-    const statusCounts = {'Preparação': 0, 'Contato': 0, 'Negociação': 0, 'Fechado': 0, 'Encerrado': 0};
-
-    let semSiteTotal = 0;
-    let whatsTotal = 0;
-    let emailTotal = 0;
-
-    leadsData.forEach(lead => {
-        // Nicho
-        let n = (lead.nicho || 'Geral').trim();
-        n = n.charAt(0).toUpperCase() + n.slice(1);
-        nichoCounts[n] = (nichoCounts[n] || 0) + 1;
-
-        // Sem site
-        let link = (lead.link_inicial || '').toLowerCase();
-        let temSite = link.includes('http') && !link.includes('instagram.com') && !link.includes('facebook.com') && !link.includes('wa.me') && !link.includes('whatsapp.com');
-        if (!temSite) {
-            semSiteTotal++;
-            nichoSemSiteCounts[n] = (nichoSemSiteCounts[n] || 0) + 1;
-        }
-
-        // WhatsApp
-        if (lead.whatsapp_link) {
-            whatsTotal++;
-            nichoWhatsCounts[n] = (nichoWhatsCounts[n] || 0) + 1;
-        }
-
-        // Email
-        if (lead.email) {
-            emailTotal++;
-        }
-
-        // Região / Bairro
-        let b = (lead.bairro || 'Não informado').split(',')[0].split('-')[0].trim();
-        if (b && b.length > 2) {
-            regiaoCounts[b] = (regiaoCounts[b] || 0) + 1;
-        }
-
-        // Status
-        let s = lead.status || 'Novo';
-        if (['Novo', 'Analisado', 'Mensagem preparada'].includes(s)) statusCounts['Preparação']++;
-        else if (['Contato Feito', 'Contatado', 'Respondeu'].includes(s)) statusCounts['Contato']++;
-        else if (['Interessado', 'Proposta enviada', 'Em Negociação', 'Negociação'].includes(s)) statusCounts['Negociação']++;
-        else if (s === 'Fechado') statusCounts['Fechado']++;
-        else statusCounts['Encerrado']++;
-    });
+    const dashboardData = {{ dashboard_data | tojson | safe }};
+    const nichoCounts = dashboardData.nichos || {};
+    const nichoSemSiteCounts = dashboardData.nichos_sem_site || {};
+    const nichoWhatsCounts = dashboardData.nichos_whatsapp || {};
+    const regiaoCounts = dashboardData.regioes || {};
+    const statusCounts = dashboardData.status || {};
+    const semSiteTotal = dashboardData.sem_site || 0;
+    const whatsTotal = dashboardData.whatsapp || 0;
+    const emailTotal = dashboardData.email || 0;
 
     // Paleta Executiva Sapphire & Cyan
     const sapphirePalette = ['#3B82F6', '#06B6D4', '#2563EB', '#38BDF8', '#1D4ED8', '#60A5FA', '#0284C7', '#475569'];
@@ -429,7 +386,7 @@
                 label: 'Total de Empresas',
                 data: [
                     semSiteTotal,
-                    leadsData.length - semSiteTotal,
+                    (dashboardData.total || 0) - semSiteTotal,
                     whatsTotal,
                     emailTotal
                 ],

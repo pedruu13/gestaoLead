@@ -53,7 +53,9 @@ py app.py
 ## 🔐 Configuração de produção
 - Copie `.env.example` para `.env` e defina `APP_USER`, `APP_PASS` e uma `FLASK_SECRET_KEY` forte.
 - Em produção, configure `GEMINI_API_KEY` como variável de ambiente e publique o app atrás de um proxy HTTPS (Nginx ou Caddy).
+- Depois de ativar HTTPS no proxy, use `SESSION_COOKIE_SECURE=true` e `TRUST_PROXY_HEADERS=true`. Não ative o cookie seguro enquanto o acesso ainda estiver apenas em HTTP, pois o login não será mantido.
 - O Docker executa Gunicorn com um único worker, pois a busca usa SQLite e um processo de navegador.
+- O servidor cria diariamente um backup compactado em `backups/` e mantém os 14 mais recentes. Copie essa pasta para outro servidor ou armazenamento para proteção contra perda da máquina Oracle.
 - O endpoint `GET /health` permite verificar banco, Studio de Prévias e acompanhamento comercial sem expor dados de leads.
 
 ## 🛠️ Tecnologias Utilizadas

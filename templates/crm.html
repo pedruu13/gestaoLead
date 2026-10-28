@@ -12,7 +12,7 @@
                 <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Mesa Comercial de Atendimento</p>
             </div>
             <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Sua fila comercial</h1>
-            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo. Exibindo até 40 por página de {{ total_leads }} lead(s).</p>
+            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo. Exibindo até 20 por página de {{ total_leads }} lead(s).</p>
             
             {% if not is_descartados %}
             <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-bold text-cyan-300">
@@ -35,6 +35,15 @@
                     <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
                 </div>
                 <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
+            </div>
+
+            <div class="relative w-full sm:w-44">
+                <select id="filter_quality" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                    <option value="">Qualquer qualidade</option>
+                    <option value="Confiável">Dados confiáveis</option>
+                    <option value="Incompleto">Dados incompletos</option>
+                    <option value="Revisar">Revisão necessária</option>
+                </select>
             </div>
 
             <div class="relative w-full sm:w-52">
@@ -109,7 +118,7 @@
             </div>
 
             <!-- Ações em Lote -->
-            <div class="flex w-full sm:w-auto gap-2">
+            <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                 {% if not is_descartados and leads_site_para_auditar %}
                 <button id="btn_auditar_sites" onclick="iniciarAuditoriaSites()" class="flex-1 sm:flex-none bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-black py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center shadow-sm">
                     <i class="fa-solid fa-magnifying-glass-chart mr-1.5 text-violet-400"></i> Auditar {{ leads_site_para_auditar }} site(s)
@@ -141,7 +150,7 @@
                  data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}"
                  data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}"
                  data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}"
-                 data-site-opportunity="{{ lead.site_opportunity_status }}">
+                 data-site-opportunity="{{ lead.site_opportunity_status }}" data-quality="{{ lead.data_quality_status }}">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                     <h2 class="text-sm font-black leading-snug text-white">{{ lead.nome }}</h2>
@@ -153,6 +162,7 @@
                 <span class="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 font-bold text-cyan-300">{{ lead.nicho }}</span>
                 <span class="rounded-lg border border-[#263550] bg-[#090D15] px-2 py-1 font-bold text-slate-300">{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}</span>
                 <span class="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 font-bold text-violet-300">{% if lead.site_opportunity_status == 'Construção de site' %}Precisa de site{% elif lead.site_opportunity_status == 'Site com oportunidade de melhoria' %}Melhorar site{% elif lead.site_opportunity_status == 'Revisão manual' %}Revisar site{% else %}Sem sinal claro{% endif %}</span>
+                <span class="rounded-lg border px-2 py-1 font-bold {% if lead.data_quality_status == 'Confiável' %}border-emerald-500/20 bg-emerald-500/10 text-emerald-300{% else %}border-amber-500/20 bg-amber-500/10 text-amber-300{% endif %}" title="{{ lead.data_quality_issues | join(', ') }}">Dados {{ lead.data_confidence }}%</span>
                 {% if lead.next_action_at %}<span class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 font-bold text-amber-300">Retorno {{ lead.next_action_at }}</span>{% endif %}
             </div>
             {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-cyan-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
@@ -186,7 +196,7 @@
                 </thead>
                 <tbody class="divide-y divide-[#1A2338] text-slate-200">
                     {% for lead in leads %}
-                    <tr class="lead-item hover:bg-[#121828] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}" data-site-opportunity="{{ lead.site_opportunity_status }}">
+                    <tr class="lead-item hover:bg-[#121828] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}" data-site-opportunity="{{ lead.site_opportunity_status }}" data-quality="{{ lead.data_quality_status }}">
                         <td class="px-6 py-4">
                             <div class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">{{ lead.nome }}</div>
                             <div class="text-xs text-slate-400 mt-0.5 truncate max-w-[220px] flex items-center gap-1">
@@ -199,11 +209,11 @@
                                 {{ lead.nicho }}
                             </span>
                             <div class="mt-2 text-[10px] font-bold text-violet-300">{% if lead.site_opportunity_status == 'Construção de site' %}Precisa de site{% elif lead.site_opportunity_status == 'Site com oportunidade de melhoria' %}Site para melhorar{% elif lead.site_opportunity_status == 'Revisão manual' %}Revisar site{% else %}Sem sinal claro{% endif %}</div>
+                            <div class="mt-1 text-[10px] font-bold {% if lead.data_quality_status == 'Confiável' %}text-emerald-300{% else %}text-amber-300{% endif %}" title="{{ lead.data_quality_issues | join(', ') }}">Dados {{ lead.data_confidence }}% · {{ lead.data_quality_status }}</div>
                         </td>
                         <td class="px-6 py-4 text-center">
                             <div class="inline-flex items-center px-2.5 py-1 rounded-lg font-bold text-xs bg-[#131A2B] border border-[#1F2B44] text-slate-200">
-                                <span class="mr-1.5">{{ lead.nota }}</span>
-                                <i class="fa-solid fa-star text-[10px] text-cyan-400"></i>
+                                {% if lead.nota and lead.nota not in ('0', '0.0', '0,0') %}<span class="mr-1.5">{{ lead.nota }}</span><i class="fa-solid fa-star text-[10px] text-cyan-400"></i>{% else %}<span class="text-slate-500">Não coletada</span>{% endif %}
                             </div>
                             {% if lead.potencial is not none %}
                             <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}">
@@ -476,6 +486,7 @@
         let potencial = document.getElementById('filter_potencial').value;
         let followup = document.getElementById('filter_followup').value;
         let siteOpportunity = document.getElementById('filter_site_opportunity').value;
+        let quality = document.getElementById('filter_quality').value;
         
         document.querySelectorAll('.lead-item').forEach(item => {
             let leadNome = item.dataset.name || '';
@@ -487,7 +498,8 @@
             let matchPotencial = !potencial || item.dataset.faixaPotential === potencial;
             let matchFollowup = !followup || item.dataset.followup === followup;
             let matchSiteOpportunity = !siteOpportunity || item.dataset.siteOpportunity === siteOpportunity;
-            item.style.display = matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup && matchSiteOpportunity ? '' : 'none';
+            let matchQuality = !quality || item.dataset.quality === quality;
+            item.style.display = matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup && matchSiteOpportunity && matchQuality ? '' : 'none';
         });
     }
 
@@ -920,7 +932,7 @@
                     if (btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-cyan-400"></i> ${data.processados}/${data.total}`;
                 } else if (data.concluido) {
                     clearInterval(regenInterval);
-                    showAppToast('Todas as copys foram atualizadas!');
+                    showAppToast(data.mensagem || 'Regeneração concluída.', data.falhas ? 'error' : 'success');
                     setTimeout(() => window.location.reload(), 900);
                 } else {
                     clearInterval(regenInterval);

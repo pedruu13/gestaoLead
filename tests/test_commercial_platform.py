@@ -21,6 +21,9 @@ from preview_studio import build_preview_config, render_preview_html
 from lead_scoring import SCORE_VERSION, score_lead
 
 
+application.app.config["TESTING"] = True
+
+
 BUSINESS_CASES = (
     ("Ateliê Norte Arquitetura", "Arquitetos", "arquitetura"),
     ("Sorriso Centro", "Dentistas", "odontologia"),
@@ -74,6 +77,35 @@ def sample_lead(name="Sorriso Centro", category="Dentistas"):
 
 
 class CommercialIntelligenceTests(unittest.TestCase):
+    def test_mutating_routes_require_csrf_token_for_session_authentication(self):
+        previous_testing = application.app.config["TESTING"]
+        application.app.config["TESTING"] = False
+        try:
+            client = application.app.test_client()
+            with client.session_transaction() as session:
+                session["authenticated"] = True
+                session["user"] = "teste"
+                session["csrf_token"] = "known-token"
+            rejected = client.post("/api/update_status", json={})
+            accepted_by_csrf = client.post(
+                "/api/update_status",
+                json={},
+                headers={"X-CSRF-Token": "known-token"},
+            )
+            self.assertEqual(403, rejected.status_code)
+            self.assertEqual(400, accepted_by_csrf.status_code)
+        finally:
+            application.app.config["TESTING"] = previous_testing
+
+    def test_login_rate_limit_tracks_and_clears_failures(self):
+        client_key = "audit-test-client"
+        application.clear_login_failures(client_key)
+        for index in range(application.LOGIN_MAX_ATTEMPTS):
+            self.assertEqual(index + 1, application.record_login_failure(client_key, now=1000 + index))
+        self.assertEqual(application.LOGIN_MAX_ATTEMPTS, len(application.login_rate_state(client_key, now=1001)))
+        application.clear_login_failures(client_key)
+        self.assertEqual([], application.login_rate_state(client_key, now=1001))
+
     def test_pitch_must_present_the_seller_and_make_an_explicit_site_offer(self):
         analysis = analyze_lead(sample_lead())
         generic = (
@@ -443,7 +475,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.28-search-speed-v1", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.28-audit-hardening-v1", health.get_json()["commercial_release"])
                 self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -572,10 +604,10 @@ class PreviewStudioTests(unittest.TestCase):
                     session["user"] = "teste"
                 first_page = client.get("/crm").get_data(as_text=True)
                 second_page = client.get("/crm?page=2").get_data(as_text=True)
-                self.assertIn("Página <strong class=\"text-white\">1</strong> de 2", first_page)
-                self.assertIn("Página <strong class=\"text-white\">2</strong> de 2", second_page)
-                self.assertEqual(80, first_page.count('class="lead-item'))
-                self.assertEqual(10, second_page.count('class="lead-item'))
+                self.assertIn("Página <strong class=\"text-white\">1</strong> de 3", first_page)
+                self.assertIn("Página <strong class=\"text-white\">2</strong> de 3", second_page)
+                self.assertEqual(40, first_page.count('class="lead-item'))
+                self.assertEqual(40, second_page.count('class="lead-item'))
             finally:
                 application.DB_NAME = old_db
                 application.load_config = old_load_config
