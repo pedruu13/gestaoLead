@@ -272,6 +272,24 @@ class PreviewStudioTests(unittest.TestCase):
         self.assertNotIn("<script", html.casefold())
         self.assertNotIn("src=\"http", html.casefold())
 
+    def test_preview_direction_changes_by_segment_and_accepts_real_assets(self):
+        dentist = build_preview_config(sample_lead("Clínica Sorriso", "Dentistas"))
+        lawyer = build_preview_config(sample_lead("Lima Advocacia", "Advogados"))
+        image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+        portfolio = build_preview_config(
+            sample_lead("Traço Vivo", "Arquitetos"),
+            {"hero_image": image, "brand_logo": image},
+        )
+        self.assertEqual("care", dentist["template"])
+        self.assertEqual("authority", lawyer["template"])
+        self.assertEqual("portfolio", portfolio["template"])
+        self.assertNotEqual(dentist["headline"], lawyer["headline"])
+        html = render_preview_html(portfolio)
+        self.assertIn("Campinas, SP", html)
+        self.assertIn(image, html)
+        rejected = build_preview_config(sample_lead(), {"hero_image": "https://example.com/photo.jpg"})
+        self.assertEqual("", rejected["hero_image"])
+
     def test_generate_preview_route_persists_version_and_exports_real_png(self):
         old_db = application.DB_NAME
         old_preview_dir = application.PREVIEW_DIR
@@ -308,7 +326,8 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(200, response.status_code, response.get_data(as_text=True))
                 result = response.get_json()
                 self.assertTrue(result["success"])
-                self.assertTrue(result["screenshot_ready"], result.get("screenshot_error"))
+                self.assertFalse(result["screenshot_ready"])
+                self.assertTrue(result["png_deferred"])
                 png_response = client.get(result["png_url"])
                 self.assertEqual(200, png_response.status_code)
                 self.assertTrue(png_response.data.startswith(b"\x89PNG\r\n\x1a\n"))
@@ -383,7 +402,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.27-site-filter-v2", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.28-preview-performance-v1", health.get_json()["commercial_release"])
                 self.assertEqual("4.0", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -494,6 +513,31 @@ class PreviewStudioTests(unittest.TestCase):
                 application.DB_NAME = old_db
                 application.SITE_AUDIT_STATUS_FILE = old_status_file
                 application.cacar_dados_profundos = old_hunter
+
+    def test_crm_paginates_large_lead_lists(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "pagination.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                for index in range(45):
+                    lead = sample_lead(f"Empresa {index:02d}", "Dentistas")
+                    self.assertTrue(application.save_lead_db(lead, f"lead-{index:02d}"))
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                first_page = client.get("/crm").get_data(as_text=True)
+                second_page = client.get("/crm?page=2").get_data(as_text=True)
+                self.assertIn("Página <strong class=\"text-white\">1</strong> de 2", first_page)
+                self.assertIn("Página <strong class=\"text-white\">2</strong> de 2", second_page)
+                self.assertEqual(80, first_page.count('class="lead-item'))
+                self.assertEqual(10, second_page.count('class="lead-item'))
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
 
 
 if __name__ == "__main__":

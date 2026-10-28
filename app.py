@@ -41,6 +41,7 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=60)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024
 
 DB_NAME = "gestao_leads.db"
 CONFIG_FILE = "config.json"
@@ -194,6 +195,10 @@ def init_db():
         """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
            WHERE status = 'running'"""
     )
+    c.execute("CREATE INDEX IF NOT EXISTS idx_leads_status_data ON leads(status, data_adicao DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_leads_next_action ON leads(next_action_at)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_preview_place_version ON preview_versions(place_id, version DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
     legacy_rows = c.execute(
         """SELECT place_id, nome, nicho, bairro, nota, avaliacoes, telefone, email,
                   instagram, facebook, linkedin, link_inicial, google_maps, copies_pitch, copy_texto, qualidade_pitch
@@ -253,13 +258,20 @@ def init_db():
 
 init_db()
 
-def load_leads():
+def load_leads(status_scope=None, limit=None, offset=0):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("""SELECT leads.*,
+    where = ""
+    if status_scope == "active":
+        where = "WHERE leads.status != 'Descartado'"
+    elif status_scope == "discarded":
+        where = "WHERE leads.status = 'Descartado'"
+    pagination = " LIMIT ? OFFSET ?" if limit else ""
+    params = (int(limit), max(0, int(offset))) if limit else ()
+    c.execute(f"""SELECT leads.*,
                  (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id
-                 FROM leads ORDER BY data_adicao DESC""")
+                 FROM leads {where} ORDER BY data_adicao DESC{pagination}""", params)
     rows = c.fetchall()
     conn.close()
     leads = [dict(ix) for ix in rows]
@@ -922,7 +934,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.27-site-filter-v2",
+            "commercial_release": "2026.10.28-preview-performance-v1",
             "target_engine_version": "2026.10.27-detective-v2",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -933,34 +945,56 @@ def health():
 
 @app.route("/crm")
 def crm():
-    todos = load_leads()
-    ativos = [l for l in todos if l.get("status") != "Descartado"]
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 40
+    conn = sqlite3.connect(DB_NAME)
+    total = conn.execute("SELECT COUNT(*) FROM leads WHERE status != 'Descartado'").fetchone()[0]
+    site_counts = conn.execute(
+        """SELECT
+             SUM(CASE WHEN site_opportunity_status = 'Site encontrado — sem sinal claro' THEN 1 ELSE 0 END),
+             SUM(CASE WHEN site_opportunity_status = 'Revisão manual' OR
+                           ((site_opportunity_status IS NULL OR site_opportunity_status = '') AND link_inicial != '')
+                      THEN 1 ELSE 0 END)
+           FROM leads WHERE status != 'Descartado'"""
+    ).fetchone()
+    follow_up_values = [row[0] for row in conn.execute(
+        "SELECT next_action_at FROM leads WHERE status != 'Descartado'"
+    ).fetchall()]
+    conn.close()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    ativos = load_leads("active", per_page, (page - 1) * per_page)
     for lead in ativos:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
-    leads_com_site = sum(
-        1 for lead in ativos
-        if possui_site_proprio(lead.get("link_inicial"))
-        and lead.get("site_opportunity_status") == "Site encontrado — sem sinal claro"
-    )
-    leads_site_para_auditar = sum(
-        1 for lead in ativos if lead.get("site_opportunity_status") == "Revisão manual"
-    )
-    follow_up_counts = {state: sum(1 for lead in ativos if lead["follow_up_state"] == state) for state in ("atrasado", "hoje", "proximo", "sem_acao")}
+    leads_com_site = site_counts[0] or 0
+    leads_site_para_auditar = site_counts[1] or 0
+    follow_up_counts = {
+        state: sum(1 for value in follow_up_values if classificar_prazo_followup(value) == state)
+        for state in ("atrasado", "hoje", "proximo", "sem_acao")
+    }
     return render_template(
         "crm.html", leads=ativos, leads_com_site=leads_com_site,
         leads_site_para_auditar=leads_site_para_auditar,
         is_descartados=False, follow_up_counts=follow_up_counts,
+        page=page, total_pages=total_pages, total_leads=total,
     )
 
 @app.route("/crm/descartados")
 def crm_descartados():
-    todos = load_leads()
-    descartados = [l for l in todos if l.get("status") == "Descartado"]
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 40
+    conn = sqlite3.connect(DB_NAME)
+    total = conn.execute("SELECT COUNT(*) FROM leads WHERE status = 'Descartado'").fetchone()[0]
+    conn.close()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    descartados = load_leads("discarded", per_page, (page - 1) * per_page)
     for lead in descartados:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
     return render_template(
         "crm.html", leads=descartados, leads_com_site=0,
         leads_site_para_auditar=0, is_descartados=True, follow_up_counts={},
+        page=page, total_pages=total_pages, total_leads=total,
     )
 
 
@@ -1161,28 +1195,23 @@ def create_preview(place_id):
     finally:
         conn.close()
 
-    screenshot_path = os.path.join(PREVIEW_DIR, f"preview_{preview_id}.png")
-    screenshot_error = ""
-    try:
-        capture_preview_png(html, screenshot_path)
-        conn = sqlite3.connect(DB_NAME)
-        conn.execute("UPDATE preview_versions SET screenshot_path = ? WHERE id = ?", (screenshot_path, preview_id))
-        conn.commit()
-        conn.close()
-    except Exception as error:
-        screenshot_error = str(error)[:240]
+    def refresh_pitch_with_preview():
+        current_lead = get_lead_by_id(place_id)
+        if not current_lead:
+            return
+        raw = lead_to_raw_data(current_lead)
+        result = gerar_copy_inteligente(raw, load_config(), is_intl=lead_is_international(current_lead), preview_available=True)
+        phone = extrair_apenas_numeros(current_lead.get("telefone", ""))
+        whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else current_lead.get("whatsapp_link", "")
+        update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
+                       result["versoes"], result["inteligencia"], result["qualidade"])
 
-    raw = lead_to_raw_data(lead)
-    result = gerar_copy_inteligente(raw, load_config(), is_intl=lead_is_international(lead), preview_available=True)
-    phone = extrair_apenas_numeros(lead.get("telefone", ""))
-    whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else lead.get("whatsapp_link", "")
-    update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
-                   result["versoes"], result["inteligencia"], result["qualidade"])
+    threading.Thread(target=refresh_pitch_with_preview, daemon=True).start()
     return jsonify({
         "success": True, "preview_id": preview_id, "version": version,
         "preview_url": url_for("preview_document", preview_id=preview_id),
         "png_url": url_for("preview_png", preview_id=preview_id),
-        "screenshot_ready": not bool(screenshot_error), "screenshot_error": screenshot_error,
+        "screenshot_ready": False, "png_deferred": True,
     })
 
 

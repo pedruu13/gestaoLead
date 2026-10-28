@@ -12,7 +12,7 @@
                 <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Mesa Comercial de Atendimento</p>
             </div>
             <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Sua fila comercial</h1>
-            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo.</p>
+            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo. Exibindo até 40 por página de {{ total_leads }} lead(s).</p>
             
             {% if not is_descartados %}
             <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-bold text-cyan-300">
@@ -288,6 +288,14 @@
             </table>
         </div>
     </div>
+    {% if total_pages > 1 %}
+    <nav class="flex items-center justify-between rounded-2xl border border-[#1E293B] bg-[#0E1422] p-3" aria-label="Paginação do CRM">
+        {% set page_endpoint = 'crm_descartados' if is_descartados else 'crm' %}
+        <a href="{{ url_for(page_endpoint, page=page-1) if page > 1 else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
+        <span class="text-xs font-bold text-slate-400">Página <strong class="text-white">{{ page }}</strong> de {{ total_pages }}</span>
+        <a href="{{ url_for(page_endpoint, page=page+1) if page < total_pages else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
+    </nav>
+    {% endif %}
 </div>
 
 <!-- Central de Abordagem Executiva (Drawer Escuro) -->
@@ -333,15 +341,15 @@
                 <i class="fa-solid fa-circle-info text-cyan-400 text-sm mt-0.5 shrink-0"></i>
                 <div>
                     <strong class="font-bold text-white block mb-0.5">Fluxo de Alta Conversão</strong>
-                    <span>Escolha uma abordagem, faça ajustes se quiser e abra o WhatsApp. A mensagem acompanha o texto que está no editor.</span>
+                    <span>Escolha a abordagem e abra a mensagem pronta. Quando você voltar do WhatsApp, a plataforma avança automaticamente para o próximo lead.</span>
                 </div>
             </div>
         </div>
         
         <footer class="border-t border-[#1E293B] px-6 py-5 md:px-8 bg-[#0D1322]">
             <div class="grid gap-3 sm:grid-cols-2">
-                <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" onclick="registrarAbordagem('WhatsApp')" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
-                    <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Abrir WhatsApp
+                <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" onclick="prepararRetornoWhatsApp()" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
+                    <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Abrir mensagem pronta
                 </a>
                 <a id="central_email" href="#" onclick="registrarAbordagem('E-mail')" class="hidden items-center justify-center rounded-xl border border-[#1F2B44] bg-[#121828] text-slate-200 hover:text-white hover:bg-[#1A2338] font-bold py-3.5 px-4 text-xs transition-colors">
                     <i class="fa-solid fa-envelope mr-2"></i> Enviar E-mail
@@ -747,12 +755,7 @@
         }
     }
 
-    async function registrarEAvancar() {
-        const editor = document.getElementById('central_copy');
-        const currentPlaceId = editor.dataset.placeId || '';
-        const channel = editor.dataset.whatsappBase ? 'WhatsApp' : 'E-mail';
-        const registered = await registrarAbordagem(channel, {silent:true});
-        if (!registered) return;
+    function abrirProximoLead(currentPlaceId) {
         const scope = window.innerWidth < 768 ? '#mobile-lead-list' : 'table';
         const buttons = [...document.querySelectorAll(`${scope} .lead-item button[data-place-id]`)].filter(button => button.closest('.lead-item').style.display !== 'none');
         const currentIndex = buttons.findIndex(button => button.dataset.placeId === currentPlaceId);
@@ -764,6 +767,30 @@
             fecharCentralContato();
             showAppToast('Abordagem registrada. Você concluiu esta fila.');
         }
+    }
+
+    let pendingWhatsappAdvance = '';
+    function prepararRetornoWhatsApp() {
+        const editor = document.getElementById('central_copy');
+        pendingWhatsappAdvance = editor.dataset.placeId || '';
+        registrarAbordagem('WhatsApp', {silent:true});
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && pendingWhatsappAdvance) {
+            const currentPlaceId = pendingWhatsappAdvance;
+            pendingWhatsappAdvance = '';
+            setTimeout(() => abrirProximoLead(currentPlaceId), 250);
+        }
+    });
+
+    async function registrarEAvancar() {
+        const editor = document.getElementById('central_copy');
+        const currentPlaceId = editor.dataset.placeId || '';
+        const channel = editor.dataset.whatsappBase ? 'WhatsApp' : 'E-mail';
+        const registered = await registrarAbordagem(channel, {silent:true});
+        if (!registered) return;
+        abrirProximoLead(currentPlaceId);
     }
 
     function abrirDetalhes(btn) {
