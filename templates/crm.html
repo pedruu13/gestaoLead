@@ -170,9 +170,9 @@
                 {% if lead.do_not_contact %}
                 <span class="col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i>Não contatar</span>
                 {% elif lead.whatsapp_link %}
-                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' data-default-mode="{{ lead.recommended_pitch_mode }}" data-contact-label="{{ lead.contact_strategy.label }}" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-1.5"></i>Abordar</button>
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-1.5"></i>Abordar</button>
                 {% elif lead.email %}
-                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' data-default-mode="{{ lead.recommended_pitch_mode }}" data-contact-label="{{ lead.contact_strategy.label }}" class="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-1.5"></i>Abordar</button>
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-1.5"></i>Abordar</button>
                 {% endif %}
                 <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="rounded-xl border border-[#263550] bg-[#111827] px-3 py-2.5 text-center text-xs font-black text-slate-200"><i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i>Detalhes</a>
             </div>
@@ -246,11 +246,11 @@
                             {% if lead.do_not_contact %}
                             <span class="flex w-max items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i> Não contatar</span>
                             {% elif lead.whatsapp_link %}
-                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="{{ lead.whatsapp_link }}" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' data-default-mode="{{ lead.recommended_pitch_mode }}" data-contact-label="{{ lead.contact_strategy.label }}" class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
+                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="px-3 py-1.5 rounded-xl font-black text-xs flex items-center w-max bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/20 transition-all active:scale-[0.98]">
                                 <i class="fa-brands fa-whatsapp text-sm mr-1.5"></i> Abordar
                             </button>
                             {% elif lead.email %}
-                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" data-nome="{{ lead.nome }}" data-whatsapp="" data-email="{{ lead.email }}" data-copy="{{ lead.copy_texto }}" data-copies='{{ lead.copies_pitch | tojson }}' data-default-mode="{{ lead.recommended_pitch_mode }}" data-contact-label="{{ lead.contact_strategy.label }}" class="bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
+                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
                                 <i class="fa-solid fa-envelope text-xs mr-1.5"></i> E-mail
                             </button>
                             {% else %}
@@ -461,6 +461,8 @@
 
 {% block scripts %}
 <script>
+    const contactPayloads = {{ contact_payloads | tojson | safe }};
+
     document.addEventListener("DOMContentLoaded", () => {
         let select = document.getElementById('filter_nicho');
         let niches = new Set();
@@ -656,14 +658,14 @@
 
     function abrirCentralContato(button) {
         const placeId = button.getAttribute('data-place-id') || '';
-        const nome = button.getAttribute('data-nome') || 'Lead';
-        const whatsapp = button.getAttribute('data-whatsapp') || '';
-        const email = button.getAttribute('data-email') || '';
-        const defaultMode = button.getAttribute('data-default-mode') || (email && !whatsapp ? 'email' : 'consultiva');
-        const contactLabel = button.getAttribute('data-contact-label') || 'Contato geral';
-        const copy = button.getAttribute('data-copy') || 'Nenhum pitch foi gerado para este contato.';
-        let copies = {};
-        try { copies = JSON.parse(button.getAttribute('data-copies') || '{}'); } catch (error) { copies = {}; }
+        const payload = contactPayloads[placeId] || {};
+        const nome = payload.name || 'Lead';
+        const whatsapp = payload.whatsapp || '';
+        const email = payload.email || '';
+        const defaultMode = payload.default_mode || (email && !whatsapp ? 'email' : 'consultiva');
+        const contactLabel = payload.contact_label || 'Contato geral';
+        const copy = payload.copy || 'Nenhum pitch foi gerado para este contato.';
+        const copies = {...(payload.copies || {})};
         if (!copies.consultiva) copies.consultiva = copy;
         if (!copies.direta) copies.direta = copy;
         if (!copies.personalizada) copies.personalizada = copy;

@@ -1227,6 +1227,18 @@ def crm():
     ativos = load_leads("active", per_page, (page - 1) * per_page)
     for lead in ativos:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
+    contact_payloads = {
+        lead["place_id"]: {
+            "name": lead.get("nome") or "Lead",
+            "whatsapp": lead.get("whatsapp_link") or "",
+            "email": lead.get("email") or "",
+            "copy": lead.get("copy_texto") or "",
+            "copies": lead.get("copies_pitch") or {},
+            "default_mode": lead.get("recommended_pitch_mode") or "consultiva",
+            "contact_label": (lead.get("contact_strategy") or {}).get("label") or "Contato geral",
+        }
+        for lead in ativos
+    }
     leads_com_site = site_counts[0] or 0
     leads_site_para_auditar = site_counts[1] or 0
     follow_up_counts = {
@@ -1237,7 +1249,7 @@ def crm():
         "crm.html", leads=ativos, leads_com_site=leads_com_site,
         leads_site_para_auditar=leads_site_para_auditar,
         is_descartados=False, follow_up_counts=follow_up_counts,
-        page=page, total_pages=total_pages, total_leads=total,
+        page=page, total_pages=total_pages, total_leads=total, contact_payloads=contact_payloads,
     )
 
 @app.route("/crm/descartados")
@@ -1255,7 +1267,7 @@ def crm_descartados():
     return render_template(
         "crm.html", leads=descartados, leads_com_site=0,
         leads_site_para_auditar=0, is_descartados=True, follow_up_counts={},
-        page=page, total_pages=total_pages, total_leads=total,
+        page=page, total_pages=total_pages, total_leads=total, contact_payloads={},
     )
 
 
@@ -1630,7 +1642,15 @@ def update_do_not_contact(place_id):
 
 @app.route("/estatisticas")
 def estatisticas():
-    leads = load_leads()
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        leads = [dict(row) for row in conn.execute(
+            """SELECT nicho, bairro, status, whatsapp_link, email, link_inicial, faixa_potencial
+               FROM leads"""
+        ).fetchall()]
+    finally:
+        conn.close()
     total_leads = len(leads)
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
