@@ -467,7 +467,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
         "direta": f"Olá, tudo bem? {introduction} {observation} Para {plan['category_with_article']}, um site profissional bem estruturado no celular ajuda a {plan['site_value']} e destaca o negócio frente aos concorrentes. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
         "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente costuma pesquisar referências antes de chamar e pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']} com foco em confiança e agilidade. Podemos conversar sobre esse projeto?",
         "recepcao": f"Olá, tudo bem? {introduction} Gostaria de apresentar uma proposta de site profissional para {plan['proposal_target']}. {observation} A ideia é criar uma página que ajude a {plan['site_value']}, facilitando o esclarecimento de dúvidas e valorizando o atendimento. Como este número pode ser da recepção ou do agendamento, você poderia encaminhar esta mensagem à pessoa responsável ou me informar o melhor contato?",
-        "email": f"Assunto: proposta de site profissional para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} {plan['need_statement']} Nossa proposta é {plan['offer_action']} para {plan['site_value']}, fortalecendo a presença digital e gerando contatos mais preparados para a equipe. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
+        "email": f"Assunto: proposta de site profissional para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {plan['site_value']}, fortalecendo a presença digital e gerando contatos mais preparados para a equipe. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
     }
     if analysis.get("preview_available"):
         pitches["previa_visual"] = f"Oi, tudo bem? {introduction} Como vocês ainda não possuem um site próprio no perfil do Google, montei uma prévia visual para mostrar como a estrutura {plan['entity_reference']} pode ficar no celular, com os serviços explicados e um caminho direto até o contato. É uma imagem conceitual da estrutura. Posso te enviar a imagem com uma explicação curta?"
@@ -495,7 +495,8 @@ def review_pitch(text, analysis, mode):
     if not value:
         return {"approved": False, "score": 0, "issues": ["mensagem ausente"]}
     minimum_words = 25 if mode == "previa_visual" else 35
-    if not minimum_words <= words <= 115:
+    maximum_words = 135 if mode == "email" else 115
+    if not minimum_words <= words <= maximum_words:
         issues.append(f"tamanho inadequado ({words} palavras)")
     if "site" not in folded and "website" not in folded:
         issues.append("não explica que a proposta envolve um site")
@@ -543,6 +544,7 @@ def review_pitch(text, analysis, mode):
         if not analysis.get("normalized_context", {}).get("site_verified"):
             evidence_terms = (
                 "site próprio vinculado", "sem uma página própria", "não encontrei um site próprio",
+                "não possuem um site próprio", "não possui um site próprio",
                 "website linked", "without a website",
             )
             if not any(term in folded for term in evidence_terms):
