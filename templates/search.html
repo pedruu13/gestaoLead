@@ -474,12 +474,25 @@
     }
     async function sugerirAlvosIA(forceRefresh = false) {
         const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value;
+        const nichosInformados = [...pickerState.nichos];
+        const cidadesInformadas = [...pickerState.bairros];
         activeTargetResearchRegion = mercado;
         button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-cyan-400';
-        setTargetResearchState('Montando uma nova rota de investigação...', 0);
+        const contexto = nichosInformados.length && !cidadesInformadas.length
+            ? `Procurando as melhores praças para ${nichosInformados.join(' + ')}...`
+            : cidadesInformadas.length && !nichosInformados.length
+                ? `Procurando os melhores nichos para ${cidadesInformadas.join(' + ')}...`
+                : nichosInformados.length && cidadesInformadas.length
+                    ? 'Validando os nichos e locais que você informou...'
+                    : 'Descobrindo nichos e praças ainda pouco explorados...';
+        setTargetResearchState(contexto, 0);
         try {
             const atualizar = forceRefresh || lastTargetRecommendationWasCached;
-            const response = await fetch('/api/sugerir_alvos', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({regiao: mercado, atualizar}) });
+            const response = await fetch('/api/sugerir_alvos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({regiao: mercado, atualizar, nichos: nichosInformados, cidades: cidadesInformadas}),
+            });
             const data = await response.json();
             if (!response.ok && !(response.status === 409 && data.status?.rodando && data.status.regiao === mercado)) throw new Error(data.erro || 'Não foi possível iniciar a investigação.');
             if (data.cached && data.resultado) {

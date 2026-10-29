@@ -9,6 +9,13 @@ from target_intelligence import build_research_plan, suggest_targets
 
 
 class TargetIntelligenceTests(unittest.TestCase):
+    def authenticate(self, client):
+        with client.session_transaction() as session:
+            session["authenticated"] = True
+            session["user"] = "teste"
+            session["csrf_token"] = "target-test-token"
+        return {"X-CSRF-Token": "target-test-token"}
+
     def test_suggestions_are_compact_deterministic_and_region_safe(self):
         for region in ("br", "us", "europa"):
             first = suggest_targets(region, [])
@@ -86,6 +93,35 @@ class TargetIntelligenceTests(unittest.TestCase):
         self.assertGreaterEqual(len({item["niche"] for item in second_plan}), 4)
         self.assertGreaterEqual(len({item["city"] for item in second_plan}), 4)
 
+    def test_focus_niche_returns_that_niche_and_four_ranked_locations(self):
+        result = suggest_targets("br", [], focus_niches=["academia"])
+        self.assertEqual(["Academia e treinamento"], result["nichos"])
+        self.assertEqual(4, len(result["cidades"]))
+        self.assertEqual(["Academia e treinamento"], result["contexto"]["nichos_informados"])
+
+    def test_focus_location_returns_exact_location_and_ranked_niches(self):
+        result = suggest_targets("br", [], focus_locations=["Batel - Curitiba"])
+        self.assertEqual(["Batel - Curitiba"], result["cidades"])
+        self.assertEqual(2, len(result["nichos"]))
+        self.assertEqual(["Batel - Curitiba"], result["contexto"]["locais_informados"])
+
+    def test_custom_niche_is_preserved_in_research_plan(self):
+        plan = build_research_plan("br", [], pair_limit=4, focus_niches=["Lavanderia premium"])
+        self.assertEqual(4, len(plan))
+        self.assertEqual({"Lavanderia premium"}, {item["niche"] for item in plan})
+
+    def test_existing_lead_saturation_penalizes_already_mined_location(self):
+        rows = [{
+            "nicho": "academia", "bairro": "Lago Sul - Brasília", "link_inicial": "",
+            "telefone": "61999999999", "whatsapp_link": "", "email": "", "avaliacoes": "25",
+        } for _ in range(15)]
+        result = suggest_targets(
+            "br", rows, focus_niches=["academia"],
+            focus_locations=["Lago Sul - Brasília", "Águas Claras - DF"],
+        )
+        places = {item["nome"]: item for item in result["pracas"]}
+        self.assertLess(places["Lago Sul - Brasília"]["score"], places["Águas Claras - DF"]["score"])
+
     def test_api_uses_database_history_and_keeps_hard_limits(self):
         old_db = application.DB_NAME
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -112,9 +148,7 @@ class TargetIntelligenceTests(unittest.TestCase):
                 connection.commit()
                 connection.close()
                 client = application.app.test_client()
-                with client.session_transaction() as session:
-                    session["authenticated"] = True
-                    session["user"] = "teste"
+                self.authenticate(client)
                 response = client.get("/api/sugerir_alvos?regiao=br")
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
@@ -145,11 +179,9 @@ class TargetIntelligenceTests(unittest.TestCase):
                     } for item in plan]
 
                 client = application.app.test_client()
-                with client.session_transaction() as session:
-                    session["authenticated"] = True
-                    session["user"] = "teste"
+                headers = self.authenticate(client)
                 with mock.patch.object(application, "probe_google_maps", side_effect=fake_probe):
-                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"})
+                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"}, headers=headers)
                     self.assertEqual(202, response.status_code, response.get_data(as_text=True))
                     for _ in range(100):
                         status = client.get("/api/sugerir_alvos/status").get_json()
@@ -186,11 +218,9 @@ class TargetIntelligenceTests(unittest.TestCase):
                 connection.commit()
                 connection.close()
                 client = application.app.test_client()
-                with client.session_transaction() as session:
-                    session["authenticated"] = True
-                    session["user"] = "teste"
+                headers = self.authenticate(client)
                 with mock.patch.object(application, "probe_google_maps") as probe:
-                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"})
+                    response = client.post("/api/sugerir_alvos", json={"regiao": "br"}, headers=headers)
                 self.assertEqual(200, response.status_code)
                 self.assertTrue(response.get_json()["cached"])
                 self.assertTrue(response.get_json()["resultado"]["investigacao"]["reutilizado"])
@@ -198,6 +228,53 @@ class TargetIntelligenceTests(unittest.TestCase):
             finally:
                 application.DB_NAME = old_db
                 application.TARGET_RESEARCH_STATUS_FILE = old_status_file
+
+    def test_context_cache_does_not_reuse_another_niche(self):
+        old_db = application.DB_NAME
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "targets.db")
+            try:
+                application.init_db()
+                cached = suggest_targets("br", [], focus_niches=["academia"])
+                cached["investigacao"]["amostra_nova"] = 20
+                context_key = application.chave_contexto_alvos(["academia"], [])
+                connection = application.sqlite3.connect(application.DB_NAME)
+                connection.execute(
+                    """INSERT INTO target_research_runs
+                       (run_id, region, plan_json, result_json, status, context_key, finished_at)
+                       VALUES ('academy-cache', 'br', '[]', ?, 'concluido', ?, CURRENT_TIMESTAMP)""",
+                    (application.json.dumps(cached, ensure_ascii=False), context_key),
+                )
+                connection.commit()
+                connection.close()
+                self.assertIsNotNone(application.carregar_resultado_investigacao_recente("br", context_key))
+                other_key = application.chave_contexto_alvos(["fotografia"], [])
+                self.assertIsNone(application.carregar_resultado_investigacao_recente("br", other_key))
+            finally:
+                application.DB_NAME = old_db
+
+    def test_discovery_history_survives_lead_removal(self):
+        old_db = application.DB_NAME
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "targets.db")
+            try:
+                application.init_db()
+                connection = application.sqlite3.connect(application.DB_NAME)
+                connection.execute(
+                    """INSERT INTO leads (place_id, nome, nicho, bairro, status)
+                       VALUES ('historic-place', 'Empresa Antiga', 'academia', 'Batel - Curitiba', 'Novo')"""
+                )
+                connection.commit()
+                connection.close()
+                application.init_db()
+                self.assertIn("historic-place", application.load_existing_place_ids())
+                connection = application.sqlite3.connect(application.DB_NAME)
+                connection.execute("DELETE FROM leads WHERE place_id = 'historic-place'")
+                connection.commit()
+                connection.close()
+                self.assertIn("historic-place", application.load_existing_place_ids())
+            finally:
+                application.DB_NAME = old_db
 
 
 if __name__ == "__main__":

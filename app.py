@@ -23,7 +23,7 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
-from target_intelligence import build_research_plan, suggest_targets
+from target_intelligence import build_research_plan, normalize, suggest_targets
 from target_research import probe_google_maps
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
@@ -371,9 +371,17 @@ def init_db():
                   error TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     c.execute("""CREATE TABLE IF NOT EXISTS target_research_runs
                  (run_id TEXT PRIMARY KEY, region TEXT NOT NULL, plan_json TEXT NOT NULL,
-                  result_json TEXT, status TEXT NOT NULL, error TEXT,
+                  result_json TEXT, status TEXT NOT NULL, error TEXT, context_key TEXT DEFAULT '',
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   finished_at TIMESTAMP)""")
+    try:
+        c.execute("ALTER TABLE target_research_runs ADD COLUMN context_key TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    c.execute("""CREATE TABLE IF NOT EXISTS lead_discovery_history
+                 (place_id TEXT PRIMARY KEY, first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_seen INTEGER DEFAULT 1,
+                  last_niche TEXT, last_location TEXT, last_run_id TEXT, outcome TEXT)""")
     c.execute("""CREATE TABLE IF NOT EXISTS search_runs
                  (run_id TEXT PRIMARY KEY, name TEXT NOT NULL, market TEXT NOT NULL,
                   niches_json TEXT NOT NULL, locations_json TEXT NOT NULL, filters_json TEXT NOT NULL,
@@ -387,6 +395,13 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_leads_next_action ON leads(next_action_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_preview_place_version ON preview_versions(place_id, version DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_discovery_last_seen ON lead_discovery_history(last_seen_at DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_target_research_context ON target_research_runs(region, context_key, finished_at DESC)")
+    c.execute(
+        """INSERT OR IGNORE INTO lead_discovery_history
+           (place_id, first_seen_at, last_seen_at, last_niche, last_location, last_run_id, outcome)
+           SELECT place_id, data_adicao, data_adicao, nicho, bairro, search_run_id, 'saved' FROM leads"""
+    )
     for row in c.execute("SELECT place_id, nome, nicho, bairro FROM leads").fetchall():
         repaired_values = tuple(repair_known_mojibake(value) for value in row[1:])
         if repaired_values != tuple(value or "" for value in row[1:]):
@@ -572,9 +587,55 @@ def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_lin
 def load_existing_place_ids():
     conn = sqlite3.connect(DB_NAME)
     try:
-        return {row[0] for row in conn.execute("SELECT place_id FROM leads")}
+        return {row[0] for row in conn.execute("SELECT place_id FROM lead_discovery_history")}
     finally:
         conn.close()
+
+
+def load_existing_lead_identities():
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        phones = set()
+        names = set()
+        for name, location, phone in conn.execute("SELECT nome, bairro, telefone FROM leads"):
+            phone_key = re.sub(r"\D", "", phone or "")
+            if len(phone_key) >= 10:
+                phones.add(phone_key[-11:])
+            name_key = normalize(name)
+            location_key = normalize(location)
+            if name_key:
+                names.add((name_key, location_key))
+        return phones, names
+    finally:
+        conn.close()
+
+
+def record_lead_discoveries(discoveries):
+    rows = [item for item in discoveries if item[0]]
+    if not rows:
+        return
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.executemany(
+            """INSERT INTO lead_discovery_history
+               (place_id, last_niche, last_location, last_run_id, outcome)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(place_id) DO UPDATE SET
+                 last_seen_at = CURRENT_TIMESTAMP,
+                 times_seen = times_seen + 1,
+                 last_niche = excluded.last_niche,
+                 last_location = excluded.last_location,
+                 last_run_id = excluded.last_run_id,
+                 outcome = excluded.outcome""",
+            rows,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def record_lead_discovery(place_id, niche, location, run_id, outcome):
+    record_lead_discoveries([(place_id, niche, location, run_id, outcome)])
 
 def tratar_consentimento_cookies(page):
     try:
@@ -2097,6 +2158,8 @@ def extrator_worker(data, config, queue):
         print(f"[WORKER] Iniciando. Memoria RAM uso atual: {mem_inicial:.2f} MB")
         stats = {
             "encontrados": 0,
+            "novos_resultados": 0,
+            "consultas_esgotadas": 0,
             "analisados": 0,
             "salvos": 0,
             "duplicados": 0,
@@ -2113,12 +2176,13 @@ def extrator_worker(data, config, queue):
             "erros": 0,
         }
         existing_place_ids = load_existing_place_ids()
+        existing_phones, existing_names = load_existing_lead_identities()
         search_run_id = data.get("search_run_id", "")
         started_at = time.monotonic()
         max_leads = max(5, min(100, int(data.get("max_leads", 30))))
         max_analyzed = max(40, max_leads * 3)
         max_duration_seconds = 15 * 60
-        max_results_per_query = 20
+        max_results_per_query = 60
 
         def search_limit_reason():
             if stats["salvos"] >= max_leads:
@@ -2205,41 +2269,64 @@ def extrator_worker(data, config, queue):
                         print("[WORKER] Resultados encontrados!")
                     except Exception as e:
                         print(f"[WORKER] Timeout inicial a.hfpxzc: {e} | titulo: {page.title()}")
+                    painel = page.locator("div[role='feed']").first
+                    hrefs = []
                     try:
-                        painel = page.locator("div[role='feed']").first
-                        if painel.count() > 0:
-                            for _ in range(4):
-                                painel.evaluate("node => node.scrollTop = node.scrollHeight")
-                                time.sleep(random.uniform(0.35, 0.65))
-                                page.keyboard.press("PageDown") # Fallback
-                    except Exception as e: print("Aviso interno painel:", e)
-                    
-                    links = page.locator("a.hfpxzc")
-                    if links.count() == 0:
-                        links = page.locator("a[href*='/maps/place/']")
-                        
-                    if links.count() == 0:
+                        for scroll_index in range(10):
+                            links = page.locator("a.hfpxzc")
+                            if links.count() == 0:
+                                links = page.locator("a[href*='/maps/place/']")
+                            for link_index in range(min(links.count(), max_results_per_query)):
+                                href = links.nth(link_index).get_attribute("href")
+                                if href and href not in hrefs:
+                                    hrefs.append(href)
+                            unseen_count = sum(
+                                1 for href in hrefs
+                                if extrair_id_unico(href) and extrair_id_unico(href) not in existing_place_ids
+                            )
+                            remaining_target = max_leads - stats["salvos"]
+                            if unseen_count >= min(20, max(8, remaining_target * 2)) or len(hrefs) >= max_results_per_query:
+                                break
+                            if painel.count() == 0:
+                                break
+                            previous_count = len(hrefs)
+                            painel.evaluate("node => node.scrollTop = node.scrollHeight")
+                            time.sleep(random.uniform(0.25, 0.45))
+                            if scroll_index >= 2 and len(hrefs) == previous_count:
+                                page.keyboard.press("End")
+                    except Exception as e:
+                        print("Aviso interno painel:", e)
+
+                    if not hrefs:
                         print("[WORKER] Definitivamente nenhum lead encontrado.")
                         continue
-                    hrefs = []
-                    for i in range(min(links.count(), max_results_per_query)):
-                        h = links.nth(i).get_attribute("href")
-                        if h and h not in hrefs: hrefs.append(h)
                     stats["encontrados"] += len(hrefs)
-                    for index, href in enumerate(hrefs):
+                    new_hrefs = []
+                    new_discoveries = []
+                    for href in hrefs:
+                        place_id = extrair_id_unico(href)
+                        if not place_id or place_id in existing_place_ids:
+                            stats["duplicados"] += 1
+                            continue
+                        existing_place_ids.add(place_id)
+                        new_hrefs.append(href)
+                        new_discoveries.append((place_id, nicho, bairro, search_run_id, "discovered"))
+                    record_lead_discoveries(new_discoveries)
+                    stats["novos_resultados"] += len(new_hrefs)
+                    if not new_hrefs:
+                        stats["consultas_esgotadas"] += 1
+                        publicar_status(f"'{nicho}' em '{bairro}' já foi explorado. Avançando...")
+                        continue
+                    for index, href in enumerate(new_hrefs):
                         if search_limit_reason():
                             break
                         if busca_cancelada():
                             browser.close()
                             return
                         place_id = extrair_id_unico(href)
-                        if place_id in existing_place_ids:
-                            stats["duplicados"] += 1
-                            publicar_status(f"Ignorando duplicado {index+1}/{len(hrefs)}...")
-                            continue
                         try:
                             stats["analisados"] += 1
-                            publicar_status(f"Analisando lead {index+1}/{len(hrefs)}...")
+                            publicar_status(f"Analisando lead novo {index+1}/{len(new_hrefs)}...")
                             page.goto(href, wait_until="domcontentloaded", timeout=12000)
                             try: page.wait_for_selector("h1", timeout=3500)
                             except Exception as e: print("Aviso interno:", e)
@@ -2278,6 +2365,13 @@ def extrator_worker(data, config, queue):
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
+                            phone_key = re.sub(r"\D", "", telefone_raw or "")[-11:]
+                            name_key = (normalize(nome), normalize(bairro))
+                            if (len(phone_key) >= 10 and phone_key in existing_phones) or name_key in existing_names:
+                                stats["duplicados"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "duplicate_identity")
+                                publicar_status(f"Empresa já existente ignorada: {nome}")
+                                continue
                             if data.get("strict_mobile") and not eh_celular_valido(numeros_whats):
                                 stats["telefone_invalido"] += 1
                                 continue
@@ -2409,7 +2503,10 @@ def extrator_worker(data, config, queue):
                             salvo = save_lead_db(lead_data, place_id)
                             if salvo:
                                 print(f"[WORKER] Salvo com sucesso: {nome}")
-                                existing_place_ids.add(place_id)
+                                if len(phone_key) >= 10:
+                                    existing_phones.add(phone_key)
+                                existing_names.add(name_key)
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "saved")
                                 stats["salvos"] += 1
                                 publicar_status(f"Lead salvo: {nome}")
 
@@ -2523,7 +2620,7 @@ def carregar_leads_para_investigacao():
     conn.row_factory = sqlite3.Row
     rows = [dict(row) for row in conn.execute(
         """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes
-           FROM leads WHERE COALESCE(status, '') != 'Descartado'"""
+           FROM leads"""
     ).fetchall()]
     conn.close()
     return rows
@@ -2534,6 +2631,7 @@ def carregar_nichos_recentes(regiao, limite=2):
     rows = conn.execute(
         """SELECT result_json FROM target_research_runs
            WHERE region = ? AND status = 'concluido' AND result_json IS NOT NULL
+             AND COALESCE(context_key, '') = ''
            ORDER BY finished_at DESC LIMIT ?""",
         (regiao, limite),
     ).fetchall()
@@ -2547,14 +2645,40 @@ def carregar_nichos_recentes(regiao, limite=2):
     return niches
 
 
-def carregar_resultado_investigacao_recente(regiao, max_age_days=2, min_sample=12):
+def normalizar_foco_alvos(values, limit):
+    if isinstance(values, str):
+        values = values.split(",")
+    result = []
+    seen = set()
+    for value in values or []:
+        cleaned = re.sub(r"\s+", " ", str(value or "")).strip()
+        key = normalize(cleaned)
+        if cleaned and key not in seen:
+            result.append(cleaned)
+            seen.add(key)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def chave_contexto_alvos(nichos, cidades):
+    if not nichos and not cidades:
+        return ""
+    return json.dumps({
+        "nichos": sorted(normalize(value) for value in nichos),
+        "cidades": sorted(normalize(value) for value in cidades),
+    }, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+
+
+def carregar_resultado_investigacao_recente(regiao, context_key="", max_age_days=2, min_sample=12):
     conn = sqlite3.connect(DB_NAME)
     row = conn.execute(
         """SELECT result_json, finished_at FROM target_research_runs
            WHERE region = ? AND status = 'concluido' AND result_json IS NOT NULL
+             AND COALESCE(context_key, '') = ?
              AND finished_at >= datetime('now', ?)
            ORDER BY finished_at DESC LIMIT 1""",
-        (regiao, f"-{int(max_age_days)} days"),
+        (regiao, context_key, f"-{int(max_age_days)} days"),
     ).fetchone()
     conn.close()
     if not row:
@@ -2571,15 +2695,18 @@ def carregar_resultado_investigacao_recente(regiao, max_age_days=2, min_sample=1
     return result
 
 
-def worker_investigar_alvos(regiao, run_id, config):
+def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_locations=None, context_key=""):
     try:
         observations = carregar_dados_investigacao(regiao)
-        plan = build_research_plan(regiao, observations, pair_limit=4)
+        plan = build_research_plan(
+            regiao, observations, pair_limit=4,
+            focus_niches=focus_niches, focus_locations=focus_locations,
+        )
         conn = sqlite3.connect(DB_NAME)
         conn.execute(
-            """INSERT INTO target_research_runs (run_id, region, plan_json, status)
-               VALUES (?, ?, ?, 'executando')""",
-            (run_id, regiao, json.dumps(plan, ensure_ascii=False)),
+            """INSERT INTO target_research_runs (run_id, region, plan_json, status, context_key)
+               VALUES (?, ?, ?, 'executando', ?)""",
+            (run_id, regiao, json.dumps(plan, ensure_ascii=False), context_key),
         )
         conn.commit()
         conn.close()
@@ -2620,7 +2747,9 @@ def worker_investigar_alvos(regiao, run_id, config):
             regiao,
             carregar_leads_para_investigacao(),
             carregar_dados_investigacao(regiao),
-            carregar_nichos_recentes(regiao),
+            carregar_nichos_recentes(regiao) if not focus_niches else [],
+            focus_niches=focus_niches,
+            focus_locations=focus_locations,
         )
         result["run_id"] = run_id
         result["investigacao"]["amostra_nova"] = successful_samples
@@ -2659,15 +2788,20 @@ def sugerir_alvos():
     try:
         payload = request.get_json(silent=True) or {}
         regiao = (payload.get("regiao") or request.args.get("regiao") or "br").lower()
+        focus_niches = normalizar_foco_alvos(payload.get("nichos") or request.args.get("nichos"), 2)
+        focus_locations = normalizar_foco_alvos(payload.get("cidades") or request.args.get("cidades"), 4)
+        context_key = chave_contexto_alvos(focus_niches, focus_locations)
         if request.method == "GET":
             return jsonify(suggest_targets(
                 regiao,
                 carregar_leads_para_investigacao(),
                 carregar_dados_investigacao(regiao),
-                carregar_nichos_recentes(regiao),
+                carregar_nichos_recentes(regiao) if not focus_niches else [],
+                focus_niches=focus_niches,
+                focus_locations=focus_locations,
             ))
         if not payload.get("atualizar"):
-            cached_result = carregar_resultado_investigacao_recente(regiao)
+            cached_result = carregar_resultado_investigacao_recente(regiao, context_key)
             if cached_result:
                 return jsonify({
                     "success": True, "cached": True, "resultado": cached_result,
@@ -2679,13 +2813,21 @@ def sugerir_alvos():
             current = ler_status_investigacao()
             if current.get("rodando"):
                 return jsonify({"erro": "Já existe uma investigação em andamento.", "status": current}), 409
-            build_research_plan(regiao, carregar_dados_investigacao(regiao), pair_limit=4)
+            build_research_plan(
+                regiao, carregar_dados_investigacao(regiao), pair_limit=4,
+                focus_niches=focus_niches, focus_locations=focus_locations,
+            )
             run_id = uuid.uuid4().hex
             atualizar_status_investigacao({
                 "rodando": True, "run_id": run_id, "regiao": regiao,
+                "context_key": context_key,
                 "mensagem": "Montando o plano de investigação...", "progresso": 0,
             })
-            thread = threading.Thread(target=worker_investigar_alvos, args=(regiao, run_id, load_config()), daemon=True)
+            thread = threading.Thread(
+                target=worker_investigar_alvos,
+                args=(regiao, run_id, load_config(), focus_niches, focus_locations, context_key),
+                daemon=True,
+            )
             thread.start()
         return jsonify({"success": True, "run_id": run_id, "mensagem": "Investigação de mercado iniciada."}), 202
     except ValueError as error:
