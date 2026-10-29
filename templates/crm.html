@@ -34,35 +34,34 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
                 </div>
-                <input type="text" id="filter_nome" onkeyup="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
+                <input type="text" id="filter_nome" value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
             </div>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_quality" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_quality" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Qualquer qualidade</option>
-                    <option value="Confiável">Dados confiáveis</option>
-                    <option value="Incompleto">Dados incompletos</option>
-                    <option value="Revisar">Revisão necessária</option>
+                    <option value="Confiável" {{ 'selected' if crm_filters.qualidade == 'Confiável' else '' }}>Dados confiáveis</option>
+                    <option value="Incompleto" {{ 'selected' if crm_filters.qualidade == 'Incompleto' else '' }}>Dados incompletos</option>
+                    <option value="Revisar" {{ 'selected' if crm_filters.qualidade == 'Revisar' else '' }}>Revisão necessária</option>
                 </select>
             </div>
 
             <div class="relative w-full sm:w-52">
-                <select id="filter_site_opportunity" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_site_opportunity" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Todas as oportunidades digitais</option>
-                    <option value="Construção de site">Precisa de um site</option>
-                    <option value="Site com oportunidade de melhoria">Site para melhorar</option>
-                    <option value="Revisão manual">Revisar site</option>
-                    <option value="Site encontrado — sem sinal claro">Sem sinal claro</option>
+                    {% for value, label in [('Construção de site', 'Precisa de um site'), ('Site com oportunidade de melhoria', 'Site para melhorar'), ('Revisão manual', 'Revisar site'), ('Site encontrado — sem sinal claro', 'Sem sinal claro')] %}
+                    <option value="{{ value }}" {{ 'selected' if crm_filters.site == value else '' }}>{{ label }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_followup" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_followup" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Todos os follow-ups</option>
-                    <option value="atrasado">Atrasados</option>
-                    <option value="hoje">Para hoje</option>
-                    <option value="proximo">Próximos</option>
-                    <option value="sem_acao">Sem próxima ação</option>
+                    <option value="atrasado" {{ 'selected' if crm_filters.followup == 'atrasado' else '' }}>Atrasados</option>
+                    <option value="hoje" {{ 'selected' if crm_filters.followup == 'hoje' else '' }}>Para hoje</option>
+                    <option value="proximo" {{ 'selected' if crm_filters.followup == 'proximo' else '' }}>Próximos</option>
+                    <option value="sem_acao" {{ 'selected' if crm_filters.followup == 'sem_acao' else '' }}>Sem próxima ação</option>
                 </select>
             </div>
             
@@ -71,18 +70,18 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-bars-progress text-slate-500 text-xs"></i>
                 </div>
-                <select id="filter_status" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_status" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todos os Status</option>
-                    <option value="Novo">Novo</option>
-                    <option value="Analisado">Analisado</option>
-                    <option value="Mensagem preparada">Mensagem preparada</option>
-                    <option value="Contatado">Contatado</option>
-                    <option value="Respondeu">Respondeu</option>
-                    <option value="Interessado">Interessado</option>
-                    <option value="Proposta enviada">Proposta enviada</option>
-                    <option value="Negociação">Negociação</option>
-                    <option value="Fechado">Fechado</option>
-                    <option value="Perdido">Perdido</option>
+                    <option value="Novo" {{ 'selected' if crm_filters.status == 'Novo' else '' }}>Novo</option>
+                    <option value="Analisado" {{ 'selected' if crm_filters.status == 'Analisado' else '' }}>Analisado</option>
+                    <option value="Mensagem preparada" {{ 'selected' if crm_filters.status == 'Mensagem preparada' else '' }}>Mensagem preparada</option>
+                    <option value="Contatado" {{ 'selected' if crm_filters.status == 'Contatado' else '' }}>Contatado</option>
+                    <option value="Respondeu" {{ 'selected' if crm_filters.status == 'Respondeu' else '' }}>Respondeu</option>
+                    <option value="Interessado" {{ 'selected' if crm_filters.status == 'Interessado' else '' }}>Interessado</option>
+                    <option value="Proposta enviada" {{ 'selected' if crm_filters.status == 'Proposta enviada' else '' }}>Proposta enviada</option>
+                    <option value="Negociação" {{ 'selected' if crm_filters.status == 'Negociação' else '' }}>Negociação</option>
+                    <option value="Fechado" {{ 'selected' if crm_filters.status == 'Fechado' else '' }}>Fechado</option>
+                    <option value="Perdido" {{ 'selected' if crm_filters.status == 'Perdido' else '' }}>Perdido</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -93,11 +92,11 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-gem text-cyan-400 text-xs"></i>
                 </div>
-                <select id="filter_potencial" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_potencial" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todas as filas</option>
-                    <option value="Prioridade">Prioridade</option>
-                    <option value="Oportunidade secundária">Oportunidades secundárias</option>
-                    <option value="Exploração">Exploração</option>
+                    <option value="Prioridade" {{ 'selected' if crm_filters.potencial == 'Prioridade' else '' }}>Prioridade</option>
+                    <option value="Oportunidade secundária" {{ 'selected' if crm_filters.potencial == 'Oportunidade secundária' else '' }}>Oportunidades secundárias</option>
+                    <option value="Exploração" {{ 'selected' if crm_filters.potencial == 'Exploração' else '' }}>Exploração</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -109,8 +108,9 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-briefcase text-slate-500 text-xs"></i>
                 </div>
-                <select id="filter_nicho" onchange="filterTable()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_nicho" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todos os Nichos</option>
+                    {% for niche in available_niches %}<option value="{{ niche | lower }}" {{ 'selected' if crm_filters.nicho == niche|lower else '' }}>{{ niche }}</option>{% endfor %}
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -301,9 +301,9 @@
     {% if total_pages > 1 %}
     <nav class="flex items-center justify-between rounded-2xl border border-[#1E293B] bg-[#0E1422] p-3" aria-label="Paginação do CRM">
         {% set page_endpoint = 'crm_descartados' if is_descartados else 'crm' %}
-        <a href="{{ url_for(page_endpoint, page=page-1) if page > 1 else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
+        <a href="{{ url_for(page_endpoint, page=page-1, **active_filters) if page > 1 else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
         <span class="text-xs font-bold text-slate-400">Página <strong class="text-white">{{ page }}</strong> de {{ total_pages }}</span>
-        <a href="{{ url_for(page_endpoint, page=page+1) if page < total_pages else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
+        <a href="{{ url_for(page_endpoint, page=page+1, **active_filters) if page < total_pages else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
     </nav>
     {% endif %}
 </div>
@@ -464,51 +464,34 @@
     const contactPayloads = {{ contact_payloads | tojson | safe }};
 
     document.addEventListener("DOMContentLoaded", () => {
-        let select = document.getElementById('filter_nicho');
-        let niches = new Set();
         document.querySelectorAll('select[onchange^="updateStatus"]').forEach(statusSelect => {
             statusSelect.dataset.previousValue = statusSelect.value;
         });
-        document.querySelectorAll('.lead-item[data-niche]').forEach(item => {
-            if (item.dataset.niche) niches.add(item.dataset.niche);
-        });
-        
-        niches.forEach(nicho => {
-            let opt = document.createElement('option');
-            opt.value = nicho.toLowerCase();
-            opt.innerHTML = nicho;
-            select.appendChild(opt);
-        });
     });
 
-    function filterTable() {
-        let nome = document.getElementById('filter_nome').value.toLowerCase();
-        let status = document.getElementById('filter_status').value;
-        let nicho = document.getElementById('filter_nicho').value;
-        let potencial = document.getElementById('filter_potencial').value;
-        let followup = document.getElementById('filter_followup').value;
-        let siteOpportunity = document.getElementById('filter_site_opportunity').value;
-        let quality = document.getElementById('filter_quality').value;
-        
-        document.querySelectorAll('.lead-item').forEach(item => {
-            let leadNome = item.dataset.name || '';
-            let leadNicho = item.dataset.niche || '';
-            let leadStatus = item.dataset.status || '';
-            let matchNome = leadNome.includes(nome);
-            let matchStatus = !status || leadStatus === status;
-            let matchNicho = !nicho || leadNicho === nicho;
-            let matchPotencial = !potencial || item.dataset.faixaPotential === potencial;
-            let matchFollowup = !followup || item.dataset.followup === followup;
-            let matchSiteOpportunity = !siteOpportunity || item.dataset.siteOpportunity === siteOpportunity;
-            let matchQuality = !quality || item.dataset.quality === quality;
-            item.style.display = matchNome && matchStatus && matchNicho && matchPotencial && matchFollowup && matchSiteOpportunity && matchQuality ? '' : 'none';
+    let crmFilterTimer = null;
+    function applyCrmFilters() {
+        const params = new URLSearchParams();
+        const fields = {
+            nome: 'filter_nome', status: 'filter_status', nicho: 'filter_nicho',
+            potencial: 'filter_potencial', followup: 'filter_followup',
+            site: 'filter_site_opportunity', qualidade: 'filter_quality'
+        };
+        Object.entries(fields).forEach(([key, id]) => {
+            const value = document.getElementById(id)?.value?.trim();
+            if (value) params.set(key, value);
         });
+        window.location.href = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+    }
+
+    function queueCrmFilterUpdate() {
+        clearTimeout(crmFilterTimer);
+        crmFilterTimer = setTimeout(applyCrmFilters, 450);
     }
 
     function aplicarFiltroRapido(followup) {
         document.getElementById('filter_followup').value = followup;
-        filterTable();
-        document.getElementById('mobile-lead-list')?.scrollIntoView({behavior:'smooth', block:'start'});
+        applyCrmFilters();
     }
 
     async function gerarPreviaRapida(placeId, button) {

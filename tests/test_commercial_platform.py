@@ -241,6 +241,13 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertTrue(weak_sites["include_site_opportunities"])
         self.assertFalse(all_businesses["strict_no_socials"])
 
+    def test_whatsapp_requires_a_plausible_mobile_number(self):
+        self.assertTrue(application.eh_celular_valido(application.extrair_apenas_numeros("(19) 99999-1234")))
+        self.assertFalse(application.eh_celular_valido(application.extrair_apenas_numeros("(19) 3333-1234")))
+        self.assertFalse(application.eh_celular_valido("5509999999999"))
+        self.assertFalse(application.eh_celular_valido("5519999999999"))
+        self.assertTrue(application.eh_celular_valido("13055550100"))
+
     def test_twenty_business_types_generate_distinct_natural_approved_pitches(self):
         opportunities = set()
         personalized = set()
@@ -475,7 +482,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.28-audit-hardening-v1", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.29-crm-whatsapp-v2", health.get_json()["commercial_release"])
                 self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -608,6 +615,80 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertIn("Página <strong class=\"text-white\">2</strong> de 3", second_page)
                 self.assertEqual(40, first_page.count('class="lead-item'))
                 self.assertEqual(40, second_page.count('class="lead-item'))
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
+
+    def test_crm_filters_are_server_side_and_survive_pagination(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "filtered-pagination.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                for index in range(45):
+                    lead = sample_lead(f"Empresa {index:02d}", "Academia")
+                    self.assertTrue(application.save_lead_db(lead, f"filtered-{index:02d}"))
+                connection = sqlite3.connect(application.DB_NAME)
+                for index in range(45):
+                    if index < 25:
+                        connection.execute(
+                            """UPDATE leads SET status = 'Mensagem preparada',
+                                      site_opportunity_status = 'Construção de site'
+                               WHERE place_id = ?""",
+                            (f"filtered-{index:02d}",),
+                        )
+                    else:
+                        connection.execute(
+                            """UPDATE leads SET status = 'Novo',
+                                      site_opportunity_status = 'Site encontrado — sem sinal claro'
+                               WHERE place_id = ?""",
+                            (f"filtered-{index:02d}",),
+                        )
+                connection.commit()
+                connection.close()
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                query = "status=Mensagem+preparada&site=Constru%C3%A7%C3%A3o+de+site"
+                first_page = client.get(f"/crm?{query}").get_data(as_text=True)
+                second_page = client.get(f"/crm?page=2&{query}").get_data(as_text=True)
+                self.assertIn('value="Mensagem preparada" selected', first_page)
+                self.assertIn('value="Construção de site" selected', first_page)
+                self.assertIn("Página <strong class=\"text-white\">1</strong> de 2", first_page)
+                self.assertIn("Página <strong class=\"text-white\">2</strong> de 2", second_page)
+                self.assertEqual(40, first_page.count('class="lead-item'))
+                self.assertEqual(10, second_page.count('class="lead-item'))
+                self.assertIn("status=Mensagem+preparada", first_page)
+                self.assertIn("site=Constru%C3%A7%C3%A3o+de+site", first_page)
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
+
+    def test_invalid_existing_whatsapp_links_are_removed(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "whatsapp-cleanup.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                landline = sample_lead("Telefone Fixo", "Contabilidade")
+                landline["Telefone"] = "(19) 3333-1234"
+                landline["WhatsApp Link"] = "https://wa.me/551933331234"
+                mobile = sample_lead("Celular Válido", "Academia")
+                mobile["Telefone"] = "(19) 99876-1234"
+                mobile["WhatsApp Link"] = "https://wa.me/5519999991234"
+                self.assertTrue(application.save_lead_db(landline, "landline"))
+                self.assertTrue(application.save_lead_db(mobile, "mobile"))
+                self.assertEqual(1, application.remover_whatsapps_invalidos_existentes())
+                connection = sqlite3.connect(application.DB_NAME)
+                links = dict(connection.execute("SELECT place_id, whatsapp_link FROM leads").fetchall())
+                connection.close()
+                self.assertEqual("", links["landline"])
+                self.assertTrue(links["mobile"].startswith("https://wa.me/"))
             finally:
                 application.DB_NAME = old_db
                 application.load_config = old_load_config

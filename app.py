@@ -489,20 +489,56 @@ def init_db():
 create_daily_backup()
 init_db()
 
-def load_leads(status_scope=None, limit=None, offset=0):
+def build_crm_where(status_scope=None, filters=None):
+    filters = filters or {}
+    clauses = []
+    params = []
+    if status_scope == "active":
+        clauses.append("leads.status != 'Descartado'")
+    elif status_scope == "discarded":
+        clauses.append("leads.status = 'Descartado'")
+    if filters.get("nome"):
+        clauses.append("lower(leads.nome) LIKE ?")
+        params.append(f"%{filters['nome'].casefold()}%")
+    if filters.get("status"):
+        if filters["status"] == "Contatado":
+            clauses.append("leads.status IN ('Contatado', 'Contato Feito')")
+        else:
+            clauses.append("leads.status = ?")
+            params.append(filters["status"])
+    for key, column in (
+        ("nicho", "lower(leads.nicho)"),
+        ("potencial", "leads.faixa_potencial"),
+        ("site", "leads.site_opportunity_status"),
+        ("qualidade", "leads.data_quality_status"),
+    ):
+        if filters.get(key):
+            clauses.append(f"{column} = ?")
+            value = filters[key].casefold() if key == "nicho" else filters[key]
+            params.append(value)
+    followup = filters.get("followup")
+    if followup == "sem_acao":
+        clauses.append("trim(coalesce(leads.next_action_at, '')) = ''")
+    elif followup == "atrasado":
+        clauses.append("date(leads.next_action_at) < date('now', 'localtime')")
+    elif followup == "hoje":
+        clauses.append("date(leads.next_action_at) = date('now', 'localtime')")
+    elif followup == "proximo":
+        clauses.append("date(leads.next_action_at) > date('now', 'localtime')")
+    return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
+
+
+def load_leads(status_scope=None, limit=None, offset=0, filters=None):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    where = ""
-    if status_scope == "active":
-        where = "WHERE leads.status != 'Descartado'"
-    elif status_scope == "discarded":
-        where = "WHERE leads.status = 'Descartado'"
+    where, params = build_crm_where(status_scope, filters)
     pagination = " LIMIT ? OFFSET ?" if limit else ""
-    params = (int(limit), max(0, int(offset))) if limit else ()
+    if limit:
+        params.extend((int(limit), max(0, int(offset))))
     c.execute(f"""SELECT leads.*,
                  (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id
-                 FROM leads {where} ORDER BY data_adicao DESC{pagination}""", params)
+                 FROM leads{where} ORDER BY data_adicao DESC{pagination}""", params)
     rows = c.fetchall()
     conn.close()
     leads = [dict(ix) for ix in rows]
@@ -679,12 +715,20 @@ def extrair_apenas_numeros(telefone):
     return numeros
 
 def eh_celular_valido(numeros):
-    if not numeros: return False
-    if numeros.startswith("55") and len(numeros) == 13:
-        return numeros[4] == "9"
-    if not numeros.startswith("55"):
-        return True # Aceita internacionais
-    return False
+    digits = re.sub(r"\D", "", str(numeros or ""))
+    if not digits or len(set(digits)) == 1:
+        return False
+    if digits.startswith("55"):
+        valid_ddd = {
+            "11", "12", "13", "14", "15", "16", "17", "18", "19",
+            "21", "22", "24", "27", "28", "31", "32", "33", "34", "35", "37", "38",
+            "41", "42", "43", "44", "45", "46", "47", "48", "49", "51", "53", "54", "55",
+            "61", "62", "63", "64", "65", "66", "67", "68", "69", "71", "73", "74", "75", "77",
+            "79", "81", "82", "83", "84", "85", "86", "87", "88", "89", "91", "92", "93", "94",
+            "95", "96", "97", "98", "99",
+        }
+        return len(digits) == 13 and digits[2:4] in valid_ddd and digits[4] == "9" and len(set(digits[4:])) >= 4
+    return 8 <= len(digits) <= 15 and len(set(digits[-8:])) >= 3
 
 def formatar_whatsapp(numeros, copy_texto=""):
     if not numeros: return ""
@@ -1254,7 +1298,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.29-target-context-v1",
+            "commercial_release": "2026.10.29-crm-whatsapp-v2",
             "target_engine_version": "2026.10.29-context-history-v4",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1269,8 +1313,22 @@ def health():
 def crm():
     page = max(1, request.args.get("page", 1, type=int))
     per_page = 20
+    crm_filters = {
+        "nome": normalizar_texto(request.args.get("nome", ""), 100),
+        "status": normalizar_texto(request.args.get("status", ""), 40),
+        "nicho": normalizar_texto(request.args.get("nicho", ""), 120).casefold(),
+        "potencial": normalizar_texto(request.args.get("potencial", ""), 40),
+        "followup": normalizar_texto(request.args.get("followup", ""), 20),
+        "site": normalizar_texto(request.args.get("site", ""), 80),
+        "qualidade": normalizar_texto(request.args.get("qualidade", ""), 40),
+    }
+    active_filters = {key: value for key, value in crm_filters.items() if value}
     conn = sqlite3.connect(DB_NAME)
-    total = conn.execute("SELECT COUNT(*) FROM leads WHERE status != 'Descartado'").fetchone()[0]
+    where, params = build_crm_where("active", crm_filters)
+    total = conn.execute(f"SELECT COUNT(*) FROM leads{where}", params).fetchone()[0]
+    available_niches = [row[0] for row in conn.execute(
+        "SELECT DISTINCT nicho FROM leads WHERE status != 'Descartado' AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)"
+    ).fetchall()]
     site_counts = conn.execute(
         """SELECT
              SUM(CASE WHEN site_opportunity_status = 'Site encontrado — sem sinal claro' THEN 1 ELSE 0 END),
@@ -1285,7 +1343,7 @@ def crm():
     conn.close()
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, total_pages)
-    ativos = load_leads("active", per_page, (page - 1) * per_page)
+    ativos = load_leads("active", per_page, (page - 1) * per_page, crm_filters)
     for lead in ativos:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
     contact_payloads = {
@@ -1311,24 +1369,39 @@ def crm():
         leads_site_para_auditar=leads_site_para_auditar,
         is_descartados=False, follow_up_counts=follow_up_counts,
         page=page, total_pages=total_pages, total_leads=total, contact_payloads=contact_payloads,
+        crm_filters=crm_filters, active_filters=active_filters, available_niches=available_niches,
     )
 
 @app.route("/crm/descartados")
 def crm_descartados():
     page = max(1, request.args.get("page", 1, type=int))
     per_page = 20
+    crm_filters = {
+        "nome": normalizar_texto(request.args.get("nome", ""), 100),
+        "status": "", "nicho": normalizar_texto(request.args.get("nicho", ""), 120).casefold(),
+        "potencial": normalizar_texto(request.args.get("potencial", ""), 40),
+        "followup": normalizar_texto(request.args.get("followup", ""), 20),
+        "site": normalizar_texto(request.args.get("site", ""), 80),
+        "qualidade": normalizar_texto(request.args.get("qualidade", ""), 40),
+    }
+    active_filters = {key: value for key, value in crm_filters.items() if value}
     conn = sqlite3.connect(DB_NAME)
-    total = conn.execute("SELECT COUNT(*) FROM leads WHERE status = 'Descartado'").fetchone()[0]
+    where, params = build_crm_where("discarded", crm_filters)
+    total = conn.execute(f"SELECT COUNT(*) FROM leads{where}", params).fetchone()[0]
+    available_niches = [row[0] for row in conn.execute(
+        "SELECT DISTINCT nicho FROM leads WHERE status = 'Descartado' AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)"
+    ).fetchall()]
     conn.close()
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, total_pages)
-    descartados = load_leads("discarded", per_page, (page - 1) * per_page)
+    descartados = load_leads("discarded", per_page, (page - 1) * per_page, crm_filters)
     for lead in descartados:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
     return render_template(
         "crm.html", leads=descartados, leads_com_site=0,
         leads_site_para_auditar=0, is_descartados=True, follow_up_counts={},
         page=page, total_pages=total_pages, total_leads=total, contact_payloads={},
+        crm_filters=crm_filters, active_filters=active_filters, available_niches=available_niches,
     )
 
 
@@ -1548,7 +1621,7 @@ def create_preview(place_id):
         raw = lead_to_raw_data(current_lead)
         result = gerar_copy_inteligente(raw, load_config(), is_intl=lead_is_international(current_lead), preview_available=True)
         phone = extrair_apenas_numeros(current_lead.get("telefone", ""))
-        whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else current_lead.get("whatsapp_link", "")
+        whatsapp = formatar_whatsapp(phone, result["mensagem"]) if eh_celular_valido(phone) else ""
         update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
                        result["versoes"], result["inteligencia"], result["qualidade"])
 
@@ -1599,7 +1672,7 @@ def regenerate_lead_pitches(place_id):
     previews = get_preview_versions(place_id)
     result = gerar_copy_inteligente(lead_to_raw_data(lead), load_config(), is_intl=lead_is_international(lead), preview_available=bool(previews))
     phone = extrair_apenas_numeros(lead.get("telefone", ""))
-    whatsapp = formatar_whatsapp(phone, result["mensagem"]) if phone else lead.get("whatsapp_link", "")
+    whatsapp = formatar_whatsapp(phone, result["mensagem"]) if eh_celular_valido(phone) else ""
     update_lead_ai(place_id, result["mensagem"], result["analise"], result["estrategia"], whatsapp,
                    result["versoes"], result["inteligencia"], result["qualidade"])
     return jsonify({"success": True, "versoes": result["versoes"], "qualidade": result["qualidade"]})
@@ -1622,7 +1695,7 @@ def save_lead_pitch(place_id):
     quality = evaluate_pitches(copies, intelligence, require_preview=bool(get_preview_versions(place_id)))
     primary = copies.get("consultiva") or text
     phone = extrair_apenas_numeros(lead.get("telefone", ""))
-    whatsapp = formatar_whatsapp(phone, primary) if phone else lead.get("whatsapp_link", "")
+    whatsapp = formatar_whatsapp(phone, primary) if eh_celular_valido(phone) else ""
     update_lead_ai(place_id, primary, lead.get("analise_ia", ""), lead.get("estrategia_ia", ""), whatsapp,
                    copies, intelligence, quality)
     return jsonify({"success": True, "qualidade": quality})
@@ -2365,6 +2438,7 @@ def extrator_worker(data, config, queue):
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
+                            whatsapp_provavel = eh_celular_valido(numeros_whats)
                             phone_key = re.sub(r"\D", "", telefone_raw or "")[-11:]
                             name_key = (normalize(nome), normalize(bairro))
                             if (len(phone_key) >= 10 and phone_key in existing_phones) or name_key in existing_names:
@@ -2372,7 +2446,7 @@ def extrator_worker(data, config, queue):
                                 record_lead_discovery(place_id, nicho, bairro, search_run_id, "duplicate_identity")
                                 publicar_status(f"Empresa já existente ignorada: {nome}")
                                 continue
-                            if data.get("strict_mobile") and not eh_celular_valido(numeros_whats):
+                            if data.get("strict_mobile") and not whatsapp_provavel:
                                 stats["telefone_invalido"] += 1
                                 continue
                             end_el = page.locator("button[data-item-id='address']")
@@ -2387,7 +2461,7 @@ def extrator_worker(data, config, queue):
                                 stats["nota_baixa"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa")
                                 continue
-                            if data.get("req_whatsapp") and not numeros_whats:
+                            if data.get("req_whatsapp") and not whatsapp_provavel:
                                 stats["sem_whatsapp"] += 1
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
                                 continue
@@ -2439,7 +2513,7 @@ def extrator_worker(data, config, queue):
                             }
                             
                             is_intl = data.get("mercado", "br") != "br"
-                            whats_link_final = formatar_whatsapp(numeros_whats, "") if numeros_whats else ""
+                            whats_link_final = formatar_whatsapp(numeros_whats, "") if whatsapp_provavel else ""
                             lead_data = {
                                 "Nome": nome, "Nicho": nicho, "Bairro": bairro,
                                 "Nota Maps": nota_str, "Qtd Avaliacoes": avaliacoes_str,
@@ -2519,7 +2593,7 @@ def extrator_worker(data, config, queue):
                                     analise_ia = resultado_ia.get("analise", "")
                                     estrategia_ia = resultado_ia.get("estrategia", "")
                                     publicar_status(f"Pitch profissional pronto: {nome}")
-                                    whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if numeros_whats else ""
+                                    whats_link_final = formatar_whatsapp(numeros_whats, copy_texto) if whatsapp_provavel else ""
                                     update_lead_ai(
                                         place_id,
                                         copy_texto,
@@ -3103,7 +3177,7 @@ def worker_regenerar_copys():
                 e_ia = res_ia.get("estrategia", "")
                 v_pitch = res_ia.get("versoes", {})
 
-                w_link = formatar_whatsapp(tel, c_texto) if tel and eh_celular_valido(tel) else lead.get("whatsapp_link", "")
+                w_link = formatar_whatsapp(tel, c_texto) if eh_celular_valido(tel) else ""
 
                 update_lead_ai(
                     place_id,
@@ -3160,6 +3234,27 @@ def api_status_regenerar_copys():
     with REGEN_LOCK:
         STATUS_REGEN = load_regeneration_status()
         return jsonify(dict(STATUS_REGEN))
+
+
+def remover_whatsapps_invalidos_existentes():
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        rows = conn.execute(
+            "SELECT place_id, telefone FROM leads WHERE trim(coalesce(whatsapp_link, '')) != ''"
+        ).fetchall()
+        invalid_ids = [
+            place_id for place_id, phone in rows
+            if not eh_celular_valido(extrair_apenas_numeros(phone))
+        ]
+        if invalid_ids:
+            conn.executemany("UPDATE leads SET whatsapp_link = '' WHERE place_id = ?", [(place_id,) for place_id in invalid_ids])
+            conn.commit()
+        return len(invalid_ids)
+    finally:
+        conn.close()
+
+
+remover_whatsapps_invalidos_existentes()
 
 
 if __name__ == "__main__":
