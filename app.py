@@ -508,7 +508,11 @@ def build_crm_where(status_scope=None, filters=None):
     filters = filters or {}
     clauses = []
     params = []
-    if status_scope == "active":
+    if status_scope == "inbox":
+        clauses.append("leads.status = 'Novo'")
+    elif status_scope == "contacted":
+        clauses.append("leads.status IN ('Contatado', 'Conversando', 'Fechado', 'Não fechado')")
+    elif status_scope == "active":
         clauses.append("leads.status != 'Descartado'")
     elif status_scope == "discarded":
         clauses.append("leads.status = 'Descartado'")
@@ -1316,7 +1320,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.29-pipeline-simple-v3",
+            "commercial_release": "2026.10.29-crm-queues-v4",
             "target_engine_version": "2026.10.29-context-history-v4",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1327,13 +1331,12 @@ def health():
     except Exception:
         return jsonify({"status": "error", "database": "unavailable"}), 503
 
-@app.route("/crm")
-def crm():
+def render_crm_view(status_scope, crm_view):
     page = max(1, request.args.get("page", 1, type=int))
     per_page = 20
     crm_filters = {
         "nome": normalizar_texto(request.args.get("nome", ""), 100),
-        "status": normalizar_texto(request.args.get("status", ""), 40),
+        "status": normalizar_texto(request.args.get("status", ""), 40) if crm_view == "contacted" else "",
         "nicho": normalizar_texto(request.args.get("nicho", ""), 120).casefold(),
         "potencial": normalizar_texto(request.args.get("potencial", ""), 40),
         "followup": normalizar_texto(request.args.get("followup", ""), 20),
@@ -1342,27 +1345,32 @@ def crm():
     }
     active_filters = {key: value for key, value in crm_filters.items() if value}
     conn = sqlite3.connect(DB_NAME)
-    where, params = build_crm_where("active", crm_filters)
+    where, params = build_crm_where(status_scope, crm_filters)
     total = conn.execute(f"SELECT COUNT(*) FROM leads{where}", params).fetchone()[0]
+    scope_where, scope_params = build_crm_where(status_scope)
     available_niches = [row[0] for row in conn.execute(
-        "SELECT DISTINCT nicho FROM leads WHERE status != 'Descartado' AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)"
+        f"SELECT DISTINCT nicho FROM leads{scope_where} AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)",
+        scope_params,
     ).fetchall()]
-    site_counts = conn.execute(
-        """SELECT
-             SUM(CASE WHEN site_opportunity_status = 'Site encontrado — sem sinal claro' THEN 1 ELSE 0 END),
-             SUM(CASE WHEN site_opportunity_status = 'Revisão manual' OR
-                           ((site_opportunity_status IS NULL OR site_opportunity_status = '') AND link_inicial != '')
-                      THEN 1 ELSE 0 END)
-           FROM leads WHERE status != 'Descartado'"""
-    ).fetchone()
+    if crm_view == "inbox":
+        site_counts = conn.execute(
+            """SELECT
+                 SUM(CASE WHEN site_opportunity_status = 'Site encontrado — sem sinal claro' THEN 1 ELSE 0 END),
+                 SUM(CASE WHEN site_opportunity_status = 'Revisão manual' OR
+                               ((site_opportunity_status IS NULL OR site_opportunity_status = '') AND link_inicial != '')
+                          THEN 1 ELSE 0 END)
+               FROM leads WHERE status = 'Novo'"""
+        ).fetchone()
+    else:
+        site_counts = (0, 0)
     follow_up_values = [row[0] for row in conn.execute(
-        "SELECT next_action_at FROM leads WHERE status != 'Descartado'"
+        f"SELECT next_action_at FROM leads{scope_where}", scope_params,
     ).fetchall()]
     conn.close()
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, total_pages)
-    ativos = load_leads("active", per_page, (page - 1) * per_page, crm_filters)
-    for lead in ativos:
+    leads = load_leads(status_scope, per_page, (page - 1) * per_page, crm_filters)
+    for lead in leads:
         lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
     contact_payloads = {
         lead["place_id"]: {
@@ -1374,7 +1382,7 @@ def crm():
             "default_mode": lead.get("recommended_pitch_mode") or "consultiva",
             "contact_label": (lead.get("contact_strategy") or {}).get("label") or "Contato geral",
         }
-        for lead in ativos
+        for lead in leads
     }
     leads_com_site = site_counts[0] or 0
     leads_site_para_auditar = site_counts[1] or 0
@@ -1383,44 +1391,27 @@ def crm():
         for state in ("atrasado", "hoje", "proximo", "sem_acao")
     }
     return render_template(
-        "crm.html", leads=ativos, leads_com_site=leads_com_site,
+        "crm.html", leads=leads, leads_com_site=leads_com_site,
         leads_site_para_auditar=leads_site_para_auditar,
-        is_descartados=False, follow_up_counts=follow_up_counts,
+        is_descartados=crm_view == "discarded", crm_view=crm_view, follow_up_counts=follow_up_counts,
         page=page, total_pages=total_pages, total_leads=total, contact_payloads=contact_payloads,
         crm_filters=crm_filters, active_filters=active_filters, available_niches=available_niches,
     )
 
+
+@app.route("/crm")
+def crm():
+    return render_crm_view("inbox", "inbox")
+
+
+@app.route("/crm/contatados")
+def crm_contatados():
+    return render_crm_view("contacted", "contacted")
+
+
 @app.route("/crm/descartados")
 def crm_descartados():
-    page = max(1, request.args.get("page", 1, type=int))
-    per_page = 20
-    crm_filters = {
-        "nome": normalizar_texto(request.args.get("nome", ""), 100),
-        "status": "", "nicho": normalizar_texto(request.args.get("nicho", ""), 120).casefold(),
-        "potencial": normalizar_texto(request.args.get("potencial", ""), 40),
-        "followup": normalizar_texto(request.args.get("followup", ""), 20),
-        "site": normalizar_texto(request.args.get("site", ""), 80),
-        "qualidade": normalizar_texto(request.args.get("qualidade", ""), 40),
-    }
-    active_filters = {key: value for key, value in crm_filters.items() if value}
-    conn = sqlite3.connect(DB_NAME)
-    where, params = build_crm_where("discarded", crm_filters)
-    total = conn.execute(f"SELECT COUNT(*) FROM leads{where}", params).fetchone()[0]
-    available_niches = [row[0] for row in conn.execute(
-        "SELECT DISTINCT nicho FROM leads WHERE status = 'Descartado' AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)"
-    ).fetchall()]
-    conn.close()
-    total_pages = max(1, (total + per_page - 1) // per_page)
-    page = min(page, total_pages)
-    descartados = load_leads("discarded", per_page, (page - 1) * per_page, crm_filters)
-    for lead in descartados:
-        lead["follow_up_state"] = classificar_prazo_followup(lead.get("next_action_at"))
-    return render_template(
-        "crm.html", leads=descartados, leads_com_site=0,
-        leads_site_para_auditar=0, is_descartados=True, follow_up_counts={},
-        page=page, total_pages=total_pages, total_leads=total, contact_payloads={},
-        crm_filters=crm_filters, active_filters=active_filters, available_niches=available_niches,
-    )
+    return render_crm_view("discarded", "discarded")
 
 
 def get_lead_by_id(place_id):

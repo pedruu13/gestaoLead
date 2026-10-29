@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% set active_page = "crm" %}
-{% block header_title %}Pipeline & Mesa de Operações B2B{% endblock %}
+{% block header_title %}{% if crm_view == 'inbox' %}Leads para abordar{% elif crm_view == 'contacted' %}Contatos em andamento{% else %}Leads descartados{% endif %}{% endblock %}
 
 {% block content %}
 <div class="space-y-6 pb-12">
@@ -11,10 +11,10 @@
                 <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                 <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Mesa Comercial de Atendimento</p>
             </div>
-            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Sua fila comercial</h1>
-            <p class="text-xs text-slate-400 mt-1">Veja quem abordar agora, quem precisa de retorno e qual é o próximo passo. Exibindo até 20 por página de {{ total_leads }} lead(s).</p>
+            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">{% if crm_view == 'inbox' %}A abordar{% elif crm_view == 'contacted' %}Contatados{% else %}Descartados{% endif %}</h1>
+            <p class="text-xs text-slate-400 mt-1">{% if crm_view == 'inbox' %}Somente empresas que ainda não receberam sua mensagem.{% elif crm_view == 'contacted' %}Empresas já abordadas, conversas, fechamentos e retornos.{% else %}Empresas retiradas manualmente da operação.{% endif %} Exibindo até 20 por página de {{ total_leads }} lead(s).</p>
             
-            {% if not is_descartados %}
+            {% if crm_view == 'inbox' %}
             <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-bold text-cyan-300">
                 <i class="fa-solid fa-radar text-cyan-400"></i>
                 <span>{{ leads_com_site }} lead(s) com site e sem oportunidade objetiva</span>
@@ -66,7 +66,7 @@
             </div>
             
             <!-- Filtro Status -->
-            <div class="relative w-full sm:w-44">
+            {% if crm_view == 'contacted' %}<div class="relative w-full sm:w-44">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-bars-progress text-slate-500 text-xs"></i>
                 </div>
@@ -81,7 +81,7 @@
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
                 </div>
-            </div>
+            </div>{% endif %}
 
             <div class="relative w-full sm:w-48">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
@@ -166,7 +166,7 @@
                 <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
                 <option value="Fechado" {{ 'selected' if lead.status == 'Fechado' else '' }}>Fechado</option>
                 <option value="Não fechado" {{ 'selected' if lead.status == 'Não fechado' else '' }}>Não fechado</option>
-                <option value="Descartado">Descartado</option>
+                <option value="Descartado" {{ 'selected' if lead.status == 'Descartado' else '' }}>Descartado</option>
             </select>
             {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-cyan-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
             <div class="mt-4 grid grid-cols-2 gap-2">
@@ -231,7 +231,7 @@
                                 <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
                                 <option value="Fechado" {{ 'selected' if lead.status == 'Fechado' else '' }}>Fechado</option>
                                 <option value="Não fechado" {{ 'selected' if lead.status == 'Não fechado' else '' }}>Não fechado</option>
-                                <option value="Descartado">Descartado</option>
+                                <option value="Descartado" {{ 'selected' if lead.status == 'Descartado' else '' }}>Descartado</option>
                             </select>
                             {% if lead.next_action %}
                             <div class="mt-2 max-w-48 rounded-lg border border-blue-500/20 bg-blue-500/5 px-2.5 py-2 text-[10px] leading-relaxed text-blue-200" title="{{ lead.next_action }}">
@@ -298,7 +298,7 @@
     </div>
     {% if total_pages > 1 %}
     <nav class="flex items-center justify-between rounded-2xl border border-[#1E293B] bg-[#0E1422] p-3" aria-label="Paginação do CRM">
-        {% set page_endpoint = 'crm_descartados' if is_descartados else 'crm' %}
+        {% set page_endpoint = 'crm' if crm_view == 'inbox' else 'crm_contatados' if crm_view == 'contacted' else 'crm_descartados' %}
         <a href="{{ url_for(page_endpoint, page=page-1, **active_filters) if page > 1 else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
         <span class="text-xs font-bold text-slate-400">Página <strong class="text-white">{{ page }}</strong> de {{ total_pages }}</span>
         <a href="{{ url_for(page_endpoint, page=page+1, **active_filters) if page < total_pages else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
@@ -460,6 +460,7 @@
 {% block scripts %}
 <script>
     const contactPayloads = {{ contact_payloads | tojson | safe }};
+    const crmView = {{ crm_view | tojson }};
 
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('select[onchange^="updateStatus"]').forEach(statusSelect => {
@@ -530,13 +531,18 @@
                 document.querySelectorAll('.lead-item').forEach(item => {
                     if (item.dataset.placeId === placeId) item.dataset.status = savedStatus;
                 });
-                if (data.removed_from_pipeline) {
+                const leavesCurrentView = data.removed_from_pipeline
+                    || (crmView === 'inbox' && savedStatus !== 'Novo')
+                    || (crmView === 'contacted' && !['Contatado', 'Conversando', 'Fechado', 'Não fechado'].includes(savedStatus))
+                    || (crmView === 'discarded' && savedStatus !== 'Descartado');
+                if (leavesCurrentView) {
                     document.querySelectorAll('.lead-item').forEach(item => {
                         if (item.dataset.placeId === placeId) item.remove();
                     });
                     delete contactPayloads[placeId];
                     if (document.getElementById('central_copy')?.dataset.placeId === placeId) fecharCentralContato();
-                    showAppToast('Lead movido para a página de Descartados.');
+                    const destination = savedStatus === 'Descartado' ? 'Descartados' : savedStatus === 'Novo' ? 'A abordar' : 'Contatados';
+                    showAppToast(`Lead movido para ${destination}.`);
                 } else {
                     showAppToast(`Etapa atualizada para ${savedStatus === 'Novo' ? 'A abordar' : savedStatus}.`);
                 }
@@ -756,6 +762,12 @@
             document.querySelectorAll('.lead-item').forEach(item => {
                 if (item.dataset.placeId === placeId) item.dataset.status = data.status;
             });
+            if (crmView === 'inbox') {
+                document.querySelectorAll('.lead-item').forEach(item => {
+                    if (item.dataset.placeId === placeId) item.remove();
+                });
+                delete contactPayloads[placeId];
+            }
             if (!options.silent) showAppToast(`Abordagem registrada. Retorno agendado para ${data.next_action_at.replace('T', ' ')}.`);
             return true;
         } catch (error) {

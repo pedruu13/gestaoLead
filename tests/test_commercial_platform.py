@@ -482,7 +482,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.29-pipeline-simple-v3", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.29-crm-queues-v4", health.get_json()["commercial_release"])
                 self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
@@ -654,8 +654,8 @@ class PreviewStudioTests(unittest.TestCase):
                     session["authenticated"] = True
                     session["user"] = "teste"
                 query = "status=Contatado&site=Constru%C3%A7%C3%A3o+de+site"
-                first_page = client.get(f"/crm?{query}").get_data(as_text=True)
-                second_page = client.get(f"/crm?page=2&{query}").get_data(as_text=True)
+                first_page = client.get(f"/crm/contatados?{query}").get_data(as_text=True)
+                second_page = client.get(f"/crm/contatados?page=2&{query}").get_data(as_text=True)
                 self.assertIn('value="Contatado" selected', first_page)
                 self.assertIn('value="Construção de site" selected', first_page)
                 self.assertIn("Página <strong class=\"text-white\">1</strong> de 2", first_page)
@@ -711,7 +711,39 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(200, response.status_code)
                 self.assertTrue(response.get_json()["removed_from_pipeline"])
                 self.assertNotIn("Lead para descartar", client.get("/crm").get_data(as_text=True))
-                self.assertIn("Lead para descartar", client.get("/crm/descartados").get_data(as_text=True))
+                discarded_html = client.get("/crm/descartados").get_data(as_text=True)
+                self.assertIn("Lead para descartar", discarded_html)
+                self.assertIn('value="Descartado" selected', discarded_html)
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
+
+    def test_contacted_lead_moves_from_inbox_to_contacted_queue(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "contacted-queue.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                lead = sample_lead("Lead para contatar")
+                lead["Copy Texto"] = "Olá, quero apresentar uma proposta de site."
+                self.assertTrue(application.save_lead_db(lead, "contact-me"))
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                self.assertIn("Lead para contatar", client.get("/crm").get_data(as_text=True))
+                self.assertNotIn("Lead para contatar", client.get("/crm/contatados").get_data(as_text=True))
+                response = client.post("/api/leads/contact-me/contacted", json={
+                    "channel": "WhatsApp", "pitch_mode": "consultiva",
+                    "message": "Olá, quero apresentar uma proposta de site.",
+                })
+                self.assertEqual(200, response.status_code)
+                self.assertEqual("Contatado", response.get_json()["status"])
+                self.assertNotIn("Lead para contatar", client.get("/crm").get_data(as_text=True))
+                self.assertIn("Lead para contatar", client.get("/crm/contatados").get_data(as_text=True))
+                self.assertNotIn("Lead para contatar", client.get("/crm/descartados").get_data(as_text=True))
             finally:
                 application.DB_NAME = old_db
                 application.load_config = old_load_config

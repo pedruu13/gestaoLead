@@ -113,13 +113,18 @@
                 <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Workspace</span>
             </div>
             
-            <a href="/crm" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and not is_descartados %}bg-blue-600/15 text-white border-l-2 border-blue-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-layer-group w-4 text-center {% if active_page == 'crm' and not is_descartados %}text-cyan-400{% else %}text-slate-400{% endif %}"></i> 
-                Pipeline do CRM
+            <a href="/crm" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'inbox' %}bg-blue-600/15 text-white border-l-2 border-blue-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
+                <i class="fa-solid fa-paper-plane w-4 text-center {% if active_page == 'crm' and crm_view == 'inbox' %}text-cyan-400{% else %}text-slate-400{% endif %}"></i>
+                A abordar
             </a>
 
-            <a href="/crm/descartados" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and is_descartados %}bg-rose-500/15 text-rose-300 border-l-2 border-rose-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-ban w-4 text-center {% if active_page == 'crm' and is_descartados %}text-rose-400{% else %}text-slate-400{% endif %}"></i> 
+            <a href="/crm/contatados" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'contacted' %}bg-emerald-500/15 text-emerald-200 border-l-2 border-emerald-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
+                <i class="fa-solid fa-comments w-4 text-center {% if active_page == 'crm' and crm_view == 'contacted' %}text-emerald-400{% else %}text-slate-400{% endif %}"></i>
+                Contatados
+            </a>
+
+            <a href="/crm/descartados" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'discarded' %}bg-rose-500/15 text-rose-300 border-l-2 border-rose-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
+                <i class="fa-solid fa-ban w-4 text-center {% if active_page == 'crm' and crm_view == 'discarded' %}text-rose-400{% else %}text-slate-400{% endif %}"></i>
                 Descartados
             </a>
             
