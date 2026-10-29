@@ -483,7 +483,7 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
                 self.assertEqual("2026.10.29-crm-queues-v4", health.get_json()["commercial_release"])
-                self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
+                self.assertEqual("4.2", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)
