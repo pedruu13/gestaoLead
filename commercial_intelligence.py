@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 
 
-PITCH_PIPELINE_VERSION = "4.1"
+PITCH_PIPELINE_VERSION = "4.2"
 
 
 SOCIAL_OR_DIRECTORY_HOSTS = (
@@ -314,12 +314,12 @@ def recommend_contact_strategy(lead, preview_available=False):
 def plan_commercial_angle(context):
     channel = context["channels"][0] if context["channels"] else "canal de atendimento"
     if context["site_verified"]:
-        observation = "A empresa já possui um site; a proposta deve ser apresentada como evolução, não como criação do zero."
-        need_statement = f"O ponto comercial é avaliar se a página ajuda {context['audience']} a resolver {context['friction']} antes do contato."
+        observation = "A empresa já possui um site; a proposta deve ser apresentada como evolução e modernização, não como criação do zero."
+        need_statement = f"Para {context['commercial_category']}, é fundamental que a página ajude {context['audience']} a entender o atendimento e resolver {context['friction']} de forma rápida no celular."
         offer_action = "reestruturar o site"
     else:
         observation = "Não foi encontrado um site próprio vinculado ao perfil da empresa no Google."
-        need_statement = f"Sem uma página própria, o potencial cliente pode chegar ao {channel} ainda com {context['friction']}."
+        need_statement = f"Hoje, a maioria das pessoas pesquisa no Google antes de entrar em contato. Sem uma página própria, o potencial cliente pode chegar ao {channel} ainda com {context['friction']} ou acabar buscando outra opção."
         offer_action = "desenvolver um site profissional"
     hook, site_value = SEGMENT_COPY_ANGLES.get(context["segment"], SEGMENT_COPY_ANGLES["serviços locais"])
     entity_reference = SEGMENT_BUSINESS_REFERENCES.get(context["segment"], "da empresa")
@@ -378,9 +378,10 @@ def _seller_introduction_en(analysis, plural=False):
 
 
 def _site_observation_for_pitch(context, plan):
+    ref = plan["entity_reference"]
     if context["site_verified"]:
-        return f"Vi que {plan['entity_reference'][1:]} já possui um site, então minha proposta seria trabalhar a clareza comercial e o caminho até o contato."
-    return f"Ao pesquisar a presença digital {plan['entity_reference']}, não encontrei um site próprio vinculado ao perfil do Google."
+        return f"Ao analisar a presença digital {ref}, vi que vocês já possuem um site, então nossa proposta é trabalhar a modernização no celular e o caminho até o contato."
+    return f"Ao pesquisar a presença digital {ref} no Google, não encontrei um site próprio vinculado ao perfil."
 
 
 def analyze_lead(lead, preview_available=False):
@@ -462,14 +463,14 @@ def generate_fallback_pitches(analysis, is_intl=False):
     agency_introduction = _seller_introduction(analysis, plural=True)
     observation = _site_observation_for_pitch(context, plan)
     pitches = {
-        "consultiva": f"Olá, tudo bem? {introduction} {observation} {plan['need_statement']} Minha proposta é {plan['offer_action']} para {plan['site_value']}. Posso encaminhar um escopo inicial para vocês avaliarem?",
-        "direta": f"Olá. {introduction} {observation} Para {plan['category_with_article']}, um site profissional pode {plan['site_value']}. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
-        "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']}. Podemos conversar sobre esse projeto?",
-        "recepcao": f"Olá, tudo bem? {introduction} Gostaria de apresentar uma proposta de site profissional para {plan['proposal_target']}. {observation} A ideia é {plan['site_value']}. Como este número pode ser da recepção ou do agendamento, você poderia encaminhar esta mensagem à pessoa que cuida do site ou me informar o melhor contato?",
-        "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} {plan['need_statement']} Nossa proposta é {plan['offer_action']} para {plan['site_value']}. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
+        "consultiva": f"Olá, tudo bem? {introduction} {observation} {plan['need_statement']} Minha proposta é {plan['offer_action']} para {plan['site_value']}, transmitindo mais credibilidade para quem encontra vocês na internet. Posso encaminhar um escopo inicial para vocês avaliarem?",
+        "direta": f"Olá, tudo bem? {introduction} {observation} Para {plan['category_with_article']}, um site profissional bem estruturado no celular ajuda a {plan['site_value']} e destaca o negócio frente aos concorrentes. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
+        "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente costuma pesquisar referências antes de chamar e pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']} com foco em confiança e agilidade. Podemos conversar sobre esse projeto?",
+        "recepcao": f"Olá, tudo bem? {introduction} Gostaria de apresentar uma proposta de site profissional para {plan['proposal_target']}. {observation} A ideia é criar uma página que ajude a {plan['site_value']}, facilitando o esclarecimento de dúvidas e valorizando o atendimento. Como este número pode ser da recepção ou do agendamento, você poderia encaminhar esta mensagem à pessoa responsável ou me informar o melhor contato?",
+        "email": f"Assunto: proposta de site profissional para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} {plan['need_statement']} Nossa proposta é {plan['offer_action']} para {plan['site_value']}, fortalecendo a presença digital e gerando contatos mais preparados para a equipe. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
     }
     if analysis.get("preview_available"):
-        pitches["previa_visual"] = "Oi! Preparei um conceito visual não oficial usando apenas informações confirmadas. Não é um site pronto: é uma imagem para conversar sobre organização, leitura no celular e caminho até o contato. Posso enviar a imagem com uma explicação curta?"
+        pitches["previa_visual"] = f"Oi, tudo bem? {introduction} Como vocês ainda não possuem um site próprio no perfil do Google, montei uma prévia visual para mostrar como a estrutura {plan['entity_reference']} pode ficar no celular, com os serviços explicados e um caminho direto até o contato. É uma imagem conceitual da estrutura. Posso te enviar a imagem com uma explicação curta?"
     return pitches
 
 
@@ -511,6 +512,8 @@ def review_pitch(text, analysis, mode):
     greeting_area = clean_text(value, 180).casefold()
     if full_name and full_name != "empresa" and full_name in greeting_area:
         issues.append("usa o nome completo do lead na saudação")
+    if full_name and full_name != "empresa" and len(full_name) > 15 and full_name in folded:
+        issues.append("menciona o nome comercial longo da empresa no texto")
     raw_category = clean_text(analysis.get("raw_category"), 140).casefold()
     commercial_category = clean_text(analysis.get("category"), 140).casefold()
     if raw_category and _fold(raw_category) not in _fold(commercial_category) and raw_category in folded:
@@ -611,6 +614,8 @@ Antes de escrever, siga o plano comercial fornecido. Transforme-o em conversa; n
 REGRAS OBRIGATÓRIAS:
 - 40 a 100 palavras por mensagem e menção clara a site.
 - Comece de forma natural, sem nome completo da pessoa ou do estabelecimento na saudação.
+- NUNCA use o nome da empresa ou o nome comercial longo do Google no texto. No Google os nomes costumam ser longos demais ou conter razão social/termos descritivos. Use sempre a referência natural pelo segmento ('da clínica', 'do escritório', 'da empresa', 'do consultório') ou dirija-se à equipe ('vocês').
+- Escreva de forma intuitiva, elegante e agradável de ler, mostrando que uma página própria valoriza o negócio, tira dúvidas antes do contato e faz o cliente chegar decidido a agendar.
 - Nunca copie categoria bruta do Google; use somente commercial_category de forma gramatical.
 - Use um benefício específico do segmento e trate-o como possibilidade, não como fato comprovado.
 - Apresente claramente quem está entrando em contato e que o serviço oferecido é criação ou reestruturação de site.
