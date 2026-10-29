@@ -57,6 +57,14 @@ CONFIG_FILE = "config.json"
 PREVIEW_DIR = os.path.join(os.path.dirname(__file__), "generated_previews")
 BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 DEFAULT_AGENCY_NAME = "PH Digital"
+PIPELINE_STATUS_MAP = {
+    "": "Novo", "Novo": "Novo", "Analisado": "Novo", "Mensagem preparada": "Novo",
+    "Contato Feito": "Contatado", "Contatado": "Contatado",
+    "Respondeu": "Conversando", "Interessado": "Conversando", "Proposta enviada": "Conversando",
+    "Negociação": "Conversando", "Em Negociação": "Conversando", "Conversando": "Conversando",
+    "Fechado": "Fechado", "Perdido": "Não fechado", "Não fechado": "Não fechado",
+    "Descartado": "Descartado",
+}
 LOGIN_ATTEMPTS = {}
 LOGIN_ATTEMPT_LOCK = threading.Lock()
 LOGIN_WINDOW_SECONDS = 15 * 60
@@ -402,6 +410,14 @@ def init_db():
            (place_id, first_seen_at, last_seen_at, last_niche, last_location, last_run_id, outcome)
            SELECT place_id, data_adicao, data_adicao, nicho, bairro, search_run_id, 'saved' FROM leads"""
     )
+    c.execute(
+        """UPDATE leads SET status = CASE
+             WHEN status IN ('Analisado', 'Mensagem preparada') OR status IS NULL OR trim(status) = '' THEN 'Novo'
+             WHEN status = 'Contato Feito' THEN 'Contatado'
+             WHEN status IN ('Respondeu', 'Interessado', 'Proposta enviada', 'Negociação', 'Em Negociação') THEN 'Conversando'
+             WHEN status = 'Perdido' THEN 'Não fechado'
+             ELSE status END"""
+    )
     for row in c.execute("SELECT place_id, nome, nicho, bairro FROM leads").fetchall():
         repaired_values = tuple(repair_known_mojibake(value) for value in row[1:])
         if repaired_values != tuple(value or "" for value in row[1:]):
@@ -476,8 +492,7 @@ def init_db():
         diagnosis = f"Confiança da análise: {intelligence['confidence']}%. Oportunidade: {intelligence['opportunity']}."
         c.execute(
             """UPDATE leads SET copy_texto = ?, copies_pitch = ?, inteligencia_comercial = ?,
-                      qualidade_pitch = ?, analise_ia = ?, estrategia_ia = ?,
-                      status = CASE WHEN status = 'Novo' THEN 'Mensagem preparada' ELSE status END
+                      qualidade_pitch = ?, analise_ia = ?, estrategia_ia = ?
                WHERE place_id = ?""",
             (pitches["consultiva"], json.dumps(pitches, ensure_ascii=False),
              json.dumps(intelligence, ensure_ascii=False), json.dumps(quality, ensure_ascii=False),
@@ -610,8 +625,7 @@ def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_lin
         conn.execute(
             """UPDATE leads
                SET copy_texto = ?, analise_ia = ?, estrategia_ia = ?, whatsapp_link = ?, copies_pitch = ?,
-                   inteligencia_comercial = ?, qualidade_pitch = ?,
-                   status = CASE WHEN status = 'Novo' THEN 'Mensagem preparada' ELSE status END
+                   inteligencia_comercial = ?, qualidade_pitch = ?
                WHERE place_id = ?""",
             (copy_texto, analise_ia, estrategia_ia, whatsapp_link, json.dumps(copies_pitch or {}, ensure_ascii=False),
              json.dumps(inteligencia or {}, ensure_ascii=False), json.dumps(qualidade or {}, ensure_ascii=False), place_id),
@@ -738,6 +752,10 @@ def formatar_whatsapp(numeros, copy_texto=""):
 
 def normalizar_texto(texto, limite=900):
     return re.sub(r"\s+", " ", texto or "").strip()[:limite]
+
+
+def normalizar_status_pipeline(status):
+    return PIPELINE_STATUS_MAP.get(str(status or "").strip())
 
 def extrair_numero_avaliacoes(valor):
     numeros = re.findall(r"\d+", str(valor or "").replace(".", "").replace(",", ""))
@@ -1298,7 +1316,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.29-crm-whatsapp-v2",
+            "commercial_release": "2026.10.29-pipeline-simple-v3",
             "target_engine_version": "2026.10.29-context-history-v4",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1544,7 +1562,7 @@ def register_lead_contact(place_id):
     now = datetime.now()
     next_action_at = add_business_days(now, 3).replace(hour=10, minute=0, second=0, microsecond=0)
     next_action = "Confirmar se a mensagem foi recebida e fazer um retorno curto, sem repetir a abordagem inicial."
-    advanced_statuses = {"Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    advanced_statuses = {"Conversando", "Fechado", "Não fechado"}
     next_status = lead.get("status") if lead.get("status") in advanced_statuses else "Contatado"
 
     conn = sqlite3.connect(DB_NAME)
@@ -1722,10 +1740,10 @@ def save_lead_follow_up(place_id):
     if not response_text and not next_action:
         return jsonify({"success": False, "error": "Informe uma resposta ou próxima ação"}), 400
 
-    status = "Interessado" if sentiment == "interessado" else "Respondeu" if response_text else lead.get("status", "Novo")
+    status = "Conversando" if response_text else normalizar_status_pipeline(lead.get("status")) or "Novo"
     do_not_contact = sentiment == "não contatar"
     if do_not_contact:
-        status = "Perdido"
+        status = "Não fechado"
     conn = sqlite3.connect(DB_NAME)
     try:
         conn.execute(
@@ -1762,7 +1780,7 @@ def update_do_not_contact(place_id):
         conn.execute(
             """UPDATE leads SET do_not_contact = ?, do_not_contact_reason = ?,
                do_not_contact_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END,
-               status = CASE WHEN ? THEN 'Perdido' ELSE 'Respondeu' END WHERE place_id = ?""",
+               status = CASE WHEN ? THEN 'Não fechado' ELSE 'Conversando' END WHERE place_id = ?""",
             (int(blocked), reason if blocked else "", blocked, blocked, place_id),
         )
         conn.execute(
@@ -1788,11 +1806,11 @@ def estatisticas():
     total_leads = len(leads)
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
-    em_negociacao = sum(1 for l in leads if l.get("status") in ("Interessado", "Proposta enviada", "Negociação", "Em Negociação"))
-    contacted_statuses = {"Contatado", "Contato Feito", "Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
-    response_statuses = {"Respondeu", "Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
-    interest_statuses = {"Interessado", "Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
-    proposal_statuses = {"Proposta enviada", "Negociação", "Em Negociação", "Fechado"}
+    em_negociacao = sum(1 for l in leads if l.get("status") == "Conversando")
+    contacted_statuses = {"Contatado", "Conversando", "Fechado", "Não fechado"}
+    response_statuses = {"Conversando", "Fechado", "Não fechado"}
+    interest_statuses = {"Conversando", "Fechado"}
+    proposal_statuses = {"Conversando", "Fechado"}
     contato_feito = sum(1 for l in leads if l.get("status") in contacted_statuses)
     responderam = sum(1 for l in leads if l.get("status") in response_statuses)
     interessados = sum(1 for l in leads if l.get("status") in interest_statuses)
@@ -1834,11 +1852,11 @@ def estatisticas():
         if len(region) > 2:
             dashboard_data["regioes"][region] = dashboard_data["regioes"].get(region, 0) + 1
         lead_status = lead.get("status") or "Novo"
-        if lead_status in {"Novo", "Analisado", "Mensagem preparada"}:
+        if lead_status == "Novo":
             stage = "Preparação"
-        elif lead_status in {"Contato Feito", "Contatado", "Respondeu"}:
+        elif lead_status == "Contatado":
             stage = "Contato"
-        elif lead_status in {"Interessado", "Proposta enviada", "Em Negociação", "Negociação"}:
+        elif lead_status == "Conversando":
             stage = "Negociação"
         elif lead_status == "Fechado":
             stage = "Fechado"
@@ -1900,13 +1918,8 @@ def configuracoes():
 def update_status():
     data = request.get_json(silent=True) or {}
     place_id = data.get("place_id", "")
-    status = data.get("status", "")
-    status_validos = {
-        "Novo", "Analisado", "Mensagem preparada", "Contatado", "Respondeu",
-        "Interessado", "Proposta enviada", "Negociação", "Fechado", "Perdido", "Descartado",
-        "Contato Feito", "Em Negociação",
-    }
-    if not place_id or status not in status_validos:
+    status = normalizar_status_pipeline(data.get("status", ""))
+    if not place_id or status not in {"Novo", "Contatado", "Conversando", "Fechado", "Não fechado", "Descartado"}:
         return jsonify({"success": False, "error": "Status ou lead inválido"}), 400
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -1921,7 +1934,7 @@ def update_status():
     conn.close()
     if not atualizado:
         return jsonify({"success": False, "error": "Lead não encontrado"}), 404
-    return jsonify({"success": True})
+    return jsonify({"success": True, "status": status, "removed_from_pipeline": status == "Descartado"})
 
 @app.route("/export/csv")
 def export_csv():

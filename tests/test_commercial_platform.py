@@ -451,7 +451,7 @@ class PreviewStudioTests(unittest.TestCase):
                 })
                 self.assertEqual(200, follow_up.status_code)
                 follow_up_data = follow_up.get_json()
-                self.assertEqual("Interessado", follow_up_data["status"])
+                self.assertEqual("Conversando", follow_up_data["status"])
                 self.assertIn("prévia visual", follow_up_data["next_action"])
 
                 blocked = client.post("/api/leads/test-place/do-not-contact", json={
@@ -475,18 +475,19 @@ class PreviewStudioTests(unittest.TestCase):
                 interaction_count = conn.execute("SELECT COUNT(*) FROM lead_interactions WHERE place_id = 'test-place'").fetchone()[0]
                 conn.close()
                 self.assertEqual(1, lead_state[0])
-                self.assertEqual("Perdido", lead_state[1])
+                self.assertEqual("Não fechado", lead_state[1])
                 self.assertTrue(lead_state[2])
                 self.assertEqual(3, interaction_count)
 
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.29-crm-whatsapp-v2", health.get_json()["commercial_release"])
+                self.assertEqual("2026.10.29-pipeline-simple-v3", health.get_json()["commercial_release"])
                 self.assertEqual("4.1", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)
+                self.assertEqual("Conversando", stage_change.get_json()["status"])
                 dashboard = client.get("/estatisticas")
                 self.assertEqual(200, dashboard.status_code)
                 self.assertIn("Taxa de proposta", dashboard.get_data(as_text=True))
@@ -634,7 +635,7 @@ class PreviewStudioTests(unittest.TestCase):
                 for index in range(45):
                     if index < 25:
                         connection.execute(
-                            """UPDATE leads SET status = 'Mensagem preparada',
+                            """UPDATE leads SET status = 'Contatado',
                                       site_opportunity_status = 'Construção de site'
                                WHERE place_id = ?""",
                             (f"filtered-{index:02d}",),
@@ -652,16 +653,16 @@ class PreviewStudioTests(unittest.TestCase):
                 with client.session_transaction() as session:
                     session["authenticated"] = True
                     session["user"] = "teste"
-                query = "status=Mensagem+preparada&site=Constru%C3%A7%C3%A3o+de+site"
+                query = "status=Contatado&site=Constru%C3%A7%C3%A3o+de+site"
                 first_page = client.get(f"/crm?{query}").get_data(as_text=True)
                 second_page = client.get(f"/crm?page=2&{query}").get_data(as_text=True)
-                self.assertIn('value="Mensagem preparada" selected', first_page)
+                self.assertIn('value="Contatado" selected', first_page)
                 self.assertIn('value="Construção de site" selected', first_page)
                 self.assertIn("Página <strong class=\"text-white\">1</strong> de 2", first_page)
                 self.assertIn("Página <strong class=\"text-white\">2</strong> de 2", second_page)
                 self.assertEqual(40, first_page.count('class="lead-item'))
                 self.assertEqual(10, second_page.count('class="lead-item'))
-                self.assertIn("status=Mensagem+preparada", first_page)
+                self.assertIn("status=Contatado", first_page)
                 self.assertIn("site=Constru%C3%A7%C3%A3o+de+site", first_page)
             finally:
                 application.DB_NAME = old_db
@@ -689,6 +690,28 @@ class PreviewStudioTests(unittest.TestCase):
                 connection.close()
                 self.assertEqual("", links["landline"])
                 self.assertTrue(links["mobile"].startswith("https://wa.me/"))
+            finally:
+                application.DB_NAME = old_db
+                application.load_config = old_load_config
+
+    def test_discarded_lead_leaves_active_pipeline_and_moves_to_discarded_page(self):
+        old_db = application.DB_NAME
+        old_load_config = application.load_config
+        with tempfile.TemporaryDirectory() as temp_dir:
+            application.DB_NAME = os.path.join(temp_dir, "discard-pipeline.db")
+            application.load_config = lambda: {}
+            try:
+                application.init_db()
+                self.assertTrue(application.save_lead_db(sample_lead("Lead para descartar"), "discard-me"))
+                client = application.app.test_client()
+                with client.session_transaction() as session:
+                    session["authenticated"] = True
+                    session["user"] = "teste"
+                response = client.post("/api/update_status", json={"place_id": "discard-me", "status": "Descartado"})
+                self.assertEqual(200, response.status_code)
+                self.assertTrue(response.get_json()["removed_from_pipeline"])
+                self.assertNotIn("Lead para descartar", client.get("/crm").get_data(as_text=True))
+                self.assertIn("Lead para descartar", client.get("/crm/descartados").get_data(as_text=True))
             finally:
                 application.DB_NAME = old_db
                 application.load_config = old_load_config

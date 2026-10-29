@@ -71,17 +71,12 @@
                     <i class="fa-solid fa-bars-progress text-slate-500 text-xs"></i>
                 </div>
                 <select id="filter_status" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
-                    <option value="">Todos os Status</option>
-                    <option value="Novo" {{ 'selected' if crm_filters.status == 'Novo' else '' }}>Novo</option>
-                    <option value="Analisado" {{ 'selected' if crm_filters.status == 'Analisado' else '' }}>Analisado</option>
-                    <option value="Mensagem preparada" {{ 'selected' if crm_filters.status == 'Mensagem preparada' else '' }}>Mensagem preparada</option>
+                    <option value="">Todas as etapas</option>
+                    <option value="Novo" {{ 'selected' if crm_filters.status == 'Novo' else '' }}>A abordar</option>
                     <option value="Contatado" {{ 'selected' if crm_filters.status == 'Contatado' else '' }}>Contatado</option>
-                    <option value="Respondeu" {{ 'selected' if crm_filters.status == 'Respondeu' else '' }}>Respondeu</option>
-                    <option value="Interessado" {{ 'selected' if crm_filters.status == 'Interessado' else '' }}>Interessado</option>
-                    <option value="Proposta enviada" {{ 'selected' if crm_filters.status == 'Proposta enviada' else '' }}>Proposta enviada</option>
-                    <option value="Negociação" {{ 'selected' if crm_filters.status == 'Negociação' else '' }}>Negociação</option>
+                    <option value="Conversando" {{ 'selected' if crm_filters.status == 'Conversando' else '' }}>Conversando</option>
                     <option value="Fechado" {{ 'selected' if crm_filters.status == 'Fechado' else '' }}>Fechado</option>
-                    <option value="Perdido" {{ 'selected' if crm_filters.status == 'Perdido' else '' }}>Perdido</option>
+                    <option value="Não fechado" {{ 'selected' if crm_filters.status == 'Não fechado' else '' }}>Não fechado</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -160,11 +155,19 @@
             </div>
             <div class="mt-3 flex flex-wrap gap-2 text-[10px]">
                 <span class="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 font-bold text-cyan-300">{{ lead.nicho }}</span>
-                <span class="rounded-lg border border-[#263550] bg-[#090D15] px-2 py-1 font-bold text-slate-300">{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}</span>
+                <span class="rounded-lg border border-[#263550] bg-[#090D15] px-2 py-1 font-bold text-slate-300">{{ 'A abordar' if lead.status == 'Novo' else lead.status }}</span>
                 <span class="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 font-bold text-violet-300">{% if lead.site_opportunity_status == 'Construção de site' %}Precisa de site{% elif lead.site_opportunity_status == 'Site com oportunidade de melhoria' %}Melhorar site{% elif lead.site_opportunity_status == 'Revisão manual' %}Revisar site{% else %}Sem sinal claro{% endif %}</span>
                 <span class="rounded-lg border px-2 py-1 font-bold {% if lead.data_quality_status == 'Confiável' %}border-emerald-500/20 bg-emerald-500/10 text-emerald-300{% else %}border-amber-500/20 bg-amber-500/10 text-amber-300{% endif %}" title="{{ lead.data_quality_issues | join(', ') }}">Dados {{ lead.data_confidence }}%</span>
                 {% if lead.next_action_at %}<span class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 font-bold text-amber-300">Retorno {{ lead.next_action_at }}</span>{% endif %}
             </div>
+            <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="mt-3 w-full rounded-xl border border-[#1F2B44] bg-[#090D15] px-3 py-2 text-xs font-bold text-white">
+                <option value="Novo" {{ 'selected' if lead.status == 'Novo' else '' }}>A abordar</option>
+                <option value="Contatado" {{ 'selected' if lead.status == 'Contatado' else '' }}>Contatado</option>
+                <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
+                <option value="Fechado" {{ 'selected' if lead.status == 'Fechado' else '' }}>Fechado</option>
+                <option value="Não fechado" {{ 'selected' if lead.status == 'Não fechado' else '' }}>Não fechado</option>
+                <option value="Descartado">Descartado</option>
+            </select>
             {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-cyan-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
             <div class="mt-4 grid grid-cols-2 gap-2">
                 {% if lead.do_not_contact %}
@@ -223,17 +226,12 @@
                         </td>
                         <td class="px-6 py-4">
                             <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-xl border border-[#1F2B44] py-1.5 pl-3 pr-8 focus:border-blue-500 focus:outline-none text-white bg-[#090D15] cursor-pointer shadow-inner">
-                                <option value="Novo" {% if lead.status == 'Novo' %}selected{% endif %}>Novo</option>
-                                <option value="Analisado" {% if lead.status == 'Analisado' %}selected{% endif %}>Analisado</option>
-                                <option value="Mensagem preparada" {% if lead.status == 'Mensagem preparada' %}selected{% endif %}>Mensagem preparada</option>
-                                <option value="Contatado" {% if lead.status in ('Contatado', 'Contato Feito') %}selected{% endif %}>Contatado</option>
-                                <option value="Respondeu" {% if lead.status == 'Respondeu' %}selected{% endif %}>Respondeu</option>
-                                <option value="Interessado" {% if lead.status == 'Interessado' %}selected{% endif %}>Interessado</option>
-                                <option value="Proposta enviada" {% if lead.status == 'Proposta enviada' %}selected{% endif %}>Proposta enviada</option>
-                                <option value="Negociação" {% if lead.status in ('Negociação', 'Em Negociação') %}selected{% endif %}>Negociação</option>
-                                <option value="Fechado" {% if lead.status == 'Fechado' %}selected{% endif %}>Fechado</option>
-                                <option value="Perdido" {% if lead.status == 'Perdido' %}selected{% endif %}>Perdido</option>
-                                <option value="Descartado" {% if lead.status == 'Descartado' %}selected{% endif %}>Descartado</option>
+                                <option value="Novo" {{ 'selected' if lead.status == 'Novo' else '' }}>A abordar</option>
+                                <option value="Contatado" {{ 'selected' if lead.status == 'Contatado' else '' }}>Contatado</option>
+                                <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
+                                <option value="Fechado" {{ 'selected' if lead.status == 'Fechado' else '' }}>Fechado</option>
+                                <option value="Não fechado" {{ 'selected' if lead.status == 'Não fechado' else '' }}>Não fechado</option>
+                                <option value="Descartado">Descartado</option>
                             </select>
                             {% if lead.next_action %}
                             <div class="mt-2 max-w-48 rounded-lg border border-blue-500/20 bg-blue-500/5 px-2.5 py-2 text-[10px] leading-relaxed text-blue-200" title="{{ lead.next_action }}">
@@ -527,11 +525,21 @@
                 showAppToast('Erro ao atualizar status.', 'error');
                 select.value = originalValue;
             } else {
-                select.dataset.previousValue = novoStatus;
+                const savedStatus = data.status || novoStatus;
+                select.dataset.previousValue = savedStatus;
                 document.querySelectorAll('.lead-item').forEach(item => {
-                    if (item.dataset.placeId === placeId) item.dataset.status = novoStatus;
+                    if (item.dataset.placeId === placeId) item.dataset.status = savedStatus;
                 });
-                showAppToast('Status atualizado com sucesso.');
+                if (data.removed_from_pipeline) {
+                    document.querySelectorAll('.lead-item').forEach(item => {
+                        if (item.dataset.placeId === placeId) item.remove();
+                    });
+                    delete contactPayloads[placeId];
+                    if (document.getElementById('central_copy')?.dataset.placeId === placeId) fecharCentralContato();
+                    showAppToast('Lead movido para a página de Descartados.');
+                } else {
+                    showAppToast(`Etapa atualizada para ${savedStatus === 'Novo' ? 'A abordar' : savedStatus}.`);
+                }
             }
         } catch(err) {
             console.error(err);
