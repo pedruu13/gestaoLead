@@ -105,7 +105,7 @@
                 </div>
                 <select id="filter_nicho" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todos os Nichos</option>
-                    {% for niche in available_niches %}<option value="{{ niche | lower }}" {{ 'selected' if crm_filters.nicho == niche|lower else '' }}>{{ niche }}</option>{% endfor %}
+                    {% for niche in available_niches %}<option value="{{ niche }}" {{ 'selected' if crm_filters.nicho|lower == niche|lower else '' }}>{{ niche }}</option>{% endfor %}
                 </select>
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
@@ -114,6 +114,9 @@
 
             <!-- Ações em Lote -->
             <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                <button id="clear_crm_filters" type="button" onclick="clearCrmFilters()" class="{{ 'flex' if active_filters else 'hidden' }} items-center justify-center bg-slate-500/10 hover:bg-slate-500/20 text-slate-200 border border-slate-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap">
+                    <i class="fa-solid fa-xmark mr-1.5"></i> Limpar filtros{% if active_filters %} ({{ active_filters|length }}){% endif %}
+                </button>
                 {% if not is_descartados and leads_site_para_auditar %}
                 <button id="btn_auditar_sites" onclick="iniciarAuditoriaSites()" class="flex-1 sm:flex-none bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-black py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center shadow-sm">
                     <i class="fa-solid fa-magnifying-glass-chart mr-1.5 text-violet-400"></i> Auditar {{ leads_site_para_auditar }} site(s)
@@ -461,26 +464,63 @@
 <script>
     const contactPayloads = {{ contact_payloads | tojson | safe }};
     const crmView = {{ crm_view | tojson }};
+    const crmFilterFields = {
+        nome: 'filter_nome', status: 'filter_status', nicho: 'filter_nicho',
+        potencial: 'filter_potencial', followup: 'filter_followup',
+        site: 'filter_site_opportunity', qualidade: 'filter_quality'
+    };
+    const crmFilterStorageKey = `phdigital:crm-filters:${crmView}`;
 
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('select[onchange^="updateStatus"]').forEach(statusSelect => {
             statusSelect.dataset.previousValue = statusSelect.value;
         });
+        restoreCrmFilters();
     });
 
     let crmFilterTimer = null;
-    function applyCrmFilters() {
+    function currentCrmFilterParams() {
         const params = new URLSearchParams();
-        const fields = {
-            nome: 'filter_nome', status: 'filter_status', nicho: 'filter_nicho',
-            potencial: 'filter_potencial', followup: 'filter_followup',
-            site: 'filter_site_opportunity', qualidade: 'filter_quality'
-        };
-        Object.entries(fields).forEach(([key, id]) => {
+        Object.entries(crmFilterFields).forEach(([key, id]) => {
             const value = document.getElementById(id)?.value?.trim();
             if (value) params.set(key, value);
         });
+        return params;
+    }
+
+    function saveCrmFilters(params) {
+        const values = Object.fromEntries(params.entries());
+        if (Object.keys(values).length) localStorage.setItem(crmFilterStorageKey, JSON.stringify(values));
+        else localStorage.removeItem(crmFilterStorageKey);
+    }
+
+    function restoreCrmFilters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasUrlFilters = [...urlParams.keys()].some(key => key !== 'page' && crmFilterFields[key]);
+        if (hasUrlFilters) {
+            urlParams.delete('page');
+            saveCrmFilters(urlParams);
+            return;
+        }
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem(crmFilterStorageKey) || '{}'); } catch (error) { saved = {}; }
+        const params = new URLSearchParams();
+        Object.entries(saved).forEach(([key, value]) => {
+            if (crmFilterFields[key] && String(value).trim()) params.set(key, value);
+        });
+        if ([...params.keys()].length) window.location.replace(`${window.location.pathname}?${params}`);
+    }
+
+    function applyCrmFilters() {
+        const params = currentCrmFilterParams();
+        saveCrmFilters(params);
         window.location.href = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+    }
+
+    function clearCrmFilters() {
+        clearTimeout(crmFilterTimer);
+        localStorage.removeItem(crmFilterStorageKey);
+        window.location.href = window.location.pathname;
     }
 
     function queueCrmFilterUpdate() {
@@ -746,6 +786,7 @@
         const textarea = document.getElementById('central_copy');
         const placeId = textarea.dataset.placeId || '';
         if (!placeId || !textarea.value.trim()) return false;
+        textarea.dataset.nextPlaceId = findNextLeadPlaceId(placeId);
         try {
             const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/contacted`, {
                 method: 'POST',
@@ -776,11 +817,19 @@
         }
     }
 
+    function findNextLeadPlaceId(currentPlaceId) {
+        const scope = window.innerWidth < 768 ? '#mobile-lead-list' : 'table';
+        const buttons = [...document.querySelectorAll(`${scope} .lead-item button[data-place-id]`)]
+            .filter(button => button.closest('.lead-item').style.display !== 'none');
+        const currentIndex = buttons.findIndex(button => button.dataset.placeId === currentPlaceId);
+        return buttons[currentIndex + 1]?.dataset.placeId || '';
+    }
+
     function abrirProximoLead(currentPlaceId) {
         const scope = window.innerWidth < 768 ? '#mobile-lead-list' : 'table';
         const buttons = [...document.querySelectorAll(`${scope} .lead-item button[data-place-id]`)].filter(button => button.closest('.lead-item').style.display !== 'none');
-        const currentIndex = buttons.findIndex(button => button.dataset.placeId === currentPlaceId);
-        const nextButton = buttons[currentIndex + 1] || buttons[0];
+        const expectedPlaceId = document.getElementById('central_copy').dataset.nextPlaceId || '';
+        const nextButton = buttons.find(button => button.dataset.placeId === expectedPlaceId) || buttons[0];
         if (nextButton && nextButton.dataset.placeId !== currentPlaceId) {
             abrirCentralContato(nextButton);
             showAppToast('Abordagem registrada. Próximo lead carregado.');

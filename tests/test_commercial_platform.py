@@ -279,6 +279,10 @@ class CommercialIntelligenceTests(unittest.TestCase):
                 )
                 self.assertIn("site", pitches["recepcao"].casefold())
                 self.assertTrue(pitches["email"].casefold().startswith(("assunto:", "subject:")))
+                self.assertLessEqual(len(pitches["consultiva"].split()), 65)
+                self.assertLessEqual(len(pitches["direta"].split()), 60)
+                self.assertLessEqual(len(pitches["personalizada"].split()), 70)
+                self.assertLessEqual(len(pitches["recepcao"].split()), 70)
                 opportunities.add(analysis["opportunity"])
                 personalized.add(pitches["personalizada"])
         self.assertGreaterEqual(len(opportunities), 14)
@@ -482,8 +486,8 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.10.29-crm-queues-v4", health.get_json()["commercial_release"])
-                self.assertEqual("4.2", health.get_json()["pitch_pipeline_version"])
+                self.assertEqual("2026.10.30-crm-filters-v5", health.get_json()["commercial_release"])
+                self.assertEqual("4.3", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)
@@ -664,6 +668,8 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(10, second_page.count('class="lead-item'))
                 self.assertIn("status=Contatado", first_page)
                 self.assertIn("site=Constru%C3%A7%C3%A3o+de+site", first_page)
+                self.assertIn('id="clear_crm_filters"', first_page)
+                self.assertIn("phdigital:crm-filters", first_page)
             finally:
                 application.DB_NAME = old_db
                 application.load_config = old_load_config

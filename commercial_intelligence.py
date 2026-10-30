@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 
 
-PITCH_PIPELINE_VERSION = "4.2"
+PITCH_PIPELINE_VERSION = "4.3"
 
 
 SOCIAL_OR_DIRECTORY_HOSTS = (
@@ -384,6 +384,12 @@ def _site_observation_for_pitch(context, plan):
     return f"Ao pesquisar a presença digital {ref} no Google, não encontrei um site próprio vinculado ao perfil."
 
 
+def _short_site_observation(context):
+    if context["site_verified"]:
+        return "Vi que vocês já possuem um site e há espaço para melhorar a experiência no celular."
+    return "No perfil do Google, não encontrei um site próprio vinculado."
+
+
 def analyze_lead(lead, preview_available=False):
     context = normalize_lead_context(lead, preview_available=preview_available)
     plan = plan_commercial_angle(context)
@@ -447,30 +453,29 @@ def generate_fallback_pitches(analysis, is_intl=False):
         introduction = _seller_introduction_en(analysis)
         agency_introduction = _seller_introduction_en(analysis, plural=True)
         pitches = {
-            "consultiva": f"Hello, how are you? {introduction} I could not find a company website linked to the Google profile. Without a website, potential customers may reach the team before understanding the service or the next step. My proposal is to build a professional website that presents the business clearly and directs qualified visitors to the current contact channel. May I send an initial project scope?",
-            "direta": f"Hello. {introduction} I could not find a website linked to the company profile. I would like to present a website proposal focused on explaining the service, building trust and giving visitors a clear path to contact the team. Who would be the best person to review the initial scope?",
-            "personalizada": f"Hello, how are you? {introduction} Without a website linked to the business profile, visitors may depend on scattered information before contacting the team. My proposal is to build a website that organizes the decision process and sends better-prepared enquiries to the business. Could we discuss the project briefly?",
-            "recepcao": f"Hello, how are you? {introduction} I would like to present a professional website proposal for the business. I could not find a company website linked to the Google profile. Since this number may be used for customer service or appointments, could you please forward this message to the person who evaluates website or commercial projects? If easier, you can share the best business contact.",
-            "email": f"Subject: Website proposal for the business\n\nHello, {agency_introduction} I could not find a company website linked to the Google profile. Without a website, prospects may contact the team before understanding the service. Our proposal is to build a professional website that presents the business and directs qualified visitors to the right channel. Reply to this email, and I will send an initial scope for review.",
+            "consultiva": f"Hello! {introduction} I could not find a website linked to the Google profile. My proposal is to build a clear website that explains the service and directs visitors to the right contact channel. May I send a short project outline?",
+            "direta": f"Hello! {introduction} I could not find a website linked to the business profile. I would like to present a website proposal focused on trust, clear information and easier contact. Who is the best person to review it?",
+            "personalizada": f"Hello! {introduction} A website linked to the Google profile could help visitors understand the service before contacting the team. My proposal is to build that journey clearly. Would a brief conversation about the project be useful?",
+            "recepcao": f"Hello! {introduction} I could not find a website linked to the Google profile and have a website proposal for the business. This may be a reception or booking number; could you forward it to the person responsible for the website or share the best contact?",
+            "email": f"Subject: Website proposal\n\nHello, {agency_introduction} I could not find a website linked to the Google profile. Our proposal is to build a professional website that explains the service and guides visitors to the right contact channel. Reply to this email and I will send a short project outline.",
         }
         if analysis.get("preview_available"):
             pitches["previa_visual"] = "Hi! I created a non-official visual concept using only confirmed information. It is not a finished website, but a way to discuss structure and mobile readability. May I send the image with a short explanation?"
         return pitches
 
-    location = _location_phrase(context["location"])
-    destination = plan["destination_channel"]
     introduction = _seller_introduction(analysis)
     agency_introduction = _seller_introduction(analysis, plural=True)
-    observation = _site_observation_for_pitch(context, plan)
+    observation = _short_site_observation(context)
+    benefit = context["benefit"]
     pitches = {
-        "consultiva": f"Olá, tudo bem? {introduction} {observation} {plan['need_statement']} Minha proposta é {plan['offer_action']} para {plan['site_value']}, transmitindo mais credibilidade para quem encontra vocês na internet. Posso encaminhar um escopo inicial para vocês avaliarem?",
-        "direta": f"Olá, tudo bem? {introduction} {observation} Para {plan['category_with_article']}, um site profissional bem estruturado no celular ajuda a {plan['site_value']} e destaca o negócio frente aos concorrentes. Quero apresentar uma proposta de site objetiva para executar esse projeto. Posso encaminhar o escopo inicial para análise?",
-        "personalizada": f"Olá, tudo bem? {introduction} {observation} Pensando em {plan['category_with_article']}{location}, o potencial cliente costuma pesquisar referências antes de chamar e pode chegar ao {destination} ainda com {plan['friction']}. Minha proposta é {plan['offer_action']} para {plan['site_value']} com foco em confiança e agilidade. Podemos conversar sobre esse projeto?",
-        "recepcao": f"Olá, tudo bem? {introduction} Gostaria de apresentar uma proposta de site profissional para {plan['proposal_target']}. {observation} A ideia é criar uma página que ajude a {plan['site_value']}, facilitando o esclarecimento de dúvidas e valorizando o atendimento. Como este número pode ser da recepção ou do agendamento, você poderia encaminhar esta mensagem à pessoa responsável ou me informar o melhor contato?",
-        "email": f"Assunto: proposta de site profissional para {context['commercial_category']}\n\nOlá, tudo bem? {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {plan['site_value']}, fortalecendo a presença digital e gerando contatos mais preparados para a equipe. Se houver interesse, responda este e-mail e encaminho um escopo inicial para avaliação.",
+        "consultiva": f"Olá! {introduction} {observation} Minha proposta é {plan['offer_action']} para {benefit}. Posso enviar um resumo objetivo do projeto?",
+        "direta": f"Olá! {introduction} {observation} Quero apresentar uma proposta de site para {benefit}. Com quem posso falar sobre esse projeto?",
+        "personalizada": f"Olá! {introduction} {observation} Para {plan['category_with_article']}, um site pode {benefit} antes do primeiro contato. Minha proposta é desenvolver esse projeto com uma navegação simples no celular. Podemos conversar por alguns minutos?",
+        "recepcao": f"Olá! {introduction} {observation} Tenho uma proposta de site para {plan['proposal_target']}, com foco em {benefit}. Este número pode ser da recepção; você poderia encaminhar à pessoa responsável pelo site ou informar o melhor contato?",
+        "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá! {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {benefit}, com uma experiência clara no celular. Se houver interesse, responda este e-mail e envio um resumo objetivo do projeto.",
     }
     if analysis.get("preview_available"):
-        pitches["previa_visual"] = f"Oi, tudo bem? {introduction} Como vocês ainda não possuem um site próprio no perfil do Google, montei uma prévia visual para mostrar como a estrutura {plan['entity_reference']} pode ficar no celular, com os serviços explicados e um caminho direto até o contato. É uma imagem conceitual da estrutura. Posso te enviar a imagem com uma explicação curta?"
+        pitches["previa_visual"] = f"Olá! {introduction} Preparei uma prévia visual não oficial de um site {plan['entity_reference']}, com foco em {benefit} no celular. Posso enviar a imagem com uma explicação curta?"
     return pitches
 
 
@@ -494,8 +499,15 @@ def review_pitch(text, analysis, mode):
     is_english = analysis.get("language") == "en"
     if not value:
         return {"approved": False, "score": 0, "issues": ["mensagem ausente"]}
-    minimum_words = 25 if mode == "previa_visual" else 35
-    maximum_words = 135 if mode == "email" else 115
+    length_limits = {
+        "consultiva": (28, 65),
+        "direta": (25, 60),
+        "personalizada": (30, 70),
+        "recepcao": (28, 70),
+        "previa_visual": (20, 60),
+        "email": (35, 90),
+    }
+    minimum_words, maximum_words = length_limits.get(mode, (25, 70))
     if not minimum_words <= words <= maximum_words:
         issues.append(f"tamanho inadequado ({words} palavras)")
     if "site" not in folded and "website" not in folded:
@@ -614,7 +626,8 @@ def build_generation_prompt(analysis, modes, feedback=None, is_intl=False):
 Antes de escrever, siga o plano comercial fornecido. Transforme-o em conversa; não copie nomes de campos nem linguagem técnica.
 
 REGRAS OBRIGATÓRIAS:
-- 40 a 100 palavras por mensagem e menção clara a site.
+- WhatsApp deve ser curto: consultiva até 65 palavras, direta até 60, personalizada e recepcao até 70. Email até 90 palavras.
+- Não aumente o texto para preencher espaço. Use uma ideia comercial, um benefício e uma pergunta final.
 - Comece de forma natural, sem nome completo da pessoa ou do estabelecimento na saudação.
 - NUNCA use o nome da empresa ou o nome comercial longo do Google no texto. No Google os nomes costumam ser longos demais ou conter razão social/termos descritivos. Use sempre a referência natural pelo segmento ('da clínica', 'do escritório', 'da empresa', 'do consultório') ou dirija-se à equipe ('vocês').
 - Escreva de forma intuitiva, elegante e agradável de ler, mostrando que uma página própria valoriza o negócio, tira dúvidas antes do contato e faz o cliente chegar decidido a agendar.

@@ -526,7 +526,7 @@ def build_crm_where(status_scope=None, filters=None):
             clauses.append("leads.status = ?")
             params.append(filters["status"])
     for key, column in (
-        ("nicho", "lower(leads.nicho)"),
+        ("nicho", "lower(trim(leads.nicho))"),
         ("potencial", "leads.faixa_potencial"),
         ("site", "leads.site_opportunity_status"),
         ("qualidade", "leads.data_quality_status"),
@@ -557,7 +557,8 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
         params.extend((int(limit), max(0, int(offset))))
     c.execute(f"""SELECT leads.*,
                  (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id
-                 FROM leads{where} ORDER BY data_adicao DESC{pagination}""", params)
+                 FROM leads{where}
+                 ORDER BY COALESCE(potencial, 0) DESC, data_adicao DESC, nome COLLATE NOCASE ASC{pagination}""", params)
     rows = c.fetchall()
     conn.close()
     leads = [dict(ix) for ix in rows]
@@ -1320,7 +1321,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.29-crm-queues-v4",
+            "commercial_release": "2026.10.30-crm-filters-v5",
             "target_engine_version": "2026.10.29-context-history-v4",
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -1337,7 +1338,7 @@ def render_crm_view(status_scope, crm_view):
     crm_filters = {
         "nome": normalizar_texto(request.args.get("nome", ""), 100),
         "status": normalizar_texto(request.args.get("status", ""), 40) if crm_view == "contacted" else "",
-        "nicho": normalizar_texto(request.args.get("nicho", ""), 120).casefold(),
+        "nicho": normalizar_texto(request.args.get("nicho", ""), 120),
         "potencial": normalizar_texto(request.args.get("potencial", ""), 40),
         "followup": normalizar_texto(request.args.get("followup", ""), 20),
         "site": normalizar_texto(request.args.get("site", ""), 80),
@@ -1348,10 +1349,17 @@ def render_crm_view(status_scope, crm_view):
     where, params = build_crm_where(status_scope, crm_filters)
     total = conn.execute(f"SELECT COUNT(*) FROM leads{where}", params).fetchone()[0]
     scope_where, scope_params = build_crm_where(status_scope)
-    available_niches = [row[0] for row in conn.execute(
+    niche_rows = [repair_known_mojibake(row[0]).strip() for row in conn.execute(
         f"SELECT DISTINCT nicho FROM leads{scope_where} AND trim(coalesce(nicho, '')) != '' ORDER BY lower(nicho)",
         scope_params,
     ).fetchall()]
+    available_niches = []
+    seen_niches = set()
+    for niche in sorted(niche_rows, key=normalize):
+        niche_key = normalize(niche)
+        if niche_key and niche_key not in seen_niches:
+            seen_niches.add(niche_key)
+            available_niches.append(niche)
     if crm_view == "inbox":
         site_counts = conn.execute(
             """SELECT
