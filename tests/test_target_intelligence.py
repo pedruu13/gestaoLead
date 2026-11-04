@@ -21,9 +21,9 @@ class TargetIntelligenceTests(unittest.TestCase):
             first = suggest_targets(region, [])
             second = suggest_targets(region, [])
             self.assertEqual(first, second)
-            self.assertEqual(2, len(first["nichos"]))
+            self.assertEqual(3, len(first["nichos"]))
             self.assertEqual(4, len(first["cidades"]))
-            self.assertEqual(8, first["total_combinacoes"])
+            self.assertEqual(12, first["total_combinacoes"])
             self.assertEqual(len(first["cidades"]), len(set(first["cidades"])))
             self.assertTrue(all(item["regiao"] == region for item in first["pracas"]))
 
@@ -102,8 +102,24 @@ class TargetIntelligenceTests(unittest.TestCase):
     def test_focus_location_returns_exact_location_and_ranked_niches(self):
         result = suggest_targets("br", [], focus_locations=["Batel - Curitiba"])
         self.assertEqual(["Batel - Curitiba"], result["cidades"])
-        self.assertEqual(2, len(result["nichos"]))
+        self.assertEqual(3, len(result["nichos"]))
         self.assertEqual(["Batel - Curitiba"], result["contexto"]["locais_informados"])
+
+    def test_up_to_four_informed_niches_are_kept_and_investigated(self):
+        informed = ["Academia", "Fotografia", "Contabilidade", "Energia solar"]
+        result = suggest_targets("br", [], focus_niches=informed)
+        self.assertEqual(4, len(result["nichos"]))
+        plan = build_research_plan("br", [], pair_limit=4, focus_niches=informed)
+        self.assertEqual(4, len({item["niche"] for item in plan}))
+
+    def test_search_page_exposes_bulk_inputs_and_visible_result_counts(self):
+        client = application.app.test_client()
+        self.authenticate(client)
+        html = client.get("/").get_data(as_text=True)
+        self.assertIn("Sugerir nichos e locais", html)
+        self.assertIn("parsePickerValues", html)
+        self.assertIn("Adicionados ao CRM", html)
+        self.assertIn('id="search_result_summary"', html)
 
     def test_custom_niche_is_preserved_in_research_plan(self):
         plan = build_research_plan("br", [], pair_limit=4, focus_niches=["Lavanderia premium"])
@@ -152,9 +168,10 @@ class TargetIntelligenceTests(unittest.TestCase):
                 response = client.get("/api/sugerir_alvos?regiao=br")
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
-                self.assertEqual(2, len(data["nichos"]))
+                self.assertEqual("5.0", data["engine_version"])
+                self.assertEqual(3, len(data["nichos"]))
                 self.assertEqual(4, len(data["cidades"]))
-                self.assertEqual(8, data["total_combinacoes"])
+                self.assertEqual(12, data["total_combinacoes"])
                 self.assertIn(next(item for item in data["pracas"] if item["nome"] == "Moema - São Paulo")["confianca"], ("sinal forte", "validado"))
             finally:
                 application.DB_NAME = old_db
@@ -189,7 +206,7 @@ class TargetIntelligenceTests(unittest.TestCase):
                             break
                         time.sleep(0.02)
                 self.assertTrue(status["concluido"], status)
-                self.assertEqual(2, len(status["resultado"]["nichos"]))
+                self.assertEqual(3, len(status["resultado"]["nichos"]))
                 self.assertEqual(4, len(status["resultado"]["cidades"]))
                 connection = application.sqlite3.connect(application.DB_NAME)
                 self.assertEqual(4, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])

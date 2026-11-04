@@ -4,6 +4,9 @@ import urllib.parse
 from collections import defaultdict
 
 
+TARGET_ENGINE_VERSION = "5.0"
+
+
 SOCIAL_OR_DIRECTORY_DOMAINS = (
     "facebook.com", "instagram.com", "linkedin.com", "linktr.ee", "wa.me",
     "api.whatsapp", "yelp.", "tripadvisor.", "yellowpages.", "foursquare.",
@@ -151,7 +154,7 @@ def _unique_values(values, limit=4):
 
 def _resolve_niches(market, values):
     resolved = []
-    for value in _unique_values(values, 2):
+    for value in _unique_values(values, 4):
         match = next((item for item in market["niches"] if _matches(value, (item["name"], *item["aliases"]))), None)
         if match:
             resolved.append(match)
@@ -187,12 +190,24 @@ def build_research_plan(region, observations, pair_limit=8, focus_niches=None, f
     cities = focused_cities or sorted(market["cities"], key=lambda item: (city_exposure[item["name"]], -(item["power"] + item["gap"]), item["name"]))[:4]
     candidates = []
     if focused_niches or focused_cities:
-        combinations = ((niche, city) for niche in niches for city in cities)
+        combinations = []
+        used = set()
+        for index in range(max(len(niches), len(cities))):
+            niche = niches[index % len(niches)]
+            city = cities[index % len(cities)]
+            combinations.append((niche, city))
+            used.add((niche["name"], city["name"]))
+        combinations.extend(
+            (niche, city)
+            for niche in niches
+            for city in cities
+            if (niche["name"], city["name"]) not in used
+        )
     else:
         combinations = (
             (niche, cities[(niche_index + offset) % len(cities)])
-            for niche_index, niche in enumerate(niches)
             for offset in range(2)
+            for niche_index, niche in enumerate(niches)
         )
     for niche, city in combinations:
         key = (normalize(niche["name"]), normalize(city["name"]))
@@ -281,7 +296,8 @@ def suggest_targets(region, rows, observations=None, recent_niches=None, focus_n
             evidence_total = sum(pair["evidence"]["sample"] for pair in niche_pairs)
             rank_score = sum(pair["score"] for pair in niche_pairs[:3]) / min(3, len(niche_pairs)) + min(evidence_total, 20) * 0.25
             niche_rank.append((round(rank_score, 1), niche))
-    niche_limit = len(focused_niches) if focused_niches else 2
+    investigated_niche_count = len({pair["niche"]["name"] for pair in investigated_pairs})
+    niche_limit = len(focused_niches) if focused_niches else 3 if investigated_niche_count >= 3 or not observations else 2
     selected_niches = focused_niches or [item[1] for item in sorted(niche_rank, key=lambda item: (-item[0], item[1]["name"]))[:niche_limit]]
     if len(selected_niches) < niche_limit:
         fallback_niches = sorted(
@@ -313,8 +329,10 @@ def suggest_targets(region, rows, observations=None, recent_niches=None, focus_n
         niche_places = [place for place in places if place["nicho_principal"] == niche["name"]] or places[:2]
         recommendations.append({"nicho": niche["name"], "motivo": niche["reason"], "cidades": [place["nome"] for place in niche_places]})
     return {
+        "engine_version": TARGET_ENGINE_VERSION,
         "mercado": market["label"], "nichos": [niche["name"] for niche in selected_niches], "cidades": [place["nome"] for place in places],
         "pracas": places, "recomendacoes": recommendations, "total_combinacoes": len(selected_niches) * len(places),
+        "quantidade_nichos": len(selected_niches), "quantidade_locais": len(places),
         "contexto": {"nichos_informados": [item["name"] for item in focused_niches], "locais_informados": [item["name"] for item in focused_cities]},
         "investigacao": {"combinacoes_estudadas": len(investigated_pairs), "fonte": "Google Maps + histórico da plataforma"},
         "metodologia": "Cruza o alvo informado com presença de site, volume local, atividade das empresas, contato disponível, poder de compra e saturação da sua própria base.",

@@ -23,7 +23,7 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
-from target_intelligence import build_research_plan, normalize, suggest_targets
+from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, suggest_targets
 from target_research import probe_google_maps
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
@@ -1321,8 +1321,8 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.10.30-crm-filters-v5",
-            "target_engine_version": "2026.10.29-context-history-v4",
+            "commercial_release": "2026.11.04-search-radar-v6",
+            "target_engine_version": TARGET_ENGINE_VERSION,
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
@@ -2249,6 +2249,7 @@ def extrator_worker(data, config, queue):
             "salvos": 0,
             "duplicados": 0,
             "com_site": 0,
+            "site_sem_oportunidade": 0,
             "franquias": 0,
             "fora_regiao": 0,
             "telefone_invalido": 0,
@@ -2265,7 +2266,8 @@ def extrator_worker(data, config, queue):
         search_run_id = data.get("search_run_id", "")
         started_at = time.monotonic()
         max_leads = max(5, min(100, int(data.get("max_leads", 30))))
-        max_analyzed = max(40, max_leads * 3)
+        analysis_multiplier = 6 if data.get("strict_no_socials") else 4
+        max_analyzed = max(80, max_leads * analysis_multiplier)
         max_duration_seconds = 15 * 60
         max_results_per_query = 60
 
@@ -2286,6 +2288,12 @@ def extrator_worker(data, config, queue):
             eta = round(min(max_duration_seconds - elapsed, average * remaining)) if average else None
             stats["tempo_segundos"] = elapsed
             stats["estimativa_segundos"] = max(0, eta) if eta is not None else None
+            sites_ignored = stats["com_site"] if data.get("strict_no_socials") and not data.get("include_site_opportunities") else stats["site_sem_oportunidade"]
+            stats["ignorados"] = sites_ignored + sum(stats[key] for key in (
+                "duplicados", "franquias", "fora_regiao", "telefone_invalido",
+                "nota_baixa", "sem_whatsapp", "sem_email",
+            ))
+            stats["taxa_adicao"] = round(stats["salvos"] * 100 / stats["novos_resultados"]) if stats["novos_resultados"] else 0
             atualizar_status({
                 "rodando": rodando,
                 "mensagem": mensagem,
@@ -2306,6 +2314,8 @@ def extrator_worker(data, config, queue):
         publicar_status("Abrindo navegador...")
         nichos = [n.strip() for n in data["nichos"].split(",") if n.strip()]
         bairros = [b.strip() for b in data["bairros"].split(",") if b.strip()]
+        stats["consultas_planejadas"] = len(nichos) * len(bairros)
+        stats["consultas_concluidas"] = 0
         print(f"[WORKER] nichos={nichos}, bairros={bairros}")
         is_headless = config.get("headless", True)
         GRANDES_REDES = ["odontocompany","smart fit","smartfit","mcdonalds","boticario","cacau show","subway","sorridents","amorasaude","bluefit","pague menos","raia","drogasil","localiza","unidas","movida"]
@@ -2384,6 +2394,7 @@ def extrator_worker(data, config, queue):
 
                     if not hrefs:
                         print("[WORKER] Definitivamente nenhum lead encontrado.")
+                        stats["consultas_concluidas"] += 1
                         continue
                     stats["encontrados"] += len(hrefs)
                     new_hrefs = []
@@ -2400,6 +2411,7 @@ def extrator_worker(data, config, queue):
                     stats["novos_resultados"] += len(new_hrefs)
                     if not new_hrefs:
                         stats["consultas_esgotadas"] += 1
+                        stats["consultas_concluidas"] += 1
                         publicar_status(f"'{nicho}' em '{bairro}' já foi explorado. Avançando...")
                         continue
                     for index, href in enumerate(new_hrefs):
@@ -2557,6 +2569,7 @@ def extrator_worker(data, config, queue):
                                 and data.get("include_site_opportunities")
                                 and site_assessment["status"] == "Site encontrado — sem sinal claro"
                             ):
+                                stats["site_sem_oportunidade"] += 1
                                 publicar_status(f"Site sem oportunidade objetiva ignorado: {nome}")
                                 continue
                             lead_data["Oportunidade do Site"] = site_assessment["status"]
@@ -2619,13 +2632,18 @@ def extrator_worker(data, config, queue):
                         except Exception as e:
                             stats["erros"] += 1
                             print(f"[WORKER] Erro no lead {href}: {e}")
+                    stats["consultas_concluidas"] += 1
             limit_reason = search_limit_reason()
             stats["tempo_segundos"] = round(time.monotonic() - started_at, 1)
             stats["limite"] = limit_reason
             print("[WORKER] Fechando navegador.")
             mem_final = process.memory_info().rss / (1024 * 1024)
             print(f"[WORKER] Finalizando. Memoria RAM uso final: {mem_final:.2f} MB")
-            publicar_status(limit_reason or "Busca finalizada.", rodando=False)
+            summary = (
+                f"{stats['salvos']} lead(s) adicionado(s) ao CRM, {stats['novos_resultados']} resultado(s) novo(s), "
+                f"{stats['duplicados']} já conhecido(s) e {stats['ignorados']} ignorado(s) pelos filtros."
+            )
+            publicar_status(f"{limit_reason + ' ' if limit_reason else ''}{summary}", rodando=False)
             browser.close()
         print("[WORKER] Finalizado com sucesso.")
     except Exception as e:
@@ -2773,6 +2791,8 @@ def carregar_resultado_investigacao_recente(regiao, context_key="", max_age_days
         result = json.loads(row[0])
     except (TypeError, json.JSONDecodeError):
         return None
+    if result.get("engine_version") != TARGET_ENGINE_VERSION:
+        return None
     investigation = result.setdefault("investigacao", {})
     if int(investigation.get("amostra_nova") or 0) < min_sample:
         return None
@@ -2874,7 +2894,7 @@ def sugerir_alvos():
     try:
         payload = request.get_json(silent=True) or {}
         regiao = (payload.get("regiao") or request.args.get("regiao") or "br").lower()
-        focus_niches = normalizar_foco_alvos(payload.get("nichos") or request.args.get("nichos"), 2)
+        focus_niches = normalizar_foco_alvos(payload.get("nichos") or request.args.get("nichos"), 4)
         focus_locations = normalizar_foco_alvos(payload.get("cidades") or request.args.get("cidades"), 4)
         context_key = chave_contexto_alvos(focus_niches, focus_locations)
         if request.method == "GET":
