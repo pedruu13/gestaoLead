@@ -30,6 +30,10 @@ from discovery_engine import DiscoveryEngine, init_discovery_schema
 from geographic_campaigns import (campaign_detail, claim_batch, complete_location, create_campaign,
                                   finalize_campaign_if_done, init_geographic_schema, list_campaigns,
                                   list_location_sets, save_location_set, set_campaign_status)
+from smart_campaigns import (check_and_finalize_smart_goal, create_smart_campaign,
+                             get_latest_active_smart_campaign, init_smart_campaigns_schema,
+                             list_smart_campaigns, resolve_auto_locations, resolve_auto_niches,
+                             smart_campaign_detail, update_smart_campaign_status)
 from geographic_intelligence import (GEOGRAPHY_VERSION, load_catalog, municipality_label,
                                      rank_smart_locations, search_municipalities, select_municipalities)
 from lead_validation import validate_candidate
@@ -450,6 +454,7 @@ def init_db():
                   source_url TEXT, observed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     init_discovery_schema(conn)
     init_geographic_schema(conn)
+    init_smart_campaigns_schema(conn)
     c.execute(
         """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
            WHERE status = 'running'"""
@@ -3156,13 +3161,21 @@ def geographic_campaign_worker(campaign_id):
         current = campaign_detail(DB_NAME, campaign_id)
         if current["status"] in {"pending", "interrupted"}:
             set_campaign_status(DB_NAME, campaign_id, "running")
+            update_smart_campaign_status(DB_NAME, campaign_id, status="running", detailed_status="buscando_empresas")
         config = load_config()
         while _geographic_campaign_status(campaign_id) == "running":
+            if check_and_finalize_smart_goal(DB_NAME, campaign_id):
+                break
             campaign = campaign_detail(DB_NAME, campaign_id)
+            target_leads = campaign.get("target_qualified_leads")
+            if target_leads and campaign.get("qualified_leads", 0) >= target_leads:
+                check_and_finalize_smart_goal(DB_NAME, campaign_id)
+                break
             batch = claim_batch(DB_NAME, campaign_id)
             if not batch:
                 finalize_campaign_if_done(DB_NAME, campaign_id)
                 break
+            update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="buscando_empresas")
             with ThreadPoolExecutor(max_workers=campaign["concurrency"]) as executor:
                 futures = {executor.submit(_process_geographic_location, campaign, location, config): location for location in batch}
                 for future in as_completed(futures):
@@ -3172,6 +3185,14 @@ def geographic_campaign_worker(campaign_id):
                         complete_location(DB_NAME, futures[future]["id"], error=str(error))
                         print("[CAMPANHA GEOGRÁFICA] Falha em município:", error)
             finalize_campaign_if_done(DB_NAME, campaign_id)
+            if check_and_finalize_smart_goal(DB_NAME, campaign_id):
+                break
+        current = campaign_detail(DB_NAME, campaign_id)
+        if current.get("status") == "completed":
+            update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="concluida")
+    except Exception as error:
+        print("[CAMPANHA] Erro no worker:", error)
+        update_smart_campaign_status(DB_NAME, campaign_id, status="failed", detailed_status="falha", error=error)
     finally:
         with GEO_CAMPAIGN_LOCK:
             ACTIVE_GEO_CAMPAIGNS.discard(campaign_id)
@@ -3312,6 +3333,115 @@ def geographic_campaign_action(campaign_id, action):
         return jsonify({"success": True, "campaign": campaign_detail(DB_NAME, campaign_id)})
     except ValueError as error:
         return jsonify({"success": False, "error": str(error)}), 404
+
+
+# ============================================================================
+# API DE CAMPANHAS INTELIGENTES
+# ============================================================================
+
+@app.route("/api/smart-campaigns", methods=["GET", "POST"])
+def smart_campaigns_api():
+    if request.method == "GET":
+        limit = max(1, min(int(request.args.get("limit", 10)), 50))
+        return jsonify({"success": True, "campaigns": list_smart_campaigns(DB_NAME, limit=limit)})
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        campaign = create_smart_campaign(DB_NAME, payload)
+        campaign_id = campaign["campaign_id"]
+        start_geographic_campaign(campaign_id)
+        return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)}), 201
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 400
+    except Exception as error:
+        print("[SMART CAMPAIGN] Erro na criação:", error)
+        return jsonify({"success": False, "error": f"Erro interno ao criar campanha: {str(error)}"}), 500
+
+
+@app.route("/api/smart-campaigns/active")
+def smart_campaigns_active():
+    campaign = get_latest_active_smart_campaign(DB_NAME)
+    return jsonify({"success": True, "campaign": campaign})
+
+
+@app.route("/api/smart-campaigns/<campaign_id>")
+def smart_campaign_detail_api(campaign_id):
+    try:
+        return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)})
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 404
+
+
+@app.route("/api/smart-campaigns/<campaign_id>/<action>", methods=["POST"])
+def smart_campaign_action_api(campaign_id, action):
+    action = str(action).strip().lower()
+    if action not in {"pause", "resume", "cancel"}:
+        return jsonify({"success": False, "error": "Ação inválida. Use pause, resume ou cancel."}), 400
+
+    try:
+        if action == "pause":
+            update_smart_campaign_status(DB_NAME, campaign_id, status="paused", detailed_status="pausada")
+        elif action == "resume":
+            update_smart_campaign_status(DB_NAME, campaign_id, status="running", detailed_status="buscando_empresas")
+            start_geographic_campaign(campaign_id)
+        elif action == "cancel":
+            update_smart_campaign_status(DB_NAME, campaign_id, status="cancelled", detailed_status="cancelada")
+
+        return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)})
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 404
+
+
+@app.route("/api/smart-campaigns/<campaign_id>/leads")
+def smart_campaign_leads_api(campaign_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        # Busca leads associados aos search_runs da campanha
+        rows = conn.execute(
+            """SELECT leads.* FROM leads
+               JOIN geographic_campaign_locations loc
+                 ON leads.search_run_id = loc.last_search_run_id
+               WHERE loc.campaign_id = ?
+               ORDER BY leads.data_adicao DESC LIMIT 200""",
+            (campaign_id,),
+        ).fetchall()
+        leads = [dict(row) for row in rows]
+        return jsonify({"success": True, "count": len(leads), "leads": leads})
+    finally:
+        conn.close()
+
+
+@app.route("/api/smart-campaigns/geo/states")
+def smart_campaigns_states():
+    catalog = load_catalog()
+    states = sorted(catalog.get("states", []), key=lambda s: s["name"])
+    return jsonify({"success": True, "states": states})
+
+
+@app.route("/api/smart-campaigns/geo/search")
+def smart_campaigns_geo_search():
+    catalog = load_catalog()
+    query = request.args.get("q", "").strip()
+    uf = request.args.get("uf", "").strip().upper()
+    limit = max(1, min(int(request.args.get("limit", 20)), 100))
+    results = search_municipalities(catalog, query=query, uf=uf, limit=limit)
+    return jsonify({"success": True, "count": len(results), "municipalities": results})
+
+
+@app.route("/api/smart-campaigns/niches/popular")
+def smart_campaigns_niches_popular():
+    niches = [
+        {"name": "Clínica de Estética", "category": "Saúde & Beleza", "potential": "Alto"},
+        {"name": "Odontologia", "category": "Saúde", "potential": "Alto"},
+        {"name": "Advocacia", "category": "Serviços Jurídicos", "potential": "Alto"},
+        {"name": "Energia Solar", "category": "Engenharia & Sustentabilidade", "potential": "Muito Alto"},
+        {"name": "Arquitetura", "category": "Design & Projetos", "potential": "Alto"},
+        {"name": "Móveis Planejados", "category": "Interiores & Construção", "potential": "Alto"},
+        {"name": "Imobiliária", "category": "Mercado Imobiliário", "potential": "Alto"},
+        {"name": "Contabilidade", "category": "Finanças & B2B", "potential": "Médio-Alto"},
+    ]
+    return jsonify({"success": True, "niches": niches})
 
 
 @app.route("/api/status")

@@ -1,662 +1,1032 @@
 {% extends "layout.html" %}
-{% block header_title %}Nova Prospecção B2B{% endblock %}
+{% block header_title %}Nova Campanha Inteligente{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto pb-14 space-y-7">
+<div class="max-w-6xl mx-auto pb-16 space-y-8">
     <!-- Hero Banner Executivo -->
-    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] text-white border border-[#1E293B] shadow-2xl">
-        <div class="absolute -top-24 -right-12 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl"></div>
-        <div class="absolute -bottom-28 left-1/3 w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl"></div>
-        <div class="relative p-6 md:p-10 grid lg:grid-cols-[1fr_auto] gap-7 items-end">
+    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] text-white border border-[#1E293B] shadow-2xl p-6 md:p-10">
+        <div class="absolute -top-24 -right-12 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-28 left-1/3 w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none"></div>
+        <div class="relative grid lg:grid-cols-[1fr_auto] gap-6 items-end">
             <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-                    <p class="text-cyan-400 text-[11px] font-black uppercase tracking-[0.24em]"><i class="fa-solid fa-crosshairs mr-1.5"></i>Radar de Prospecção Ativa</p>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/20 text-cyan-300 text-[11px] font-black uppercase tracking-wider mb-3">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span>Prospecção Autônoma B2B</span>
                 </div>
-                <h1 class="text-3xl md:text-5xl font-black tracking-tight leading-[1.02]">Encontre empresas com alto potencial que ainda não têm site.</h1>
-                <p class="text-slate-400 mt-4 max-w-2xl text-xs md:text-sm leading-relaxed">Defina nichos estratégicos, filtre por praça de atuação e acione o motor de varredura para captar leads com oportunidade real de venda.</p>
+                <h1 class="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+                    Nova Campanha Inteligente
+                </h1>
+                <p class="text-slate-400 mt-3 max-w-2xl text-xs md:text-sm leading-relaxed">
+                    Encontre empresas com potencial de contratar seus serviços, sem precisar escolher cidades ou nichos manualmente.
+                </p>
             </div>
-            <div class="grid grid-cols-2 gap-3 w-full lg:w-72">
-                <div class="rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
-                    <i class="fa-solid fa-shield-halved text-cyan-400 mb-2 block text-base"></i>
-                    <strong class="block text-xs font-black text-white">SEM WEBSITE</strong>
-                    <span class="text-[10px] text-slate-400">Filtro prioritário</span>
+            <div class="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto">
+                <div class="flex-1 lg:w-44 rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
+                    <i class="fa-solid fa-wand-magic-sparkles text-cyan-400 mb-1.5 block text-base"></i>
+                    <strong class="block text-xs font-black text-white">3 DECISÕES</strong>
+                    <span class="text-[10px] text-slate-400">Local, nicho e meta</span>
                 </div>
-                <div class="rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
-                    <i class="fa-solid fa-bolt-lightning text-blue-400 mb-2 block text-base"></i>
-                    <strong class="block text-xs font-black text-white">PITCH SDR</strong>
-                    <span class="text-[10px] text-slate-400">Copy por segmento</span>
+                <div class="flex-1 lg:w-44 rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
+                    <i class="fa-solid fa-bullseye text-blue-400 mb-1.5 block text-base"></i>
+                    <strong class="block text-xs font-black text-white">QUALIFICAÇÃO REAL</strong>
+                    <span class="text-[10px] text-slate-400">Score &ge; 70 com evidências</span>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Formulário Principal e Checklist -->
-    <div class="grid xl:grid-cols-[1fr_310px] gap-6 items-start">
-        <div class="bg-[#0E1422] border border-[#1E293B] rounded-3xl shadow-xl overflow-hidden">
-            <div class="p-6 md:p-8 border-b border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0A0E18]">
-                <div>
-                    <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Etapa 01</span>
-                    <h2 class="text-xl font-black text-white mt-0.5">Segmentação & Mercados</h2>
-                    <p class="text-xs text-slate-400 mt-1">Selecione segmentos-alvo e regiões geográficas para prospecção.</p>
+    <!-- PAINEL DE ACOMPANHAMENTO (Tempo Real) -->
+    <section id="campaign_monitor" class="hidden rounded-3xl bg-[#0A0E18] border border-[#1E293B] text-white p-6 md:p-8 shadow-2xl space-y-6" aria-live="polite">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1E293B] pb-6">
+            <div>
+                <div class="flex items-center gap-3">
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Campanha em Andamento</span>
+                    <span id="monitor_status_badge" class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide border">
+                        Preparando
+                    </span>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-2">
-                    <select id="mercado" aria-label="Mercado de prospecção" class="rounded-xl bg-[#080B12] border border-[#1F2B44] text-slate-200 text-xs font-bold px-3 py-2.5 focus:border-blue-500 outline-none">
-                        <option value="br">Brasil</option>
-                        <option value="us">Estados Unidos</option>
-                        <option value="europa">Europa</option>
-                    </select>
-                    <select id="niche_sample_target" aria-label="Amostra por nicho" class="rounded-xl bg-[#080B12] border border-[#1F2B44] text-slate-200 text-xs font-bold px-3 py-2.5 focus:border-blue-500 outline-none">
-                        <option value="25">Amostra 25</option>
-                        <option value="50" selected>Amostra 50</option>
-                        <option value="75">Amostra 75</option>
-                    </select>
-                    <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="inline-flex justify-center items-center gap-2 rounded-xl bg-[#131A2B] hover:bg-[#1A2338] border border-[#1F2B44] text-white text-xs font-bold px-4 py-2.5 transition-colors">
-                        <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Sugerir nichos
-                    </button>
+                <h2 id="monitor_campaign_name" class="text-xl md:text-2xl font-black text-white mt-1">
+                    Campanha Inteligente #--
+                </h2>
+                <p id="monitor_campaign_subtitle" class="text-xs text-slate-400 mt-0.5">
+                    Processando regiões e qualificando leads no banco de dados.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="btn_pause_campaign" type="button" onclick="handleCampaignAction('pause')" class="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all">
+                    <i class="fa-solid fa-pause"></i> Pausar
+                </button>
+                <button id="btn_resume_campaign" type="button" onclick="handleCampaignAction('resume')" class="hidden inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-all">
+                    <i class="fa-solid fa-play"></i> Continuar
+                </button>
+                <button id="btn_cancel_campaign" type="button" onclick="handleCampaignAction('cancel')" class="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20 transition-all">
+                    <i class="fa-solid fa-stop"></i> Cancelar
+                </button>
+                <a href="/crm" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-xs font-black text-white hover:opacity-90 shadow-lg shadow-blue-500/20 transition-all">
+                    <i class="fa-solid fa-users"></i> Visualizar leads
+                </a>
+            </div>
+        </div>
+
+        <!-- Barra de Progresso com Meta de Leads Qualificados -->
+        <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-5 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Progresso da Meta</span>
+                    <strong id="monitor_progress_headline" class="block text-base sm:text-lg font-black text-white">
+                        0 de 100 leads qualificados (0%)
+                    </strong>
+                </div>
+                <span id="monitor_goal_tag" class="text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-1.5 self-start sm:self-auto">
+                    Meta: 100 leads qualificados
+                </span>
+            </div>
+            <div class="h-3 w-full rounded-full bg-[#080B12] overflow-hidden border border-[#1F2B44]">
+                <div id="monitor_progress_bar" class="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p id="monitor_status_hint" class="text-[11px] text-slate-400 flex items-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-cyan-400 text-xs"></i>
+                <span id="monitor_status_text">Iniciando motor de busca e validação...</span>
+            </p>
+        </div>
+
+        <!-- Grid de Indicadores Detalhados -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            <div class="rounded-2xl bg-[#0E1422] border border-cyan-500/30 p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-cyan-300 font-extrabold">Meta Leads</span>
+                <strong id="stat_meta" class="text-xl font-black text-white mt-0.5 block">100</strong>
+            </div>
+            <div class="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">Qualificados</span>
+                <strong id="stat_qualificados" class="text-xl font-black text-emerald-300 mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Encontradas</span>
+                <strong id="stat_encontradas" class="text-xl font-black text-white mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Analisadas</span>
+                <strong id="stat_analisadas" class="text-xl font-black text-white mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Descartadas</span>
+                <strong id="stat_descartadas" class="text-xl font-black text-rose-300 mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Nichos</span>
+                <strong id="stat_nichos" class="text-xl font-black text-white mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Municípios</span>
+                <strong id="stat_municipios" class="text-xl font-black text-white mt-0.5 block">0</strong>
+            </div>
+            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Consultas</span>
+                <strong id="stat_consultas" class="text-xl font-black text-white mt-0.5 block">0</strong>
+            </div>
+        </div>
+
+        <!-- Seção Recolhível de Detalhes das Localidades -->
+        <details class="rounded-2xl border border-[#1F2B44] bg-[#0E1422] p-4 text-xs text-slate-400">
+            <summary class="font-bold text-white cursor-pointer select-none flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-cyan-400"></i> Visualizar detalhes das localidades pesquisadas
+                </span>
+                <i class="fa-solid fa-chevron-down text-slate-500 text-xs transition-transform duration-200"></i>
+            </summary>
+            <div id="monitor_locations_list" class="mt-4 max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                <p class="text-slate-500 text-[11px]">Nenhuma localidade processada ainda.</p>
+            </div>
+        </details>
+    </section>
+
+    <!-- FORMULÁRIO PRINCIPAL: 3 DECISÕES ESSENCIAIS -->
+    <div class="bg-[#0E1422] border border-[#1E293B] rounded-3xl shadow-xl overflow-hidden">
+        <div class="p-6 md:p-8 border-b border-[#1E293B] bg-[#0A0E18]">
+            <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Configuração Rápida</span>
+            <h2 class="text-xl md:text-2xl font-black text-white mt-0.5">Criar Campanha</h2>
+            <p class="text-xs text-slate-400 mt-1">Apenas 3 decisões para colocar a prospecção autônoma para trabalhar.</p>
+        </div>
+
+        <form id="smart_campaign_form" onsubmit="event.preventDefault(); startSmartCampaign();" class="p-6 md:p-8 space-y-8">
+            <!-- 1. LOCALIZAÇÃO -->
+            <div class="space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">1</span>
+                        Localização
+                    </label>
+                    <span id="loc_summary_badge" class="text-[11px] font-bold text-cyan-400">Automática selecionada</span>
+                </div>
+
+                <!-- Cards de Seleção de Modo de Localização -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <label class="decision-card selected" data-group="loc_mode" onclick="setLocMode('auto', this)">
+                        <input type="radio" name="location_mode" value="auto" checked class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Automática</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Recomendada · Motor IBGE</small>
+                        </div>
+                    </label>
+
+                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('states', this)">
+                        <input type="radio" name="location_mode" value="states" class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-map"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Selecionar Estados</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Escolha 1 ou mais UFs</small>
+                        </div>
+                    </label>
+
+                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('cities', this)">
+                        <input type="radio" name="location_mode" value="cities" class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-city"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Selecionar Cidades</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Busca com autocomplete</small>
+                        </div>
+                    </label>
+
+                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('brazil', this)">
+                        <input type="radio" name="location_mode" value="brazil" class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-earth-americas"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Brasil Inteiro</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Varredura nacional</small>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Painel Dinâmico: Automático -->
+                <div id="loc_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
+                    <i class="fa-solid fa-circle-check text-cyan-400 text-sm mt-0.5"></i>
+                    <div>
+                        <strong class="text-white block font-bold">Seleção Geográfica 100% Autônoma</strong>
+                        <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                            O sistema consulta o histórico da sua base e o catálogo oficial do IBGE para priorizar cidades polo e regiões com alta densidade de empresas sem presença digital.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Painel Dinâmico: Selecionar Estados -->
+                <div id="loc_panel_states" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-300">Clique para selecionar os estados desejados:</span>
+                        <span id="selected_states_count" class="text-[10px] text-cyan-400 font-bold">0 estados</span>
+                    </div>
+                    <div id="states_pill_grid" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Carregado via JS -->
+                        <span class="text-xs text-slate-500">Carregando estados...</span>
+                    </div>
+                </div>
+
+                <!-- Painel Dinâmico: Selecionar Cidades -->
+                <div id="loc_panel_cities" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                    <label class="block text-[11px] font-bold text-slate-300">
+                        Pesquisar municípios pelo nome:
+                        <div class="relative mt-1.5">
+                            <input id="city_autocomplete_input" type="text" autocomplete="off" placeholder="Digite o nome da cidade (ex.: Campinas, Maringá, Sorocaba)..." class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
+                            <div id="city_autocomplete_results" class="hidden absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-xl border border-[#1F2B44] bg-[#0A0E18] p-1 shadow-2xl"></div>
+                        </div>
+                    </label>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[10px] text-slate-500">Cidades selecionadas:</span>
+                        <span id="selected_cities_count" class="text-[10px] text-cyan-400 font-bold">0 cidades</span>
+                    </div>
+                    <div id="selected_cities_chips" class="flex flex-wrap gap-2 min-h-10">
+                        <span class="text-xs text-slate-600 italic">Nenhum município adicionado ainda.</span>
+                    </div>
+                </div>
+
+                <!-- Painel Dinâmico: Brasil Inteiro -->
+                <div id="loc_panel_brazil" class="hidden rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
+                    <i class="fa-solid fa-flag text-blue-400 text-sm mt-0.5"></i>
+                    <div>
+                        <strong class="text-white block font-bold">Cobertura em Todas as Regiões do Brasil</strong>
+                        <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                            A campanha distribuirá as consultas estrategicamente entre as macrorregiões Sul, Sudeste, Centro-Oeste, Nordeste e Norte.
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <div class="p-6 md:p-8 space-y-7">
-                <input type="hidden" id="nichos" aria-hidden="true">
-                <input type="hidden" id="bairros" aria-hidden="true">
-
-                <label class="block text-xs font-bold text-white">Nome da campanha <span class="font-normal text-slate-500">(opcional)</span>
-                    <input id="campaign_name" type="text" maxlength="120" class="mt-2 w-full rounded-xl border border-[#1F2B44] bg-[#080B12] px-4 py-3 text-xs text-white outline-none focus:border-cyan-500" placeholder="Ex.: Dentistas do interior de SP — outubro">
-                </label>
-
-                <!-- Segmentos / Nichos -->
-                <div>
-                    <div class="flex items-center justify-between gap-4 mb-2">
-                        <label for="nicho_input" class="text-xs font-bold text-white flex items-center">
-                            <i class="fa-solid fa-briefcase text-cyan-400 mr-2"></i>Segmentos Comerciais Desejados
-                        </label>
-
-                        <span id="nichos_count" class="text-[11px] font-bold text-slate-500">0 selecionados</span>
-                    </div>
-                    <div id="nichos_chips" class="min-h-14 rounded-2xl bg-[#080B12] border border-[#1F2B44] p-2.5 flex flex-wrap gap-2 items-center focus-within:border-blue-500 transition-colors">
-                        <input id="nicho_input" type="text" class="flex-1 min-w-36 bg-transparent text-xs text-white placeholder:text-slate-600 outline-none px-2 py-1.5" placeholder="Digite ou cole vários segmentos">
-                    </div>
-                    <p class="mt-2 text-[10px] text-slate-500">Cole uma lista separada por vírgulas, ponto e vírgula ou linhas. Todos serão adicionados de uma vez.</p>
-                    <div class="flex flex-wrap gap-2 mt-2.5" id="nichos_presets"></div>
+            <!-- 2. NICHO -->
+            <div class="space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">2</span>
+                        Nicho de Mercado
+                    </label>
+                    <span id="niche_summary_badge" class="text-[11px] font-bold text-cyan-400">Descobrir automaticamente</span>
                 </div>
 
-                <!-- Cidades / Regiões -->
-                <div>
-                    <div class="flex items-center justify-between gap-4 mb-2">
-                        <label for="cidade_input" class="text-xs font-bold text-white flex items-center">
-                            <i class="fa-solid fa-location-dot text-blue-400 mr-2"></i>Cidades, Bairros ou Estados
-                        </label>
-                        <span id="bairros_count" class="text-[11px] font-bold text-slate-500">0 selecionadas</span>
-                    </div>
-                    <div id="bairros_chips" class="min-h-14 rounded-2xl bg-[#080B12] border border-[#1F2B44] p-2.5 flex flex-wrap gap-2 items-center focus-within:border-blue-500 transition-colors">
-                        <input id="cidade_input" type="text" class="flex-1 min-w-36 bg-transparent text-xs text-white placeholder:text-slate-600 outline-none px-2 py-1.5" placeholder="Digite ou cole várias cidades">
-                    </div>
-                    <p class="mt-2 text-[10px] text-slate-500">Cole várias cidades de uma vez. Para pesquisar um estado inteiro, use a sigla ou o nome (ex.: SP, Minas Gerais, Santa Catarina). Para uma capital, informe “São Paulo - SP”.</p>
-                    <div class="flex flex-wrap gap-2 mt-2.5" id="bairros_presets"></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="decision-card selected" data-group="niche_mode" onclick="setNicheMode('auto', this)">
+                        <input type="radio" name="niche_mode" value="auto" checked class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-compass"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Descobrir automaticamente</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Recomendado · Inteligência v8 de nichos</small>
+                        </div>
+                    </label>
+
+                    <label class="decision-card" data-group="niche_mode" onclick="setNicheMode('manual', this)">
+                        <input type="radio" name="niche_mode" value="manual" class="sr-only">
+                        <div class="decision-icon"><i class="fa-solid fa-bullseye"></i></div>
+                        <div>
+                            <strong class="block text-xs font-black text-white">Escolher nicho específico</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Defina 1 ou mais segmentos</small>
+                        </div>
+                    </label>
                 </div>
 
-                <section id="geographic_automation" class="rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 md:p-5">
-                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div><span class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Automação geográfica IBGE</span><h3 class="mt-1 text-sm font-black text-white">Campanha nacional em lotes</h3><p class="mt-1 text-[11px] text-slate-400">Selecione estados, regiões ou municípios oficiais sem digitar cidade por cidade.</p></div>
-                        <span id="geo_catalog_status" class="rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-[10px] font-bold text-blue-300">Carregando base oficial…</span>
+                <!-- Painel Nicho Automático -->
+                <div id="niche_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
+                    <i class="fa-solid fa-bolt-lightning text-cyan-400 text-sm mt-0.5"></i>
+                    <div>
+                        <strong class="text-white block font-bold">Detecção Inteligente de Alto Ticket</strong>
+                        <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                            O motor prioriza nichos com comprovada capacidade de investimento e forte necessidade de presença digital (ex.: clínicas de estética, odontologia, advocacia, energia solar e projetos arquitetônicos).
+                        </p>
                     </div>
-                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modo<select id="geo_mode" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs normal-case text-white"><option value="custom">Região personalizada</option><option value="state">Estado completo</option><option value="brazil">Brasil inteiro</option><option value="smart">Localização inteligente</option></select></label>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Estados<select id="geo_states" multiple size="4" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2 text-xs normal-case text-white"></select></label>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Regiões<select id="geo_regions" multiple size="4" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2 text-xs normal-case text-white"></select></label>
-                        <div class="relative"><label for="geo_city_search" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Buscar município</label><input id="geo_city_search" autocomplete="off" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500" placeholder="Comece a digitar"><div id="geo_city_results" class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-xl border border-[#263550] bg-[#0A0E18] p-1 shadow-2xl"></div><div id="geo_selected_cities" class="mt-2 flex flex-wrap gap-1.5"></div></div>
-                    </div>
-                    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Raio em km<input id="geo_radius" type="number" min="1" max="1000" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white" placeholder="Opcional"></label>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lote<select id="geo_batch_size" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white"><option>5</option><option selected>10</option><option>25</option><option>50</option></select></label>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Concorrência<select id="geo_concurrency" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white"><option>1</option><option selected>2</option><option>3</option></select></label>
-                        <label class="flex items-center gap-2 rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-[11px] font-bold text-slate-300"><input id="geo_exclude_researched" type="checkbox" checked> Excluir cidades totalmente pesquisadas</label>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Salvar conjunto<input id="geo_set_name" maxlength="100" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs normal-case text-white" placeholder="Ex.: Interior de SP"></label>
-                    </div>
-                    <div class="mt-4 flex flex-wrap gap-2"><button type="button" onclick="previewGeoSelection()" class="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2.5 text-xs font-black text-blue-200">Pré-visualizar seleção</button><button type="button" onclick="saveGeoSet()" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-bold text-slate-300">Salvar conjunto</button><button type="button" onclick="startGeoCampaign()" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2.5 text-xs font-black text-white">Criar e iniciar campanha</button></div>
-                    <div id="geo_selection_preview" class="mt-4 hidden rounded-xl border border-[#263550] bg-[#080B12] p-3"></div>
-                    <div id="geo_campaigns" class="mt-4 space-y-2"></div>
-                </section>
+                </div>
 
-                <section id="target_recommendation" class="hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 md:p-5" aria-live="polite">
-                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                        <div>
-                            <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Radar de oportunidade</span>
-                            <h3 class="text-sm font-black text-white mt-1">Oportunidades pesquisadas no mercado</h3>
-                            <p id="target_recommendation_summary" class="text-xs text-slate-400 mt-1"></p>
+                <!-- Painel Nicho Manual -->
+                <div id="niche_panel_manual" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-300 block mb-1">Sugestões de nichos populares:</span>
+                        <div id="popular_niches_chips" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <label for="manual_niche_input" class="text-[11px] font-bold text-slate-300 block mb-1.5">
+                            Digite ou adicione nichos personalizados:
+                        </label>
+                        <div class="flex gap-2">
+                            <input id="manual_niche_input" type="text" placeholder="Ex.: Clínicas Veterinárias, Construtoras..." class="flex-1 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
+                            <button type="button" onclick="addCustomNiche()" class="rounded-xl bg-[#1A2338] hover:bg-[#253350] border border-[#263550] text-white text-xs font-bold px-4 py-2.5 transition-colors">
+                                Adicionar
+                            </button>
                         </div>
-                        <span id="target_recommendation_volume" class="self-start rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-300"></span>
                     </div>
-                    <div id="target_research_progress_wrap" class="hidden mt-4">
-                        <div class="h-1.5 overflow-hidden rounded-full bg-[#080B12]"><div id="target_research_progress" class="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500" style="width:0%"></div></div>
-                        <p id="target_research_status" class="mt-2 text-[11px] text-cyan-300"></p>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[10px] text-slate-500">Nichos selecionados:</span>
+                        <span id="selected_niches_count" class="text-[10px] text-cyan-400 font-bold">0 nichos</span>
                     </div>
-                    <div id="target_recommendation_niches" class="grid xl:grid-cols-2 gap-3 mt-4"></div>
-                    <div id="target_comparison" class="hidden mt-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.05] p-4"></div>
-                    <p id="target_recommendation_method" class="text-[10px] leading-relaxed text-slate-500 mt-3"></p>
-                </section>
+                    <div id="selected_niches_chips" class="flex flex-wrap gap-2 min-h-10">
+                        <span class="text-xs text-slate-600 italic">Nenhum nicho adicionado ainda.</span>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Filtros de Qualidade -->
-                <section class="pt-2">
-                    <div class="flex items-center justify-between mb-3.5">
-                        <div>
-                            <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Etapa 02</span>
-                            <h3 class="text-base font-black text-white mt-0.5">Critérios de Qualificação</h3>
+            <!-- 3. META DE LEADS QUALIFICADOS -->
+            <div class="space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">3</span>
+                        Meta de Leads Qualificados
+                    </label>
+                    <span id="meta_summary_badge" class="text-[11px] font-bold text-cyan-400">100 leads qualificados</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue(50, this)">
+                        <input type="radio" name="goal_choice" value="50" class="sr-only">
+                        <strong class="text-lg font-black text-white block">50</strong>
+                        <span class="text-[10px] text-slate-400">leads qualificados</span>
+                    </label>
+
+                    <label class="meta-card selected" data-group="goal_mode" onclick="setGoalValue(100, this)">
+                        <input type="radio" name="goal_choice" value="100" checked class="sr-only">
+                        <strong class="text-lg font-black text-cyan-300 block">100</strong>
+                        <span class="text-[10px] text-slate-400">Recomendado</span>
+                    </label>
+
+                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue(250, this)">
+                        <input type="radio" name="goal_choice" value="250" class="sr-only">
+                        <strong class="text-lg font-black text-white block">250</strong>
+                        <span class="text-[10px] text-slate-400">leads qualificados</span>
+                    </label>
+
+                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue('custom', this)">
+                        <input type="radio" name="goal_choice" value="custom" class="sr-only">
+                        <strong class="text-sm font-black text-white block">Personalizado</strong>
+                        <span class="text-[10px] text-slate-400">definir valor</span>
+                    </label>
+                </div>
+
+                <div id="custom_goal_wrap" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 flex items-center gap-4">
+                    <label for="custom_goal_input" class="text-xs font-bold text-slate-300">Quantidade desejada de leads qualificados:</label>
+                    <input id="custom_goal_input" type="number" min="5" max="2000" value="150" class="w-32 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs font-black text-cyan-300 outline-none focus:border-cyan-400 text-center">
+                </div>
+
+                <p class="text-[11px] text-slate-400 leading-relaxed bg-[#080B12] border border-[#1F2B44] rounded-xl p-3 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-blue-400"></i>
+                    <span>A meta representa <strong>leads qualificados</strong> (com score auditado e canal comercial válido), não empresas brutas encontradas.</span>
+                </p>
+            </div>
+
+            <!-- SEÇÃO RECOLHÍVEL: CONFIGURAÇÕES AVANÇADAS -->
+            <details class="rounded-2xl border border-[#1F2B44] bg-[#080B12] p-5 group transition-all">
+                <summary class="font-bold text-xs text-white uppercase tracking-wider cursor-pointer select-none flex items-center justify-between">
+                    <span class="flex items-center gap-2 text-slate-300 group-hover:text-white">
+                        <i class="fa-solid fa-sliders text-cyan-400"></i> Configurações avançadas
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-normal">Padrões seguros já aplicados &bull; <i class="fa-solid fa-chevron-down ml-1 text-slate-500 transition-transform group-open:rotate-180"></i></span>
+                </summary>
+
+                <div class="mt-5 pt-5 border-t border-[#1F2B44] space-y-5">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <!-- Nome opcional -->
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold text-white mb-1.5">
+                                Nome da Campanha <span class="text-slate-500 font-normal">(opcional)</span>
+                            </label>
+                            <input id="adv_campaign_name" type="text" maxlength="120" placeholder="Ex.: Campanha Odonto e Estética Interior SP" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
                         </div>
-                        <span class="text-[11px] text-slate-500">Filtros dinâmicos</span>
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-3">
-                        <label class="sm:col-span-2 rounded-2xl border border-cyan-400/30 bg-cyan-400/5 p-4">
-                            <span class="mb-2 block text-xs font-black text-white"><i class="fa-solid fa-globe mr-2 text-cyan-400"></i>Quais empresas devem entrar na busca?</span>
-                            <select id="site_filter_mode" class="w-full rounded-xl border border-[#1F2B44] bg-[#080B12] px-4 py-3 text-xs font-bold text-white outline-none focus:border-cyan-400">
-                                <option value="only_without_site">Somente empresas sem site — recomendado</option>
-                                <option value="without_and_weak">Empresas sem site + sites que precisam melhorar</option>
-                                <option value="all">Todas as empresas, mesmo com site</option>
+
+                        <!-- Score Mínimo -->
+                        <div>
+                            <label class="block text-xs font-bold text-white mb-1.5">
+                                Score Mínimo de Qualificação
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input id="adv_min_score" type="number" min="30" max="95" value="70" class="w-24 rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs font-black text-cyan-300 text-center outline-none focus:border-cyan-400">
+                                <span class="text-xs text-slate-400">/ 100 (Padrão: 70)</span>
+                            </div>
+                        </div>
+
+                        <!-- Filtro de Website -->
+                        <div>
+                            <label class="block text-xs font-bold text-white mb-1.5">
+                                Presença Digital (Site)
+                            </label>
+                            <select id="adv_site_filter" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white font-bold outline-none focus:border-cyan-400">
+                                <option value="only_without_site" selected>Somente empresas sem site (recomendado)</option>
+                                <option value="without_and_weak">Sem site + sites fracos / precisando de melhora</option>
+                                <option value="all">Todas as empresas</option>
                             </select>
-                            <small class="mt-2 block text-[11px] leading-relaxed text-slate-400">No modo recomendado, qualquer empresa com site próprio identificado é ignorada.</small>
-                        </label>
-                        
-                        <label class="filter-card">
-                            <input type="checkbox" id="req_whatsapp" class="peer sr-only">
-                            <span class="filter-check"><i class="fa-brands fa-whatsapp"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Celular compatível com WhatsApp</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Descarta fixos e formatos inválidos. A existência da conta só é confirmada ao abrir.</small>
-                            </div>
-                        </label>
-
-                        <label class="filter-card">
-                            <input type="checkbox" id="req_email" class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-envelope"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">E-mail identificado</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Recomendado para campanhas B2B internacionais.</small>
-                            </div>
-                        </label>
-
-                        <label class="filter-card">
-                            <input type="checkbox" id="strict_mobile" class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-mobile-screen"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Apenas celular / mobile</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Evita números de linha fixa.</small>
-                            </div>
-                        </label>
-
-                        <label class="filter-card">
-                            <input type="checkbox" id="anti_franchise" class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-ban"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Ignorar grandes redes / franquias</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Foca em negócios locais e tomadores de decisão.</small>
-                            </div>
-                        </label>
-
-                        <label class="filter-card sm:col-span-2">
-                            <input type="checkbox" id="strict_bairro" class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-map-pin"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Correspondência exata da região</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Salva apenas empresas que estejam exatamente no endereço pesquisado.</small>
-                            </div>
-                        </label>
-                        <label class="filter-card sm:col-span-2 border-cyan-400/40 bg-cyan-400/5">
-                            <input type="checkbox" id="strict_potencial" checked disabled class="peer sr-only">
-                            <span class="filter-check"><i class="fa-solid fa-gem"></i></span>
-                            <div>
-                                <strong class="block text-xs font-bold text-white">Separar automaticamente por potencial</strong>
-                                <small class="block text-[11px] text-slate-400 mt-0.5">Todos os leads são salvos: os melhores entram em Prioridade e os demais ficam em Oportunidades secundárias para revisão.</small>
-                            </div>
-                        </label>
-                    </div>
-                </section>
-
-                <!-- Avaliação Mínima Google -->
-                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-[#080B12] border border-[#1F2B44]">
-                    <div>
-                        <label for="min_nota" class="text-xs font-bold text-white block">Avaliação Mínima no Google Maps</label>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Priorize empresas com boa reputação e clientela ativa.</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-star text-cyan-400 text-sm"></i>
-                        <input type="number" id="min_nota" value="3.0" step="0.1" min="0" max="5" class="w-24 rounded-xl bg-[#111728] border border-[#1F2B44] text-white text-center font-black px-3 py-2 text-xs outline-none focus:border-blue-500">
-                    </div>
-                </div>
-
-                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-cyan-500/5 border border-cyan-400/20">
-                    <div>
-                        <label for="min_potencial" class="text-xs font-bold text-white block">Potencial mínimo do lead</label>
-                        <p class="text-[11px] text-slate-400 mt-0.5">55 é o equilíbrio recomendado para definir a fila Prioridade. Nenhum lead é descartado por essa nota.</p>
-                    </div>
-                    <div class="flex items-center gap-2"><input type="number" id="min_potencial" value="55" step="5" min="0" max="100" class="w-24 rounded-xl bg-[#111728] border border-cyan-400/30 text-cyan-200 text-center font-black px-3 py-2 text-xs outline-none focus:border-cyan-400"><span class="text-xs font-black text-cyan-300">/100</span></div>
-                </div>
-
-                <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center rounded-2xl p-4 bg-[#080B12] border border-[#1F2B44]">
-                    <div>
-                        <label for="max_leads" class="text-xs font-bold text-white block">Quantidade máxima por campanha</label>
-                        <p class="text-[11px] text-slate-400 mt-0.5">A busca encerra ao atingir a meta ou 15 minutos, evitando campanhas que ficam rodando por horas.</p>
-                    </div>
-                    <select id="max_leads" class="w-28 rounded-xl bg-[#111728] border border-[#1F2B44] text-white text-center font-black px-3 py-2 text-xs outline-none focus:border-blue-500">
-                        <option value="20">20 leads</option>
-                        <option value="30" selected>30 leads</option>
-                        <option value="50">50 leads</option>
-                    </select>
-                </div>
-
-                <!-- Toggle IA Copy -->
-                <label class="flex items-center gap-4 rounded-2xl p-4 bg-blue-500/10 border border-blue-500/25 cursor-pointer hover:border-blue-500/40 transition-colors">
-                    <input type="checkbox" id="ai_copy" checked class="sr-only peer">
-                    <span class="w-11 h-6 rounded-full bg-slate-800 relative transition-colors peer-checked:bg-blue-600 after:content-[''] after:absolute after:w-5 after:h-5 after:bg-white after:rounded-full after:top-0.5 after:left-0.5 after:transition-transform peer-checked:after:translate-x-5"></span>
-                    <div>
-                        <strong class="text-xs text-white block">Gerar pitch profissional durante a busca</strong>
-                        <small class="block text-[11px] text-blue-200/80 mt-0.5">Usa o gerador local revisado para deixar a mensagem pronta sem esperar uma API externa em cada lead.</small>
-                    </div>
-                </label>
-
-                <!-- Botão de Ação Primária -->
-                <button id="btn_search" class="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-4 px-6 shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-0.5 text-sm md:text-base flex items-center justify-center gap-3 active:scale-[0.99]">
-                    <i class="fa-solid fa-crosshairs text-base"></i>
-                    <span>INICIAR CAÇA DE LEADS</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Checklist Lateral -->
-        <aside class="xl:sticky xl:top-24 space-y-4">
-            <div class="rounded-3xl bg-[#0A0E18] border border-[#1E293B] p-6 text-white shadow-xl">
-                <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black block mb-4">Protocolo de Operação</span>
-                <ol class="space-y-4 text-xs">
-                    <li class="flex gap-3">
-                        <span class="step">1</span>
-                        <div>
-                            <strong class="block text-white">Escolha os nichos</strong>
-                            <small class="text-slate-400">Combine segmentos com alto ticket médio.</small>
                         </div>
-                    </li>
-                    <li class="flex gap-3">
-                        <span class="step">2</span>
+
+                        <!-- Tamanho do Lote -->
                         <div>
-                            <strong class="block text-white">Defina as regiões</strong>
-                            <small class="text-slate-400">Insira bairros nobres e cidades pólo.</small>
+                            <label class="block text-xs font-bold text-white mb-1.5">
+                                Tamanho do Lote de Cidades
+                            </label>
+                            <select id="adv_batch_size" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400">
+                                <option value="5">5 municípios por lote</option>
+                                <option value="10" selected>10 municípios por lote (recomendado)</option>
+                                <option value="25">25 municípios por lote</option>
+                            </select>
                         </div>
-                    </li>
-                    <li class="flex gap-3">
-                        <span class="step">3</span>
+
+                        <!-- Concorrência -->
                         <div>
-                            <strong class="block text-white">Aborde no CRM</strong>
-                            <small class="text-slate-400">Acesse a mesa comercial e envie o pitch.</small>
+                            <label class="block text-xs font-bold text-white mb-1.5">
+                                Concorrência Simultânea
+                            </label>
+                            <select id="adv_concurrency" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400">
+                                <option value="1">1 worker (menor consumo de recursos)</option>
+                                <option value="2" selected>2 workers paralelos (recomendado)</option>
+                                <option value="3">3 workers paralelos (máxima velocidade)</option>
+                            </select>
                         </div>
-                    </li>
-                </ol>
-            </div>
-            
-            <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 text-xs text-slate-400 leading-relaxed shadow-lg">
-                <div class="flex items-center gap-2 text-cyan-300 font-bold mb-1">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span>Precisão Técnica</span>
+                    </div>
+
+                    <!-- Checkboxes de Filtros -->
+                    <div class="grid sm:grid-cols-2 gap-3 pt-2">
+                        <label class="filter-option">
+                            <input type="checkbox" id="adv_req_whatsapp" checked class="peer sr-only">
+                            <span class="filter-box"><i class="fa-solid fa-check"></i></span>
+                            <span class="text-xs text-slate-300 font-bold">Celular compatível com WhatsApp</span>
+                        </label>
+
+                        <label class="filter-option">
+                            <input type="checkbox" id="adv_req_email" class="peer sr-only">
+                            <span class="filter-box"><i class="fa-solid fa-check"></i></span>
+                            <span class="text-xs text-slate-300 font-bold">Exigir e-mail identificado</span>
+                        </label>
+
+                        <label class="filter-option">
+                            <input type="checkbox" id="adv_exclude_researched" checked class="peer sr-only">
+                            <span class="filter-box"><i class="fa-solid fa-check"></i></span>
+                            <span class="text-xs text-slate-300 font-bold">Excluir cidades totalmente pesquisadas</span>
+                        </label>
+
+                        <label class="filter-option">
+                            <input type="checkbox" id="adv_ai_copy" checked class="peer sr-only">
+                            <span class="filter-box"><i class="fa-solid fa-check"></i></span>
+                            <span class="text-xs text-slate-300 font-bold">Gerar abordagem / copy SDR por IA</span>
+                        </label>
+                    </div>
                 </div>
-                Redes sociais como Instagram e Facebook não contam como website institucional próprio. Isso preserva empresas com grande poder de investimento que precisam de presença web profissional.
-            </div>
-        </aside>
+            </details>
+
+            <!-- BOTÃO PRINCIPAL DESTACADO -->
+            <button id="btn_start_campaign" type="submit" class="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-4 px-6 shadow-2xl shadow-blue-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] text-sm md:text-base flex items-center justify-center gap-3">
+                <i class="fa-solid fa-rocket text-base"></i>
+                <span>INICIAR CAMPANHA INTELIGENTE</span>
+            </button>
+        </form>
     </div>
-
-    <!-- Painel de Radar em Tempo Real -->
-    <section id="status_panel" class="hidden rounded-3xl bg-[#0A0E18] border border-[#1E293B] text-white p-6 md:p-8 shadow-2xl">
-        <div class="flex items-center justify-between gap-4 mb-5">
-            <div>
-                <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Operação em Andamento</span>
-                <h3 class="text-lg font-black mt-0.5">Radar de Extração Ativo</h3>
-            </div>
-            <div class="flex items-center gap-3">
-                <button id="btn_cancel_search" type="button" class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-black text-rose-300 hover:bg-rose-500/20 transition-colors">
-                    <i class="fa-solid fa-stop mr-1.5"></i>Cancelar busca
-                </button>
-                <span id="search_loader" class="loader"></span>
-            </div>
-        </div>
-        <p id="log_text" class="text-xs text-slate-300 mb-5 font-medium">Iniciando motor de busca...</p>
-        <div id="status_metrics" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
-        <div id="search_filter_breakdown" class="mt-4 flex flex-wrap gap-2"></div>
-        <div id="search_result_summary" class="hidden mt-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.07] p-4 md:flex md:items-center md:justify-between md:gap-4">
-            <div><strong id="search_result_title" class="block text-sm text-white"></strong><p id="search_result_detail" class="mt-1 text-[11px] text-slate-400"></p></div>
-            <a href="/crm" class="mt-3 inline-flex items-center justify-center rounded-xl bg-emerald-500/15 px-4 py-2.5 text-xs font-black text-emerald-300 hover:bg-emerald-500/25 md:mt-0"><i class="fa-solid fa-arrow-right mr-2"></i>Ver leads adicionados</a>
-        </div>
-    </section>
 </div>
 
 <style>
-    .filter-card {
+    .decision-card {
         display: flex;
         align-items: center;
         gap: 0.85rem;
+        padding: 0.95rem;
+        border: 1px solid #1F2B44;
+        border-radius: 1rem;
+        background: #080B12;
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .decision-card:hover {
+        border-color: #38BDF8;
+        background: #0E1422;
+        transform: translateY(-1px);
+    }
+    .decision-card.selected {
+        border-color: #06B6D4;
+        background: rgba(6, 182, 212, 0.08);
+        box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4);
+    }
+    .decision-icon {
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 0.75rem;
+        background: #111728;
+        color: #94A3B8;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        font-size: 0.95rem;
+        transition: all 0.18s ease;
+    }
+    .decision-card.selected .decision-icon {
+        background: linear-gradient(135deg, #2563EB, #06B6D4);
+        color: #ffffff;
+    }
+
+    .meta-card {
         padding: 0.9rem;
         border: 1px solid #1F2B44;
         border-radius: 1rem;
         background: #080B12;
-        color: #cbd5e1;
+        text-align: center;
         cursor: pointer;
         transition: all 0.18s ease;
     }
-    .filter-card:hover {
-        border-color: #3B82F6;
+    .meta-card:hover {
+        border-color: #38BDF8;
         transform: translateY(-1px);
     }
-    .filter-check {
-        display: grid;
-        place-items: center;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 0.7rem;
-        background: #111728;
-        color: #64748b;
-        flex-shrink: 0;
-        font-size: 0.85rem;
-        transition: all 0.18s ease;
+    .meta-card.selected {
+        border-color: #06B6D4;
+        background: rgba(6, 182, 212, 0.1);
+        box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4);
     }
-    .filter-card:has(input:checked) {
-        border-color: #2563EB;
-        background: rgba(37, 99, 235, 0.1);
-    }
-    .filter-card:has(input:checked) .filter-check {
-        color: #ffffff;
-        background: linear-gradient(135deg, #2563EB, #06B6D4);
-    }
-    .preset-chip {
+
+    .state-pill {
         border: 1px solid #1F2B44;
         background: #0B101C;
         color: #94A3B8;
-        border-radius: 9999px;
-        padding: 0.4rem 0.75rem;
+        border-radius: 0.65rem;
+        padding: 0.35rem 0.65rem;
         font-size: 0.75rem;
         font-weight: 700;
-        transition: all 0.18s ease;
+        cursor: pointer;
+        transition: all 0.15s ease;
     }
-    .preset-chip:hover {
-        color: #ffffff;
-        background: #1E293B;
+    .state-pill:hover {
         border-color: #38BDF8;
+        color: #ffffff;
     }
-    .selected-chip {
+    .state-pill.active {
+        border-color: #06B6D4;
+        background: rgba(6, 182, 212, 0.15);
+        color: #38BDF8;
+    }
+
+    .selected-tag {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
         border-radius: 9999px;
-        background: linear-gradient(135deg, #2563EB, #0284C7);
-        color: #ffffff;
-        padding: 0.35rem 0.65rem 0.35rem 0.85rem;
+        background: #131A2B;
+        border: 1px solid #263550;
+        color: #E2E8F0;
+        padding: 0.3rem 0.65rem 0.3rem 0.8rem;
         font-size: 0.75rem;
-        font-weight: 800;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        font-weight: 700;
     }
-    .selected-chip button {
-        font-size: 0.9rem;
+    .selected-tag button {
+        color: #94A3B8;
+        font-size: 0.85rem;
         line-height: 1;
-        opacity: 0.75;
     }
-    .selected-chip button:hover {
-        opacity: 1;
+    .selected-tag button:hover {
+        color: #F87171;
     }
-    .step {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 9999px;
-        background: linear-gradient(135deg, #2563EB, #06B6D4);
-        color: #ffffff;
-        font-weight: 900;
-        font-size: 0.7rem;
+
+    .filter-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border: 1px solid #1F2B44;
+        border-radius: 0.85rem;
+        background: #111728;
+        cursor: pointer;
+    }
+    .filter-box {
+        width: 1.35rem;
+        height: 1.35rem;
+        border-radius: 0.45rem;
+        background: #080B12;
+        border: 1px solid #263550;
         display: grid;
         place-items: center;
-        flex-shrink: 0;
+        font-size: 0.7rem;
+        color: transparent;
+        transition: all 0.15s ease;
+    }
+    .filter-option:has(input:checked) .filter-box {
+        background: #06B6D4;
+        border-color: #06B6D4;
+        color: #080B12;
     }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const preferenceIds = ['campaign_name', 'mercado', 'nichos', 'bairros', 'min_nota', 'min_potencial', 'max_leads', 'req_whatsapp', 'req_email', 'strict_bairro', 'anti_franchise', 'strict_mobile', 'site_filter_mode', 'strict_potencial', 'ai_copy'];
-    const pickerState = { nichos: [], bairros: [] };
-    const presets = {
-        br: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Arquitetura', 'Móveis Planejados', 'Imobiliária', 'Energia Solar', 'Contabilidade'], bairros: ['Moema - São Paulo', 'Itaim Bibi - São Paulo', 'Alphaville - SP', 'Campinas - SP', 'Balneário Camboriú - SC'] },
-        us: { nichos: ['Med Spa', 'Personal Injury Lawyer', 'Cosmetic Dentist', 'Luxury Realtor', 'Roofing Company', 'Solar Installer', 'Custom Home Builder'], bairros: ['Miami - FL', 'Boca Raton - FL', 'Scottsdale - AZ', 'Austin - TX', 'Beverly Hills - CA'] },
-        europa: { nichos: ['Clínica de Estética', 'Advogado', 'Dentista', 'Imobiliária de Luxo', 'Arquitetura', 'Energia Solar', 'Contabilidade'], bairros: ['London - UK', 'Lisbon - Portugal', 'Madrid - Spain', 'Amsterdam - Netherlands', 'Milan - Italy'] }
+    // Estado local da UI
+    const state = {
+        locMode: 'auto',
+        nicheMode: 'auto',
+        goalValue: 100,
+        selectedStates: new Set(),
+        selectedCities: new Map(),
+        selectedNiches: new Set(),
+        activeCampaignId: null,
+        pollingTimer: null
     };
-    if (localStorage.getItem('search_preferences_version') !== '9') { localStorage.setItem('pref_site_filter_mode', 'only_without_site'); localStorage.setItem('pref_strict_potencial', 'true'); localStorage.setItem('pref_min_potencial', '55'); localStorage.setItem('search_preferences_version', '9'); }
-    function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-    function loadPreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); const saved = localStorage.getItem(`pref_${id}`); if (!field || saved === null) return; field.type === 'checkbox' ? field.checked = saved === 'true' : field.value = saved; }); }
-    function savePreferences() { preferenceIds.forEach(id => { const field = document.getElementById(id); if (field) localStorage.setItem(`pref_${id}`, field.type === 'checkbox' ? field.checked : field.value); }); }
-    function syncPicker(kind) { document.getElementById(kind).value = pickerState[kind].join(', '); const total = pickerState[kind].length; document.getElementById(`${kind}_count`).textContent = `${total} ${total === 1 ? 'item selecionado' : 'itens selecionados'}`; const input = document.getElementById(kind === 'nichos' ? 'nicho_input' : 'cidade_input'); const container = document.getElementById(`${kind}_chips`); container.querySelectorAll('.selected-chip').forEach(chip => chip.remove()); pickerState[kind].forEach(value => { const chip = document.createElement('span'); chip.className = 'selected-chip'; chip.innerHTML = `${escapeHtml(value)} <button type="button" aria-label="Remover ${escapeHtml(value)}">×</button>`; chip.querySelector('button').addEventListener('click', () => removePickerValue(kind, value)); container.insertBefore(chip, input); }); savePreferences(); }
-    function parsePickerValues(value) { return String(value || '').split(/[\n,;]+/).map(item => item.trim()).filter(Boolean); }
-    function addPickerValue(kind, value, sync = true) { const cleaned = String(value || '').trim().replace(/,$/, ''); if (!cleaned || pickerState[kind].some(item => item.toLocaleLowerCase() === cleaned.toLocaleLowerCase())) return; pickerState[kind].push(cleaned); if (sync) syncPicker(kind); }
-    function addPickerValues(kind, value) { parsePickerValues(value).forEach(item => addPickerValue(kind, item, false)); syncPicker(kind); }
-    function removePickerValue(kind, value) { pickerState[kind] = pickerState[kind].filter(item => item !== value); syncPicker(kind); }
-    function renderPresets(kind) { const presetContainer = document.getElementById(`${kind}_presets`); presetContainer.replaceChildren(); presets[document.getElementById('mercado').value][kind].forEach(value => { const button = document.createElement('button'); button.type = 'button'; button.className = 'preset-chip'; button.textContent = `+ ${value}`; button.addEventListener('click', () => addPickerValue(kind, value)); presetContainer.appendChild(button); }); }
-    function setupPicker(kind) { const input = document.getElementById(kind === 'nichos' ? 'nicho_input' : 'cidade_input'); pickerState[kind] = parsePickerValues(document.getElementById(kind).value); input.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); addPickerValues(kind, input.value); input.value = ''; } if (event.key === 'Backspace' && !input.value && pickerState[kind].length) removePickerValue(kind, pickerState[kind][pickerState[kind].length - 1]); }); input.addEventListener('paste', event => { const pasted = event.clipboardData?.getData('text') || ''; if (!/[\n,;]/.test(pasted)) return; event.preventDefault(); addPickerValues(kind, pasted); input.value = ''; }); input.addEventListener('blur', () => { if (input.value.trim()) { addPickerValues(kind, input.value); input.value = ''; } }); syncPicker(kind); }
-    function aplicarMercado() { const internacional = document.getElementById('mercado').value !== 'br'; document.getElementById('req_email').checked = internacional; document.getElementById('req_whatsapp').checked = false; document.getElementById('strict_mobile').checked = false; document.getElementById('geographic_automation').classList.toggle('hidden', internacional); renderPresets('nichos'); renderPresets('bairros'); savePreferences(); }
-    loadPreferences(); setupPicker('nichos'); setupPicker('bairros'); renderPresets('nichos'); renderPresets('bairros'); aplicarMercado(); preferenceIds.filter(id => !['nichos', 'bairros'].includes(id)).forEach(id => document.getElementById(id)?.addEventListener('change', savePreferences)); document.getElementById('mercado').addEventListener('change', aplicarMercado);
-    let geoCatalog = null;
-    let geoSearchTimer = null;
-    let geoCampaignTimer = null;
-    const geoSelectedCities = new Map();
-    const geoExcludedCities = new Set();
-    function selectedOptions(id) { return [...document.getElementById(id).selectedOptions].map(option => option.value); }
-    function renderGeoSelectedCities() { document.getElementById('geo_selected_cities').innerHTML = [...geoSelectedCities.values()].map(item => `<span class="selected-chip">${escapeHtml(item.name)} - ${escapeHtml(item.uf)} <button type="button" onclick="removeGeoCity(${item.id})">×</button></span>`).join(''); }
-    function selectGeoCity(item) { geoSelectedCities.set(Number(item.id), item); document.getElementById('geo_city_results').classList.add('hidden'); document.getElementById('geo_city_search').value = ''; renderGeoSelectedCities(); }
-    function removeGeoCity(id) { geoSelectedCities.delete(Number(id)); renderGeoSelectedCities(); }
-    async function loadGeoCatalog() {
+
+    function escapeHtml(val) {
+        return String(val ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // 1. Controle de Localização
+    function setLocMode(mode, element) {
+        state.locMode = mode;
+        document.querySelectorAll('[data-group="loc_mode"]').forEach(el => el.classList.remove('selected'));
+        if (element) element.classList.add('selected');
+
+        document.getElementById('loc_panel_auto').classList.toggle('hidden', mode !== 'auto');
+        document.getElementById('loc_panel_states').classList.toggle('hidden', mode !== 'states');
+        document.getElementById('loc_panel_cities').classList.toggle('hidden', mode !== 'cities');
+        document.getElementById('loc_panel_brazil').classList.toggle('hidden', mode !== 'brazil');
+
+        const badge = document.getElementById('loc_summary_badge');
+        if (mode === 'auto') badge.textContent = 'Automática selecionada';
+        else if (mode === 'states') badge.textContent = `${state.selectedStates.size} estados`;
+        else if (mode === 'cities') badge.textContent = `${state.selectedCities.size} cidades`;
+        else if (mode === 'brazil') badge.textContent = 'Brasil inteiro';
+    }
+
+    // Carregar Estados do Brasil
+    async function loadStates() {
         try {
-            const response = await fetch('/api/geography/catalog?limit=1'); const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Base geográfica indisponível.');
-            geoCatalog = data;
-            document.getElementById('geo_states').innerHTML = data.states.map(item => `<option value="${item.code}">${item.code} · ${escapeHtml(item.name)}</option>`).join('');
-            document.getElementById('geo_regions').innerHTML = data.regions.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
-            document.getElementById('geo_catalog_status').textContent = `${data.total_municipalities} localidades · IBGE`;
-        } catch (error) { document.getElementById('geo_catalog_status').textContent = error.message; }
-    }
-    async function searchGeoCities(query) {
-        if (query.trim().length < 2) { document.getElementById('geo_city_results').classList.add('hidden'); return; }
-        const response = await fetch(`/api/geography/catalog?q=${encodeURIComponent(query)}&limit=20`); const data = await response.json();
-        const panel = document.getElementById('geo_city_results');
-        panel.innerHTML = (data.municipalities || []).map(item => `<button type="button" data-city-id="${item.id}" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-300 hover:bg-blue-500/10 hover:text-white">${escapeHtml(item.name)} - ${escapeHtml(item.uf)} <span class="text-slate-600">IBGE ${item.id}</span></button>`).join('') || '<p class="p-3 text-xs text-slate-500">Nenhum município encontrado.</p>';
-        panel.querySelectorAll('[data-city-id]').forEach(button => button.addEventListener('click', () => selectGeoCity(data.municipalities.find(item => String(item.id) === button.dataset.cityId))));
-        panel.classList.remove('hidden');
-    }
-    document.getElementById('geo_city_search').addEventListener('input', event => { clearTimeout(geoSearchTimer); geoSearchTimer = setTimeout(() => searchGeoCities(event.target.value), 250); });
-    function geoPayload() {
-        const radius = Number(document.getElementById('geo_radius').value || 0);
-        const firstCity = [...geoSelectedCities.keys()][0];
-        return { mode: document.getElementById('geo_mode').value, states: selectedOptions('geo_states'), regions: selectedOptions('geo_regions'), municipality_ids: [...geoSelectedCities.keys()], excluded_ids: [...geoExcludedCities], center_id: radius ? firstCity : null, radius_km: radius || null, exclude_researched: document.getElementById('geo_exclude_researched').checked, limit: 30 };
-    }
-    function excludeGeoCity(id) { geoExcludedCities.add(Number(id)); previewGeoSelection(); }
-    async function previewGeoSelection() {
-        const panel = document.getElementById('geo_selection_preview'); panel.classList.remove('hidden'); panel.innerHTML = '<p class="text-xs text-blue-300"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Resolvendo seleção oficial…</p>';
-        try {
-            const response = await fetch('/api/geography/selection', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(geoPayload())}); const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível resolver a seleção.');
-            const cards = (data.preview || []).slice(0, 30).map(item => `<span class="inline-flex items-center gap-1 rounded-lg border border-[#263550] bg-[#111728] px-2 py-1 text-[10px] text-slate-300">${escapeHtml(item.label)} <button type="button" onclick="excludeGeoCity(${item.id})" title="Excluir">×</button></span>`).join('');
-            panel.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-xs text-white">${data.count} município(s) selecionado(s)</strong><span class="text-[10px] text-slate-500">${data.truncated ? 'prévia limitada a 200' : 'seleção completa'}</span></div>${data.ranking?.length ? `<p class="mt-2 text-[10px] text-amber-300">Ranking inteligente baseado em evidências reais; cidades sem amostra não são classificadas.</p>` : ''}<div class="mt-3 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">${cards || '<span class="text-xs text-slate-500">Nenhuma cidade disponível.</span>'}</div>`;
-        } catch (error) { panel.innerHTML = `<p class="text-xs text-rose-300">${escapeHtml(error.message)}</p>`; }
-    }
-    async function saveGeoSet() {
-        const name = document.getElementById('geo_set_name').value.trim(); if (!name) return showAppToast('Informe o nome do conjunto.', 'error');
-        const response = await fetch('/api/geography/sets', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, selection: geoPayload()})}); const data = await response.json();
-        if (!response.ok || !data.success) return showAppToast(data.error || 'Não foi possível salvar.', 'error'); showAppToast('Conjunto geográfico salvo.');
-    }
-    function campaignFilters() { return Object.fromEntries(preferenceIds.filter(id => !['campaign_name', 'mercado', 'nichos', 'bairros'].includes(id)).map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); }
-    async function startGeoCampaign() {
-        if (!pickerState.nichos.length) return showAppToast('Selecione pelo menos um nicho antes da campanha geográfica.', 'error');
-        const payload = {...geoPayload(), name: document.getElementById('campaign_name').value, niches: pickerState.nichos, filters: campaignFilters(), batch_size: Number(document.getElementById('geo_batch_size').value), concurrency: Number(document.getElementById('geo_concurrency').value)};
-        const response = await fetch('/api/geographic-campaigns', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}); const data = await response.json();
-        if (!response.ok || !data.success) return showAppToast(data.error || 'Não foi possível criar a campanha.', 'error'); showAppToast(`Campanha criada com ${data.campaign.total_municipalities} municípios.`); loadGeoCampaigns();
-    }
-    async function geoCampaignAction(id, action) { if (action === 'cancel') { const confirmed = await showAppConfirm({title: 'Cancelar campanha geográfica?', message: 'Municípios ainda pendentes serão cancelados. Leads já encontrados serão preservados.', confirmLabel: 'Cancelar campanha', danger: true}); if (!confirmed) return; } const response = await fetch(`/api/geographic-campaigns/${id}/${action}`, {method: 'POST'}); const data = await response.json(); if (!response.ok || !data.success) showAppToast(data.error || 'Ação não executada.', 'error'); loadGeoCampaigns(); }
-    async function loadGeoCampaigns() {
-        try {
-            const response = await fetch('/api/geographic-campaigns'); const data = await response.json();
-            document.getElementById('geo_campaigns').innerHTML = (data.campaigns || []).slice(0, 5).map(item => `<article class="rounded-xl border border-[#263550] bg-[#080B12] p-3"><div class="flex flex-wrap items-start justify-between gap-2"><div><strong class="text-xs text-white">${escapeHtml(item.name)}</strong><p class="mt-1 text-[10px] text-slate-500">${item.completed_municipalities || item.location_statuses.completed || 0}/${item.total_municipalities} municípios · ${item.queries_completed}/${item.queries_planned} consultas · ${item.qualified_leads} leads</p></div><span class="rounded-full bg-blue-400/10 px-2 py-1 text-[9px] font-black uppercase text-blue-300">${escapeHtml(item.status)}</span></div><div class="mt-2 h-1.5 overflow-hidden rounded-full bg-[#111728]"><div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400" style="width:${Math.min(100, item.coverage_percent || 0)}%"></div></div><div class="mt-2 flex flex-wrap gap-2"><button type="button" onclick="geoCampaignAction('${item.campaign_id}','pause')" class="text-[10px] font-bold text-amber-300">Pausar</button><button type="button" onclick="geoCampaignAction('${item.campaign_id}','resume')" class="text-[10px] font-bold text-emerald-300">Continuar</button><button type="button" onclick="geoCampaignAction('${item.campaign_id}','cancel')" class="text-[10px] font-bold text-rose-300">Cancelar</button><span class="ml-auto text-[10px] text-slate-500">Restam ~${item.estimated_queries_remaining} consultas</span></div></article>`).join('');
-        } catch (error) { console.warn('Campanhas geográficas indisponíveis.', error); }
-    }
-    loadGeoCatalog(); loadGeoCampaigns(); geoCampaignTimer = setInterval(loadGeoCampaigns, 5000);
-    const btn = document.getElementById('btn_search'); const panel = document.getElementById('status_panel'); const log = document.getElementById('log_text'); const metrics = document.getElementById('status_metrics'); const cancelBtn = document.getElementById('btn_cancel_search'); const searchLoader = document.getElementById('search_loader'); const resultSummary = document.getElementById('search_result_summary'); let timer = null;
-    function renderMetrics(data) { const source = data.metricas || {}; const formatTime = value => value == null ? '—' : value < 60 ? `${Math.round(value)}s` : `${Math.floor(value / 60)}m ${Math.round(value % 60)}s`; const queryProgress = source.consultas_planejadas ? `${source.consultas_concluidas || 0}/${source.consultas_planejadas}` : '—'; const items = [['Empresas encontradas', source.encontrados || 0], ['Resultados novos', source.novos_resultados || 0], ['Adicionados ao CRM', source.salvos || 0], ['Já conhecidos', source.duplicados || 0], ['Ignorados', source.ignorados || 0], ['Prioridade', source.prioridade || 0], ['Secundários', source.oportunidade_secundaria || 0], ['Combinações', queryProgress], ['Requisições', source.tentativas_busca || 0], ['Cache reutilizado', source.cache_hits || 0], ['Tempo', formatTime(source.tempo_segundos)], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value], index) => `<div class="rounded-xl ${index === 2 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-[#111728] border-[#1F2B44]'} border p-3 text-center"><span class="block text-[10px] uppercase tracking-wider ${index === 2 ? 'text-emerald-300' : 'text-slate-400'} font-extrabold">${label}</span><strong class="text-lg text-white font-black">${value}</strong></div>`).join(''); }
-    function renderFilterBreakdown(source) { const reasons = [['Com site próprio', source.com_site], ['Já existentes', source.duplicados], ['Fora da região', source.fora_regiao], ['Sem celular válido', source.telefone_invalido], ['Sem WhatsApp', source.sem_whatsapp], ['Sem e-mail', source.sem_email], ['Nota abaixo do filtro', source.nota_baixa], ['Franquias', source.franquias], ['Site sem oportunidade', source.site_sem_oportunidade], ['Erros de análise', source.erros]]; document.getElementById('search_filter_breakdown').innerHTML = reasons.filter(([, value]) => Number(value) > 0).map(([label, value]) => `<span class="rounded-full border border-[#263550] bg-[#111728] px-3 py-1.5 text-[10px] font-bold text-slate-300">${escapeHtml(label)}: <strong class="text-white">${value}</strong></span>`).join(''); }
-    function searchDiagnosis(source) { if ((source.salvos || 0) > 0) return `${source.encontrados || 0} encontrados no Google Maps · ${source.novos_resultados || 0} resultados novos · ${source.duplicados || 0} já conhecidos · ${source.ignorados || 0} ignorados pelos filtros.`; if ((source.duplicados || 0) >= (source.ignorados || 0) / 2) return 'A maior parte já estava no histórico. Pesquise outras cidades ou use a sugestão para abrir uma praça ainda pouco explorada.'; if ((source.com_site || 0) > 0) return 'A maioria possuía site próprio. Experimente outro nicho/local ou use “sem site + sites que precisam melhorar”.'; if ((source.sem_whatsapp || 0) + (source.telefone_invalido || 0) > 0) return 'O filtro de contato eliminou muitos resultados. Desative a exigência de WhatsApp para captar também telefone e e-mail.'; return 'Nenhum lead passou por todos os critérios. Veja os motivos abaixo e reduza apenas o filtro que mais descartou empresas.'; }
-    function setRunningState() { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>CAÇANDO LEADS...'; panel.classList.remove('hidden'); resultSummary.classList.add('hidden'); searchLoader.classList.remove('hidden'); cancelBtn.classList.remove('hidden'); }
-    function setIdleState() { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.innerHTML = '<i class="fa-solid fa-crosshairs mr-3"></i>INICIAR CAÇA DE LEADS'; searchLoader.classList.add('hidden'); cancelBtn.classList.add('hidden'); }
-    async function verificarStatus() { try { const response = await fetch('/api/status'); const data = await response.json(); const source = data.metricas || {}; const hasMetrics = Object.keys(source).length > 0; if (hasMetrics) { panel.classList.remove('hidden'); renderMetrics(data); renderFilterBreakdown(source); } if (data.rodando) { setRunningState(); log.textContent = data.mensagem || 'Buscando alvos...'; cancelBtn.disabled = Boolean(data.cancelamento_solicitado); cancelBtn.classList.toggle('opacity-50', Boolean(data.cancelamento_solicitado)); } else if (hasMetrics) { log.textContent = data.mensagem || 'Operação concluída.'; setIdleState(); document.getElementById('search_result_title').textContent = `${source.salvos || 0} lead(s) novo(s) adicionado(s) ao CRM`; document.getElementById('search_result_detail').textContent = searchDiagnosis(source); resultSummary.classList.remove('hidden'); if (timer) { clearInterval(timer); timer = null; } } } catch (error) { log.textContent = 'Não foi possível atualizar o radar.'; } }
-    function iniciarRadar() { if (timer) clearInterval(timer); timer = setInterval(verificarStatus, 2000); verificarStatus(); }
-    verificarStatus();
-    btn.addEventListener('click', async () => { const payload = Object.fromEntries(preferenceIds.map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); if (!payload.nichos.trim() || !payload.bairros.trim()) return showAppToast('Selecione pelo menos um segmento e uma cidade ou região.', 'error'); savePreferences(); setRunningState(); log.textContent = 'Iniciando a campanha...'; try { const response = await fetch('/api/search', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Falha ao iniciar a busca.'); if (data.location_expansions?.length) { pickerState.bairros = []; (data.locations || []).forEach(value => addPickerValue('bairros', value, false)); syncPicker('bairros'); const groups = data.location_expansions.map(item => item.grupo).join(', '); showAppToast(`${groups} expandido para ${data.locations.length} cidades comerciais.`); } else { showAppToast('Campanha iniciada e registrada no histórico.'); } iniciarRadar(); } catch (error) { showAppToast(error.message || 'Erro de conexão.', 'error'); setIdleState(); } });
-    cancelBtn.addEventListener('click', async () => { const confirmed = await showAppConfirm({ title: 'Cancelar esta busca?', message: 'O robô vai concluir a análise atual e parar. Os leads já salvos permanecerão no CRM.', confirmLabel: 'Cancelar busca', danger: true }); if (!confirmed) return; cancelBtn.disabled = true; try { const response = await fetch('/api/cancelar_busca', { method: 'POST' }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível cancelar a busca.'); showAppToast(data.message); verificarStatus(); } catch (error) { cancelBtn.disabled = false; showAppToast(error.message, 'error'); } });
-    let targetResearchTimer = null;
-    let activeTargetResearchRegion = null;
-    let lastTargetRecommendationWasCached = false;
-    let targetRecommendations = [];
-    const comparedTargets = new Set();
-    function setTargetResearchState(message, progress = 0) {
-        const panel = document.getElementById('target_recommendation');
-        panel.classList.remove('hidden');
-        document.getElementById('target_recommendation_summary').textContent = 'O motor está descobrindo segmentos e verificando empresas reais antes de recomendar.';
-        document.getElementById('target_recommendation_volume').textContent = 'pesquisa em andamento';
-        document.getElementById('target_recommendation_niches').replaceChildren();
-        document.getElementById('target_comparison').classList.add('hidden');
-        document.getElementById('target_recommendation_method').textContent = 'Nenhum nicho será aplicado aos filtros sem sua escolha.';
-        document.getElementById('target_research_progress_wrap').classList.remove('hidden');
-        document.getElementById('target_research_progress').style.width = `${Math.max(3, progress)}%`;
-        document.getElementById('target_research_status').textContent = message;
-    }
-    function recommendationByKey(key) { return targetRecommendations.find(item => item.niche_key === key); }
-    function useTargetRecommendation(key) {
-        const item = recommendationByKey(key); if (!item) return;
-        pickerState.nichos = []; pickerState.bairros = [];
-        addPickerValue('nichos', item.niche, false);
-        (item.cities || []).slice(0, 4).forEach(city => addPickerValue('bairros', city, false));
-        syncPicker('nichos'); syncPicker('bairros');
-        document.getElementById('nichos_chips').scrollIntoView({behavior: 'smooth', block: 'center'});
-        showAppToast(`${item.niche} aplicado com ${(item.cities || []).length} praça(s) pesquisada(s).`);
-    }
-    function toggleTargetExamples(key) { document.getElementById(`target-examples-${key}`)?.classList.toggle('hidden'); }
-    function renderTargetComparison() {
-        const panel = document.getElementById('target_comparison');
-        const selected = [...comparedTargets].map(recommendationByKey).filter(Boolean);
-        if (selected.length < 2) { panel.classList.add('hidden'); return; }
-        panel.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-xs text-white">Comparação observada</strong><button type="button" onclick="clearTargetComparison()" class="text-[10px] font-bold text-slate-400 hover:text-white">Limpar</button></div><div class="mt-3 grid gap-2 md:grid-cols-2">${selected.map(item => `<div class="rounded-lg bg-[#090D16] p-3 text-[10px] text-slate-400"><strong class="block text-xs text-white mb-2">${escapeHtml(item.niche)}</strong><p>Score: <b class="text-cyan-300">${item.score}</b> · Confiança: <b class="text-white">${escapeHtml(item.confidence)}</b></p><p class="mt-1">Qualificados: ${item.companies_qualified}/${item.companies_verified} · Contatos: ${item.contact_availability_percent}%</p><p class="mt-1">Sem site confirmado: ${item.confirmed_no_site_percent}% · Site fraco: ${item.weak_site_count}</p></div>`).join('')}</div>`;
-        panel.classList.remove('hidden');
-    }
-    function compareTarget(key) {
-        if (comparedTargets.has(key)) comparedTargets.delete(key); else {
-            if (comparedTargets.size >= 2) comparedTargets.delete([...comparedTargets][0]);
-            comparedTargets.add(key);
+            const res = await fetch('/api/smart-campaigns/geo/states');
+            const data = await res.json();
+            if (!data.success) return;
+            const grid = document.getElementById('states_pill_grid');
+            grid.innerHTML = (data.states || []).map(s => `
+                <button type="button" class="state-pill" data-uf="${s.code}" onclick="toggleState('${s.code}')">
+                    ${s.code} · ${escapeHtml(s.name)}
+                </button>
+            `).join('');
+        } catch (e) {
+            console.warn('Erro ao carregar estados', e);
         }
-        renderTargetComparison(); renderTargetCards();
     }
-    function clearTargetComparison() { comparedTargets.clear(); renderTargetComparison(); renderTargetCards(); }
-    function researchOtherRegion(key) {
-        const item = recommendationByKey(key); if (!item) return;
-        const market = document.getElementById('mercado');
-        market.value = market.value === 'br' ? 'us' : market.value === 'us' ? 'europa' : 'br';
-        pickerState.nichos = []; pickerState.bairros = []; addPickerValue('nichos', item.niche, false);
-        syncPicker('nichos'); syncPicker('bairros'); aplicarMercado(); sugerirAlvosIA(true);
+
+    function toggleState(code) {
+        if (state.selectedStates.has(code)) {
+            state.selectedStates.delete(code);
+        } else {
+            state.selectedStates.add(code);
+        }
+        document.querySelectorAll(`[data-uf="${code}"]`).forEach(el => {
+            el.classList.toggle('active', state.selectedStates.has(code));
+        });
+        document.getElementById('selected_states_count').textContent = `${state.selectedStates.size} selecionados`;
+        document.getElementById('loc_summary_badge').textContent = `${state.selectedStates.size} estados`;
     }
-    function refreshTarget(key) {
-        const item = recommendationByKey(key); if (!item) return;
-        sugerirAlvosIA(true, {niches: [item.niche], cities: item.cities || []});
-    }
-    function renderTargetCards() {
-        document.getElementById('target_recommendation_niches').innerHTML = targetRecommendations.map((item, index) => {
-            const examples = (item.examples || []).map(example => `<li class="rounded-lg border border-[#1F2B44] bg-[#080B12] p-2"><b class="text-slate-200">${escapeHtml(example.name || example.nome || 'Empresa verificada')}</b><span class="block text-slate-500">${escapeHtml(example.city || example.cidade || '')}${example.site_status ? ` · ${escapeHtml(example.site_status)}` : ''}</span></li>`).join('');
-            const selected = comparedTargets.has(item.niche_key);
-            const comparison = item.comparison || {};
-            return `<article class="rounded-2xl border ${index === 0 ? 'border-cyan-400/30' : 'border-[#1F2B44]'} bg-[#0A0E18] p-4"><div class="flex items-start justify-between gap-3"><div><span class="text-[9px] font-black uppercase tracking-widest text-cyan-400">${index === 0 ? 'Melhor evidência' : `Alternativa ${index + 1}`}</span><h4 class="mt-1 text-sm font-black text-white">${escapeHtml(item.niche)}</h4><p class="mt-1 text-[10px] text-slate-500">${escapeHtml((item.cities || []).join(' · ') || item.region)}</p></div><span class="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black text-cyan-300">${item.score}/100</span></div><div class="mt-3 grid grid-cols-2 gap-2 text-[10px] md:grid-cols-4"><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Pesquisadas</span><b class="text-white">${item.companies_searched}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Verificadas</span><b class="text-white">${item.companies_verified}/${item.sample_target}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Qualificadas</span><b class="text-emerald-300">${item.companies_qualified}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Sem site confirmado</span><b class="text-white">${item.confirmed_no_site_percent}%</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Contatos públicos</span><b class="text-white">${item.contact_availability_percent}%</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Saturação observada</span><b class="text-white">${escapeHtml(item.observed_saturation || 'não medida')}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Confiança</span><b class="text-amber-300">${escapeHtml(item.confidence)}</b></div></div><p class="mt-3 text-[11px] leading-relaxed text-slate-300">${escapeHtml(item.justification)}</p><p class="mt-2 text-[10px] leading-relaxed text-slate-500"><b class="text-slate-400">Potencial comercial:</b> ${escapeHtml(item.commercial_potential)}</p><div class="mt-2 flex flex-wrap gap-1.5 text-[9px] text-slate-500"><span>Pesquisa: ${escapeHtml(item.researched_at)}</span><span>·</span><span>Fontes: ${escapeHtml((item.sources || []).join(', ') || 'não informada')}</span><span>·</span><span>${escapeHtml(comparison.status || '')}</span></div>${examples ? `<div id="target-examples-${item.niche_key}" class="hidden mt-3"><p class="mb-2 text-[10px] font-bold text-slate-300">Empresas da amostra</p><ul class="space-y-1.5 text-[10px]">${examples}</ul></div>` : ''}<div class="mt-4 flex flex-wrap gap-2"><button type="button" onclick="useTargetRecommendation('${item.niche_key}')" class="rounded-lg bg-cyan-500 px-3 py-2 text-[10px] font-black text-slate-950 hover:bg-cyan-300">Buscar leads</button><button type="button" onclick="compareTarget('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold ${selected ? 'text-cyan-300 border-cyan-400/40' : 'text-slate-300'}">Comparar</button><button type="button" onclick="researchOtherRegion('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Outra região</button>${examples ? `<button type="button" onclick="toggleTargetExamples('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Ver amostra</button>` : ''}<button type="button" onclick="refreshTarget('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Atualizar</button></div></article>`;
-        }).join('');
-    }
-    function renderTargetRecommendation(data) {
-        const panel = document.getElementById('target_recommendation');
-        const investigation = data.investigacao || {};
-        targetRecommendations = data.recomendacoes_detalhadas || [];
-        comparedTargets.clear();
-        document.getElementById('target_recommendation_summary').textContent = `${targetRecommendations.length} oportunidade(s) ranqueada(s) após ${investigation.amostra_nova || 0} verificações reais. Escolha uma antes de buscar leads.`;
-        document.getElementById('target_recommendation_volume').textContent = `${investigation.combinacoes_estudadas || data.total_combinacoes || 0} pesquisas`;
-        document.getElementById('target_recommendation_method').textContent = data.metodologia;
-        document.getElementById('target_research_progress_wrap').classList.add('hidden');
-        renderTargetCards(); renderTargetComparison();
-        panel.classList.remove('hidden');
-    }
-    function applyTargetRecommendation(data, message = 'Investigação concluída. Escolha uma oportunidade para aplicar.', cached = false) {
-        lastTargetRecommendationWasCached = cached;
-        renderTargetRecommendation(data);
-        const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
-        button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-wand-magic-sparkles text-cyan-400';
-        showAppToast(message);
-    }
-    async function pollTargetResearch() {
-        try {
-            const response = await fetch('/api/sugerir_alvos/status');
-            const status = await response.json();
-            if (activeTargetResearchRegion && status.regiao && status.regiao !== activeTargetResearchRegion) throw new Error('Já existe uma investigação ativa em outro mercado. Aguarde a conclusão.');
-            if (status.rodando) {
-                setTargetResearchState(status.mensagem || 'Investigando o mercado...', status.progresso || 0);
-                return;
+
+    // Autocomplete de Cidades IBGE
+    let citySearchTimer = null;
+    const cityInput = document.getElementById('city_autocomplete_input');
+    const cityResults = document.getElementById('city_autocomplete_results');
+
+    cityInput.addEventListener('input', () => {
+        clearTimeout(citySearchTimer);
+        const query = cityInput.value.trim();
+        if (query.length < 2) {
+            cityResults.classList.add('hidden');
+            return;
+        }
+        citySearchTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/smart-campaigns/geo/search?q=${encodeURIComponent(query)}&limit=15`);
+                const data = await res.json();
+                if (!data.success || !data.municipalities?.length) {
+                    cityResults.innerHTML = '<p class="p-3 text-xs text-slate-500">Nenhum município encontrado.</p>';
+                } else {
+                    cityResults.innerHTML = data.municipalities.map(m => `
+                        <button type="button" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-cyan-500/10 hover:text-white rounded-lg block" onclick='selectCity(${JSON.stringify(m)})'>
+                            <strong class="text-white">${escapeHtml(m.name)}</strong> - <span class="text-cyan-400 font-bold">${m.uf}</span>
+                            <span class="text-slate-500 ml-2 text-[10px]">Pop.: ${(m.population || 0).toLocaleString('pt-BR')}</span>
+                        </button>
+                    `).join('');
+                }
+                cityResults.classList.remove('hidden');
+            } catch (e) {
+                cityResults.classList.add('hidden');
             }
-            clearInterval(targetResearchTimer); targetResearchTimer = null;
-            const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
-            button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-wand-magic-sparkles text-cyan-400';
-            if (!status.concluido || !status.resultado) throw new Error(status.erro || 'A investigação não encontrou dados suficientes.');
-            applyTargetRecommendation(status.resultado);
-        } catch (error) {
-            if (targetResearchTimer) { clearInterval(targetResearchTimer); targetResearchTimer = null; }
-            const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
-            button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-wand-magic-sparkles text-cyan-400';
-            showAppToast(error.message || 'Não foi possível investigar novos alvos.', 'error');
+        }, 220);
+    });
+
+    function selectCity(city) {
+        state.selectedCities.set(Number(city.id), city);
+        cityInput.value = '';
+        cityResults.classList.add('hidden');
+        renderCitiesChips();
+    }
+
+    function removeCity(id) {
+        state.selectedCities.delete(Number(id));
+        renderCitiesChips();
+    }
+
+    function renderCitiesChips() {
+        const wrap = document.getElementById('selected_cities_chips');
+        if (!state.selectedCities.size) {
+            wrap.innerHTML = '<span class="text-xs text-slate-600 italic">Nenhum município adicionado ainda.</span>';
+        } else {
+            wrap.innerHTML = [...state.selectedCities.values()].map(c => `
+                <span class="selected-tag">
+                    ${escapeHtml(c.name)} - ${escapeHtml(c.uf)}
+                    <button type="button" onclick="removeCity(${c.id})">&times;</button>
+                </span>
+            `).join('');
+        }
+        document.getElementById('selected_cities_count').textContent = `${state.selectedCities.size} cidades`;
+        document.getElementById('loc_summary_badge').textContent = `${state.selectedCities.size} cidades`;
+    }
+
+    // 2. Controle de Nicho
+    function setNicheMode(mode, element) {
+        state.nicheMode = mode;
+        document.querySelectorAll('[data-group="niche_mode"]').forEach(el => el.classList.remove('selected'));
+        if (element) element.classList.add('selected');
+
+        document.getElementById('niche_panel_auto').classList.toggle('hidden', mode !== 'auto');
+        document.getElementById('niche_panel_manual').classList.toggle('hidden', mode !== 'manual');
+
+        const badge = document.getElementById('niche_summary_badge');
+        if (mode === 'auto') badge.textContent = 'Descobrir automaticamente';
+        else badge.textContent = `${state.selectedNiches.size} nichos`;
+    }
+
+    async function loadPopularNiches() {
+        try {
+            const res = await fetch('/api/smart-campaigns/niches/popular');
+            const data = await res.json();
+            if (!data.success) return;
+            const wrap = document.getElementById('popular_niches_chips');
+            wrap.innerHTML = (data.niches || []).map(n => `
+                <button type="button" class="preset-chip" onclick="addNiche('${escapeHtml(n.name)}')">
+                    + ${escapeHtml(n.name)}
+                </button>
+            `).join('');
+        } catch (e) {
+            console.warn('Erro ao carregar nichos populares', e);
         }
     }
-    async function sugerirAlvosIA(forceRefresh = false, targetOverride = null) {
-        const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value;
-        const nichosInformados = targetOverride?.niches || [...pickerState.nichos];
-        const cidadesInformadas = targetOverride?.cities || [...pickerState.bairros];
-        activeTargetResearchRegion = mercado;
-        button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-cyan-400';
-        const contexto = nichosInformados.length && !cidadesInformadas.length
-            ? `Procurando as melhores praças para ${nichosInformados.join(' + ')}...`
-            : cidadesInformadas.length && !nichosInformados.length
-                ? `Procurando os melhores nichos para ${cidadesInformadas.join(' + ')}...`
-                : nichosInformados.length && cidadesInformadas.length
-                    ? 'Validando os nichos e locais que você informou...'
-                    : 'Descobrindo nichos e praças ainda pouco explorados...';
-        setTargetResearchState(contexto, 0);
+
+    function addNiche(name) {
+        name = String(name || '').trim();
+        if (!name) return;
+        state.selectedNiches.add(name);
+        renderNichesChips();
+    }
+
+    function removeNiche(name) {
+        state.selectedNiches.delete(name);
+        renderNichesChips();
+    }
+
+    function addCustomNiche() {
+        const inp = document.getElementById('manual_niche_input');
+        addNiche(inp.value);
+        inp.value = '';
+    }
+
+    function renderNichesChips() {
+        const wrap = document.getElementById('selected_niches_chips');
+        if (!state.selectedNiches.size) {
+            wrap.innerHTML = '<span class="text-xs text-slate-600 italic">Nenhum nicho adicionado ainda.</span>';
+        } else {
+            wrap.innerHTML = [...state.selectedNiches].map(n => `
+                <span class="selected-tag">
+                    ${escapeHtml(n)}
+                    <button type="button" onclick="removeNiche('${escapeHtml(n)}')">&times;</button>
+                </span>
+            `).join('');
+        }
+        document.getElementById('selected_niches_count').textContent = `${state.selectedNiches.size} nichos`;
+        document.getElementById('niche_summary_badge').textContent = `${state.selectedNiches.size} nichos`;
+    }
+
+    // 3. Controle de Meta
+    function setGoalValue(val, element) {
+        document.querySelectorAll('[data-group="goal_mode"]').forEach(el => el.classList.remove('selected'));
+        if (element) element.classList.add('selected');
+
+        const customWrap = document.getElementById('custom_goal_wrap');
+        const badge = document.getElementById('meta_summary_badge');
+
+        if (val === 'custom') {
+            customWrap.classList.remove('hidden');
+            state.goalValue = Number(document.getElementById('custom_goal_input').value || 100);
+            badge.textContent = `${state.goalValue} leads qualificados`;
+        } else {
+            customWrap.classList.add('hidden');
+            state.goalValue = Number(val);
+            badge.textContent = `${state.goalValue} leads qualificados`;
+        }
+    }
+
+    document.getElementById('custom_goal_input')?.addEventListener('input', e => {
+        state.goalValue = Math.max(5, Math.min(2000, Number(e.target.value || 100)));
+        document.getElementById('meta_summary_badge').textContent = `${state.goalValue} leads qualificados`;
+    });
+
+    // Submissão da Campanha Inteligente
+    async function startSmartCampaign() {
+        // Validação no frontend antes de enviar
+        if (state.locMode === 'states' && !state.selectedStates.size) {
+            return showAppToast('Selecione pelo menos um estado para a campanha.', 'error');
+        }
+        if (state.locMode === 'cities' && !state.selectedCities.size) {
+            return showAppToast('Adicione pelo menos uma cidade para a campanha.', 'error');
+        }
+        if (state.nicheMode === 'manual' && !state.selectedNiches.size) {
+            return showAppToast('Adicione pelo menos um nicho para a campanha.', 'error');
+        }
+
+        const payload = {
+            location_mode: state.locMode,
+            states: [...state.selectedStates],
+            municipality_ids: [...state.selectedCities.keys()],
+            niche_mode: state.nicheMode,
+            niches: [...state.selectedNiches],
+            target_qualified_leads: state.goalValue,
+            name: document.getElementById('adv_campaign_name').value.trim(),
+            min_qualification_score: Number(document.getElementById('adv_min_score').value || 70),
+            batch_size: Number(document.getElementById('adv_batch_size').value || 10),
+            concurrency: Number(document.getElementById('adv_concurrency').value || 2),
+            filters: {
+                site_filter_mode: document.getElementById('adv_site_filter').value,
+                req_whatsapp: document.getElementById('adv_req_whatsapp').checked,
+                req_email: document.getElementById('adv_req_email').checked,
+                exclude_researched: document.getElementById('adv_exclude_researched').checked,
+                ai_copy: document.getElementById('adv_ai_copy').checked
+            }
+        };
+
+        const btn = document.getElementById('btn_start_campaign');
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>CRIANDO CAMPANHA...';
+
         try {
-            const atualizar = forceRefresh || lastTargetRecommendationWasCached;
-            const response = await fetch('/api/sugerir_alvos', {
+            const res = await fetch('/api/smart-campaigns', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({regiao: mercado, atualizar, nichos: nichosInformados, cidades: cidadesInformadas, amostra_alvo: Number(document.getElementById('niche_sample_target').value || 50)}),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-            const data = await response.json();
-            if (!response.ok && !(response.status === 409 && data.status?.rodando && data.status.regiao === mercado)) throw new Error(data.erro || 'Não foi possível iniciar a investigação.');
-            if (data.cached && data.resultado) {
-                applyTargetRecommendation(data.resultado, 'Sugestão recente carregada na hora. Clique novamente para investigar novos alvos.', true);
-                return;
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Não foi possível criar a campanha.');
             }
-            lastTargetRecommendationWasCached = false;
-            if (targetResearchTimer) clearInterval(targetResearchTimer);
-            targetResearchTimer = setInterval(pollTargetResearch, 2000); pollTargetResearch();
+
+            showAppToast('Campanha Inteligente iniciada com sucesso!');
+            state.activeCampaignId = data.campaign.campaign_id;
+            updateMonitor(data.campaign);
+            startPolling();
+
+            // Rola suavemente até o monitor
+            document.getElementById('campaign_monitor').scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (error) {
-            button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-wand-magic-sparkles text-cyan-400';
-            showAppToast(error.message || 'Não foi possível iniciar a investigação.', 'error');
+            showAppToast(error.message || 'Erro ao iniciar campanha.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i>INICIAR CAMPANHA INTELIGENTE';
         }
     }
-    async function resumeTargetResearch() {
-        try {
-            const response = await fetch('/api/sugerir_alvos/status'); const status = await response.json();
-            if (!status.rodando) return;
-            activeTargetResearchRegion = status.regiao;
-            document.getElementById('btn-ia-sugerir').disabled = true;
-            document.getElementById('btn-ia-sugerir').classList.add('opacity-50');
-            document.getElementById('icon-ia-sugerir').className = 'fa-solid fa-circle-notch fa-spin text-cyan-400';
-            setTargetResearchState(status.mensagem || 'Retomando a investigação...', status.progresso || 0);
-            targetResearchTimer = setInterval(pollTargetResearch, 2000);
-        } catch (error) { console.warn('Não foi possível retomar a investigação.', error); }
+
+    // Monitor e Polling em Tempo Real
+    function updateMonitor(camp) {
+        if (!camp) return;
+        const panel = document.getElementById('campaign_monitor');
+        panel.classList.remove('hidden');
+
+        document.getElementById('monitor_campaign_name').textContent = camp.name || `Campanha Inteligente #${camp.campaign_id?.slice(0, 8)}`;
+        document.getElementById('monitor_campaign_subtitle').textContent =
+            `Modo: ${camp.location_mode === 'auto' ? 'Localização Automática' : camp.location_mode} · ${camp.niches?.join(', ') || 'Nichos Automáticos'}`;
+
+        // Status Badge
+        const badge = document.getElementById('monitor_status_badge');
+        badge.textContent = camp.detailed_status_label || camp.status?.toUpperCase();
+
+        const statusClassMap = {
+            'preparando': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+            'pesquisando_nichos': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+            'selecionando_regioes': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+            'buscando_empresas': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+            'validando_leads': 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+            'concluida': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+            'pausada': 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
+            'cancelada': 'bg-slate-500/10 text-slate-300 border-slate-500/30',
+            'falha': 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+        };
+        badge.className = `rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide border ${statusClassMap[camp.detailed_status] || 'bg-slate-500/10 text-slate-300 border-slate-500/30'}`;
+
+        // Progresso
+        const pct = camp.progress_percent || 0;
+        document.getElementById('monitor_progress_headline').textContent = `${camp.qualified_leads || 0} de ${camp.target_qualified_leads || 100} leads qualificados (${pct}%)`;
+        document.getElementById('monitor_goal_tag').textContent = `Meta: ${camp.target_qualified_leads || 100} leads qualificados`;
+        document.getElementById('monitor_progress_bar').style.width = `${pct}%`;
+
+        // Métricas
+        document.getElementById('stat_meta').textContent = camp.target_qualified_leads || 100;
+        document.getElementById('stat_qualificados').textContent = camp.qualified_leads || 0;
+        document.getElementById('stat_encontradas').textContent = camp.companies_found || 0;
+        document.getElementById('stat_analisadas').textContent = camp.companies_analyzed || 0;
+        document.getElementById('stat_descartadas').textContent = camp.companies_discarded || 0;
+        document.getElementById('stat_nichos').textContent = camp.niches_count || camp.niches?.length || 0;
+        document.getElementById('stat_municipios').textContent = `${camp.completed_municipalities || 0}/${camp.total_municipalities || 0}`;
+        document.getElementById('stat_consultas').textContent = camp.queries_completed || 0;
+
+        // Botões de Ação
+        const isRunning = camp.status === 'running' || camp.status === 'pending';
+        const isPaused = camp.status === 'paused';
+        document.getElementById('btn_pause_campaign').classList.toggle('hidden', !isRunning);
+        document.getElementById('btn_resume_campaign').classList.toggle('hidden', !isPaused);
+        document.getElementById('btn_cancel_campaign').classList.toggle('hidden', !isRunning && !isPaused);
+
+        // Mensagem de Status
+        const hintEl = document.getElementById('monitor_status_text');
+        if (camp.status === 'completed') hintEl.textContent = 'Campanha concluída com sucesso! Meta alcançada.';
+        else if (camp.status === 'paused') hintEl.textContent = 'Campanha pausada pelo operador.';
+        else if (camp.status === 'cancelled') hintEl.textContent = 'Campanha cancelada.';
+        else hintEl.textContent = `Processando: ${camp.detailed_status_label}...`;
+
+        // Amostra de Localidades
+        if (camp.locations_preview?.length) {
+            const listWrap = document.getElementById('monitor_locations_list');
+            listWrap.innerHTML = camp.locations_preview.map(loc => `
+                <div class="flex items-center justify-between p-2 rounded-lg bg-[#080B12] border border-[#1F2B44]">
+                    <div>
+                        <strong class="text-white text-xs">${escapeHtml(loc.municipality_name)} - ${escapeHtml(loc.uf)}</strong>
+                        <span class="text-slate-500 text-[10px] ml-2">${loc.businesses_found || 0} encontradas · ${loc.qualified_leads || 0} qualificados</span>
+                    </div>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${loc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-300' : loc.status === 'running' ? 'bg-cyan-500/10 text-cyan-300 animate-pulse' : 'bg-slate-500/10 text-slate-400'}">
+                        ${escapeHtml(loc.status)}
+                    </span>
+                </div>
+            `).join('');
+        }
     }
-    resumeTargetResearch();
+
+    async function handleCampaignAction(action) {
+        if (!state.activeCampaignId) return;
+        if (action === 'cancel') {
+            const confirmed = await showAppConfirm({
+                title: 'Cancelar campanha?',
+                message: 'A campanha será interrompida imediatamente. Todos os leads qualificados obtidos até agora permanecerão salvos no CRM.',
+                confirmLabel: 'Sim, cancelar campanha',
+                danger: true
+            });
+            if (!confirmed) return;
+        }
+
+        try {
+            const res = await fetch(`/api/smart-campaigns/${state.activeCampaignId}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Ação falhou.');
+            showAppToast(`Campanha ${action === 'pause' ? 'pausada' : action === 'resume' ? 'retomada' : 'cancelada'}.`);
+            updateMonitor(data.campaign);
+        } catch (e) {
+            showAppToast(e.message || 'Erro na ação.', 'error');
+        }
+    }
+
+    async function fetchCampaignStatus() {
+        if (!state.activeCampaignId) return;
+        try {
+            const res = await fetch(`/api/smart-campaigns/${state.activeCampaignId}`);
+            const data = await res.json();
+            if (data.success && data.campaign) {
+                updateMonitor(data.campaign);
+                if (['completed', 'cancelled', 'failed'].includes(data.campaign.status)) {
+                    stopPolling();
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao atualizar status', e);
+        }
+    }
+
+    function startPolling() {
+        stopPolling();
+        state.pollingTimer = setInterval(fetchCampaignStatus, 3000);
+    }
+
+    function stopPolling() {
+        if (state.pollingTimer) {
+            clearInterval(state.pollingTimer);
+            state.pollingTimer = null;
+        }
+    }
+
+    // Inicialização ao carregar a página
+    async function initPage() {
+        await loadStates();
+        await loadPopularNiches();
+
+        // Verifica se há alguma campanha ativa no servidor
+        try {
+            const res = await fetch('/api/smart-campaigns/active');
+            const data = await res.json();
+            if (data.success && data.campaign) {
+                state.activeCampaignId = data.campaign.campaign_id;
+                updateMonitor(data.campaign);
+                if (['running', 'pending'].includes(data.campaign.status)) {
+                    startPolling();
+                }
+            }
+        } catch (e) {
+            console.warn('Nenhuma campanha ativa encontrada', e);
+        }
+    }
+
+    initPage();
 </script>
 {% endblock %}
