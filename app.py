@@ -23,7 +23,10 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
+from conversion_intelligence import VALID_OUTCOMES, calculate_conversion_metrics, performance_adjustment
 from contact_quality import assess_phone, normalize_email, website_domain
+from discovery_engine import DiscoveryEngine, init_discovery_schema
+from lead_validation import validate_candidate
 from location_intelligence import expand_locations
 from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, search_terms_for_niche, suggest_targets
 from target_research import probe_google_maps
@@ -152,6 +155,7 @@ def config_publica(config):
     config_segura = dict(config)
     config_segura["gemini_configurada"] = bool(os.environ.get("GEMINI_API_KEY"))
     config_segura["whatsapp_configurado"] = cloud_configured()
+    config_segura["google_places_configurado"] = bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip())
     config_segura.pop("gemini_api_key", None)
     return config_segura
 
@@ -199,6 +203,7 @@ def lead_data_quality(lead):
     campaign = str(lead.get("search_run_id") or lead.get("Search Run ID") or "").strip()
     email = str(lead.get("email") or lead.get("E-mail Encontrado") or "").strip()
     phone = str(lead.get("telefone") or lead.get("Telefone") or "").strip()
+    validation_status = str(lead.get("validation_status") or lead.get("Status Validação") or "NÃO VERIFICADO").upper()
     if "�" in name or "�" in location:
         issues.append("texto corrompido")
     if not rating or rating in {"0", "0.0", "0,0"}:
@@ -213,6 +218,8 @@ def lead_data_quality(lead):
         issues.append("e-mail não localizado")
     if not phone:
         issues.append("telefone não localizado")
+    if validation_status == "NÃO VERIFICADO":
+        issues.append("empresa ainda não verificada")
     confidence = max(10, 100 - len(issues) * 14)
     if "texto corrompido" in issues or "site não auditado" in issues:
         status = "Revisar"
@@ -362,7 +369,7 @@ def init_db():
                   google_maps TEXT, prompt_design TEXT, status TEXT, data_adicao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   copy_texto TEXT, analise_ia TEXT, estrategia_ia TEXT)""")
     # Fallback to alter table if columns are missing
-    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0"), ("search_run_id", "TEXT"), ("site_title", "TEXT"), ("site_description", "TEXT"), ("site_context", "TEXT"), ("site_opportunity_status", "TEXT"), ("site_opportunity_reasons", "TEXT"), ("data_quality_status", "TEXT"), ("data_quality_issues", "TEXT"), ("data_confidence", "INTEGER DEFAULT 0"), ("last_audited_at", "TIMESTAMP")]:
+    for col, tipo in [("copy_texto", "TEXT"), ("analise_ia", "TEXT"), ("estrategia_ia", "TEXT"), ("potencial", "INTEGER"), ("motivo_potencial", "TEXT"), ("faixa_potencial", "TEXT"), ("score_breakdown", "TEXT"), ("score_version", "TEXT"), ("copies_pitch", "TEXT"), ("inteligencia_comercial", "TEXT"), ("qualidade_pitch", "TEXT"), ("do_not_contact", "INTEGER DEFAULT 0"), ("do_not_contact_reason", "TEXT"), ("do_not_contact_at", "TIMESTAMP"), ("last_response", "TEXT"), ("next_action", "TEXT"), ("next_action_at", "TIMESTAMP"), ("last_contact_at", "TIMESTAMP"), ("last_contact_channel", "TEXT"), ("last_pitch_mode", "TEXT"), ("contact_count", "INTEGER DEFAULT 0"), ("search_run_id", "TEXT"), ("site_title", "TEXT"), ("site_description", "TEXT"), ("site_context", "TEXT"), ("site_opportunity_status", "TEXT"), ("site_opportunity_reasons", "TEXT"), ("data_quality_status", "TEXT"), ("data_quality_issues", "TEXT"), ("data_confidence", "INTEGER DEFAULT 0"), ("last_audited_at", "TIMESTAMP"), ("lead_source", "TEXT DEFAULT 'legacy_maps'"), ("source_record_id", "TEXT"), ("business_address", "TEXT"), ("validation_status", "TEXT DEFAULT 'NÃO VERIFICADO'"), ("validation_reason", "TEXT"), ("site_confidence", "TEXT DEFAULT 'NÃO VERIFICADO'"), ("evidence_json", "TEXT DEFAULT '[]'"), ("commercial_outcome", "TEXT"), ("last_verified_at", "TIMESTAMP")]:
         try: c.execute(f"ALTER TABLE leads ADD COLUMN {col} {tipo}")
         except: pass
     c.execute("""CREATE TABLE IF NOT EXISTS preview_versions
@@ -399,6 +406,11 @@ def init_db():
                   niches_json TEXT NOT NULL, locations_json TEXT NOT NULL, filters_json TEXT NOT NULL,
                   status TEXT NOT NULL, stats_json TEXT, started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   finished_at TIMESTAMP)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS lead_evidence
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL, source TEXT NOT NULL,
+                  evidence_type TEXT NOT NULL, value TEXT NOT NULL, confidence TEXT NOT NULL,
+                  source_url TEXT, observed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    init_discovery_schema(conn)
     c.execute(
         """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
            WHERE status = 'running'"""
@@ -409,6 +421,8 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_discovery_last_seen ON lead_discovery_history(last_seen_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_target_research_context ON target_research_runs(region, context_key, finished_at DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_leads_source_validation ON leads(lead_source, validation_status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lead_evidence_place ON lead_evidence(place_id, observed_at DESC)")
     c.execute(
         """INSERT OR IGNORE INTO lead_discovery_history
            (place_id, first_seen_at, last_seen_at, last_niche, last_location, last_run_id, outcome)
@@ -534,11 +548,18 @@ def build_crm_where(status_scope=None, filters=None):
         ("potencial", "leads.faixa_potencial"),
         ("site", "leads.site_opportunity_status"),
         ("qualidade", "leads.data_quality_status"),
+        ("validacao", "leads.validation_status"),
     ):
         if filters.get(key):
             clauses.append(f"{column} = ?")
             value = filters[key].casefold() if key == "nicho" else filters[key]
             params.append(value)
+    if filters.get("origem"):
+        clauses.append("lower(leads.lead_source) LIKE ?")
+        params.append(f"%{filters['origem'].casefold()}%")
+    if filters.get("min_score"):
+        clauses.append("COALESCE(leads.potencial, 0) >= ?")
+        params.append(int(filters["min_score"]))
     followup = filters.get("followup")
     if followup == "sem_acao":
         clauses.append("trim(coalesce(leads.next_action_at, '')) = ''")
@@ -579,7 +600,14 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
             lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
         except (TypeError, json.JSONDecodeError):
             lead["site_opportunity_reasons"] = site_assessment["reasons"]
-        scoring = calcular_score_lead(lead, configured_weights=configured_weights)
+        try:
+            stored_scoring = json.loads(lead.get("score_breakdown") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            stored_scoring = {}
+        scoring = calcular_score_lead(
+            lead, configured_weights=configured_weights,
+            performance_adjustment=stored_scoring.get("performance_adjustment", 0),
+        )
         lead["potencial"] = scoring["score"]
         lead["motivo_potencial"] = scoring["reason"]
         lead["faixa_potencial"] = scoring["range"]
@@ -618,9 +646,25 @@ def save_lead_db(lead, place_id):
                    lead.get("Google Maps",""), lead.get("Prompt Prototipo",""), lead.get("Copy Texto", ""), lead.get("Analise IA", ""), lead.get("Estrategia IA", ""), lead.get("Potencial", 0), lead.get("Motivo Potencial", ""), lead.get("Faixa Potencial", "Oportunidade secundária"), json.dumps(lead.get("Score Breakdown", {}), ensure_ascii=False), lead.get("Score Version", SCORE_VERSION), lead.get("Search Run ID", ""), lead.get("Título do Site", ""), lead.get("Descrição do Site", ""), lead.get("Contexto do Site", ""), lead.get("Oportunidade do Site", ""), json.dumps(lead.get("Motivos da Oportunidade", []), ensure_ascii=False)))
         quality = lead_data_quality(lead)
         c.execute(
-            "UPDATE leads SET data_quality_status = ?, data_quality_issues = ?, data_confidence = ? WHERE place_id = ?",
-            (quality["status"], json.dumps(quality["issues"], ensure_ascii=False), quality["confidence"], place_id),
+            """UPDATE leads SET data_quality_status = ?, data_quality_issues = ?, data_confidence = ?,
+               lead_source = ?, source_record_id = ?, business_address = ?, validation_status = ?, validation_reason = ?,
+               site_confidence = ?, evidence_json = ?, last_verified_at = CURRENT_TIMESTAMP
+               WHERE place_id = ?""",
+            (quality["status"], json.dumps(quality["issues"], ensure_ascii=False), quality["confidence"],
+             lead.get("Origem", "legacy_maps"), lead.get("ID na Fonte", ""), lead.get("Endereço", lead.get("Bairro", "")),
+             lead.get("Status Validação", "NÃO VERIFICADO"), lead.get("Motivo Validação", ""),
+             lead.get("Confiança do Site", "NÃO VERIFICADO"),
+             json.dumps(lead.get("Evidências", []), ensure_ascii=False), place_id),
         )
+        for evidence in lead.get("Evidências", []):
+            c.execute(
+                """INSERT INTO lead_evidence
+                   (place_id, source, evidence_type, value, confidence, source_url)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (place_id, evidence.get("source") or lead.get("Origem", "desconhecida"),
+                 evidence.get("type", "geral"), evidence.get("value", ""),
+                 evidence.get("confidence", "NÃO VERIFICADO"), evidence.get("source_url", "")),
+            )
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -662,14 +706,14 @@ def load_existing_lead_identities():
         names = set()
         emails = set()
         domains = set()
-        for name, location, phone, email, website in conn.execute(
-            "SELECT nome, bairro, telefone, email, link_inicial FROM leads"
+        for name, location, address, phone, email, website in conn.execute(
+            "SELECT nome, bairro, business_address, telefone, email, link_inicial FROM leads"
         ):
             phone_key = re.sub(r"\D", "", phone or "")
             if len(phone_key) >= 10:
                 phones.add(phone_key[-11:])
             name_key = normalize(name)
-            location_key = normalize(location)
+            location_key = normalize(address or location)
             if name_key:
                 names.add((name_key, location_key))
             email_key = normalize_email(email)
@@ -774,10 +818,10 @@ def extrair_numero_avaliacoes(valor):
     numeros = re.findall(r"\d+", str(valor or "").replace(".", "").replace(",", ""))
     return int("".join(numeros)) if numeros else 0
 
-def calcular_score_lead(lead, tem_site=None, configured_weights=None):
+def calcular_score_lead(lead, tem_site=None, configured_weights=None, performance_adjustment=0):
     if tem_site is None:
         tem_site = possui_site_proprio(lead.get("Link Inicial") or lead.get("link_inicial"))
-    return score_lead(lead, tem_site, configured_weights)
+    return score_lead(lead, tem_site, configured_weights, performance_adjustment)
 
 
 def calcular_potencial_lead(nota, avaliacoes, telefone, email, instagram, linkedin, tem_site, nicho="", bairro="", facebook="", configured_weights=None):
@@ -1329,11 +1373,13 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.11.05-search-engine-v8",
+            "commercial_release": "2026.11.05-discovery-engine-v9",
             "target_engine_version": TARGET_ENGINE_VERSION,
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "whatsapp_cloud": cloud_configured(),
+            "google_places": bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()),
+            "discovery_engine": "1.0",
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
             "secure_cookie": bool(app.config.get("SESSION_COOKIE_SECURE")),
             "proxy_headers": isinstance(app.wsgi_app, ProxyFix),
@@ -1352,6 +1398,9 @@ def render_crm_view(status_scope, crm_view):
         "followup": normalizar_texto(request.args.get("followup", ""), 20),
         "site": normalizar_texto(request.args.get("site", ""), 80),
         "qualidade": normalizar_texto(request.args.get("qualidade", ""), 40),
+        "validacao": normalizar_texto(request.args.get("validacao", ""), 40),
+        "origem": normalizar_texto(request.args.get("origem", ""), 120),
+        "min_score": max(0, min(100, request.args.get("min_score", 0, type=int))) if request.args.get("min_score") else 0,
     }
     active_filters = {key: value for key, value in crm_filters.items() if value}
     conn = sqlite3.connect(DB_NAME)
@@ -1448,6 +1497,10 @@ def get_lead_by_id(place_id):
             lead[field_name] = json.loads(lead.get(field_name) or "{}")
         except (TypeError, json.JSONDecodeError):
             lead[field_name] = {}
+    try:
+        lead["evidence"] = json.loads(lead.get("evidence_json") or "[]")
+    except (TypeError, json.JSONDecodeError):
+        lead["evidence"] = []
     site_assessment = assess_site_opportunity(
         lead.get("link_inicial"), lead.get("site_title"), lead.get("site_description"), lead.get("site_context")
     )
@@ -1456,7 +1509,10 @@ def get_lead_by_id(place_id):
         lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
     except (TypeError, json.JSONDecodeError):
         lead["site_opportunity_reasons"] = site_assessment["reasons"]
-    scoring = calcular_score_lead(lead, configured_weights=load_config().get("lead_score_weights"))
+    scoring = calcular_score_lead(
+        lead, configured_weights=load_config().get("lead_score_weights"),
+        performance_adjustment=lead.get("score_breakdown", {}).get("performance_adjustment", 0),
+    )
     lead["potencial"] = scoring["score"]
     lead["motivo_potencial"] = scoring["reason"]
     lead["faixa_potencial"] = scoring["range"]
@@ -1848,8 +1904,17 @@ def estatisticas():
     conn.row_factory = sqlite3.Row
     try:
         leads = [dict(row) for row in conn.execute(
-            """SELECT nicho, bairro, status, whatsapp_link, email, link_inicial, faixa_potencial
+            """SELECT nicho, bairro, status, whatsapp_link, email, link_inicial, faixa_potencial,
+                      lead_source, validation_status, site_confidence, commercial_outcome
                FROM leads"""
+        ).fetchall()]
+        source_usage = [dict(row) for row in conn.execute(
+            """SELECT usage_date, source, requests, candidates, estimated_cost_micros, errors
+               FROM source_usage ORDER BY usage_date DESC, source LIMIT 30"""
+        ).fetchall()]
+        discovery_jobs = [dict(row) for row in conn.execute(
+            """SELECT job_id, status, stats_json, error, created_at, finished_at
+               FROM discovery_jobs ORDER BY created_at DESC LIMIT 12"""
         ).fetchall()]
     finally:
         conn.close()
@@ -1857,20 +1922,41 @@ def estatisticas():
     com_whats = sum(1 for l in leads if l.get("whatsapp_link"))
     fechados = sum(1 for l in leads if l.get("status") == "Fechado")
     em_negociacao = sum(1 for l in leads if l.get("status") == "Conversando")
-    contacted_statuses = {"Contatado", "Conversando", "Fechado", "Não fechado"}
-    response_statuses = {"Conversando", "Fechado", "Não fechado"}
-    interest_statuses = {"Conversando", "Fechado"}
-    proposal_statuses = {"Conversando", "Fechado"}
-    contato_feito = sum(1 for l in leads if l.get("status") in contacted_statuses)
-    responderam = sum(1 for l in leads if l.get("status") in response_statuses)
-    interessados = sum(1 for l in leads if l.get("status") in interest_statuses)
-    propostas = sum(1 for l in leads if l.get("status") in proposal_statuses)
+    commercial_outcomes = {"Contatado", "Respondeu", "Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado", "Sem interesse"}
+    positive_outcomes = {"Respondeu", "Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado"}
+    contato_feito = sum(1 for lead in leads if lead.get("commercial_outcome") in commercial_outcomes)
+    responderam = sum(1 for lead in leads if lead.get("commercial_outcome") in positive_outcomes)
+    interessados = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado"})
+    propostas = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Proposta enviada", "Contrato fechado"})
     qualificados = sum(1 for l in leads if l.get("faixa_potencial") == "Prioridade")
     descartados = sum(1 for l in leads if l.get("status") == "Descartado")
     novos = sum(1 for l in leads if l.get("status") in ("Novo", None, ""))
-    sem_site = sum(1 for l in leads if not possui_site_proprio(l.get("link_inicial")))
-    com_site = total_leads - sem_site
+    sem_site = sum(
+        1 for lead in leads
+        if not possui_site_proprio(lead.get("link_inicial"))
+        and str(lead.get("site_confidence") or "").upper() in {"CONFIRMADO", "PROVÁVEL"}
+    )
+    com_site = sum(1 for lead in leads if possui_site_proprio(lead.get("link_inicial")))
     com_email = sum(1 for l in leads if l.get("email"))
+    validation_counts = {
+        status: sum(1 for lead in leads if str(lead.get("validation_status") or "NÃO VERIFICADO").upper() == status)
+        for status in ("CONFIRMADO", "PROVÁVEL", "NÃO VERIFICADO")
+    }
+    conversion_metrics = calculate_conversion_metrics(leads)
+    conversion_rows = []
+    dimension_labels = {"niche": "Nicho", "city": "Local", "source": "Origem"}
+    for (dimension, value), metrics in conversion_metrics.items():
+        conversion_rows.append({
+            "dimension": dimension_labels.get(dimension, dimension),
+            "value": value,
+            **metrics,
+        })
+    conversion_rows.sort(key=lambda item: (not item["sufficient_sample"], -item["contacted"], item["dimension"], item["value"]))
+    for job in discovery_jobs:
+        try:
+            job["stats"] = json.loads(job.pop("stats_json") or "{}")
+        except json.JSONDecodeError:
+            job["stats"] = {}
 
     taxa_sem_site = round((sem_site / total_leads * 100), 1) if total_leads > 0 else 0
     taxa_whats = round((com_whats / total_leads * 100), 1) if total_leads > 0 else 0
@@ -1894,7 +1980,7 @@ def estatisticas():
     for lead in leads:
         niche = str(lead.get("nicho") or "Geral").strip().capitalize()
         dashboard_data["nichos"][niche] = dashboard_data["nichos"].get(niche, 0) + 1
-        if not possui_site_proprio(lead.get("link_inicial")):
+        if not possui_site_proprio(lead.get("link_inicial")) and str(lead.get("site_confidence") or "").upper() in {"CONFIRMADO", "PROVÁVEL"}:
             dashboard_data["nichos_sem_site"][niche] = dashboard_data["nichos_sem_site"].get(niche, 0) + 1
         if lead.get("whatsapp_link"):
             dashboard_data["nichos_whatsapp"][niche] = dashboard_data["nichos_whatsapp"].get(niche, 0) + 1
@@ -1939,6 +2025,10 @@ def estatisticas():
         taxa_conversao_contato=taxa_conversao_contato,
         search_runs=load_search_runs(),
         dashboard_data=dashboard_data,
+        source_usage=source_usage,
+        discovery_jobs=discovery_jobs,
+        validation_counts=validation_counts,
+        conversion_rows=conversion_rows[:30],
     )
 
 @app.route("/configuracoes", methods=["GET", "POST"])
@@ -1951,6 +2041,7 @@ def configuracoes():
         whatsapp_phone_id = nova_configuracao.pop("whatsapp_phone_number_id", "").strip()
         whatsapp_template = nova_configuracao.pop("whatsapp_template_name", "").strip()
         whatsapp_language = nova_configuracao.pop("whatsapp_template_language", "").strip()
+        google_places_key = nova_configuracao.pop("google_places_api_key", "").strip()
         score_weights = {}
         for key, default in DEFAULT_WEIGHTS.items():
             raw_value = nova_configuracao.pop(f"score_{key}", str(default))
@@ -1963,6 +2054,8 @@ def configuracoes():
         data.update(nova_configuracao)
         if api_key:
             persist_secret("GEMINI_API_KEY", api_key)
+        if google_places_key:
+            persist_secret("GOOGLE_PLACES_API_KEY", google_places_key)
         for secret_name, secret_value in (
             ("WHATSAPP_ACCESS_TOKEN", whatsapp_token),
             ("WHATSAPP_PHONE_NUMBER_ID", whatsapp_phone_id),
@@ -1972,6 +2065,8 @@ def configuracoes():
             if secret_value:
                 persist_secret(secret_name, secret_value)
         data["headless"] = "headless" in nova_configuracao
+        data["enable_modular_discovery"] = "enable_modular_discovery" in nova_configuracao
+        data["enable_openstreetmap"] = "enable_openstreetmap" in nova_configuracao
         save_config(data)
         return render_template("configuracoes.html", config=config_publica(data), success=True)
     return render_template("configuracoes.html", config=config_publica(load_config()), success=False)
@@ -1997,6 +2092,37 @@ def update_status():
     if not atualizado:
         return jsonify({"success": False, "error": "Lead não encontrado"}), 404
     return jsonify({"success": True, "status": status, "removed_from_pipeline": status == "Descartado"})
+
+
+@app.route("/api/leads/<path:place_id>/outcome", methods=["POST"])
+def update_commercial_outcome(place_id):
+    payload = request.get_json(silent=True) or {}
+    outcome = normalizar_texto(payload.get("outcome", ""), 60)
+    if outcome not in VALID_OUTCOMES:
+        return jsonify({"success": False, "error": "Resultado comercial inválido."}), 400
+    status_map = {
+        "Contatado": "Contatado", "Respondeu": "Conversando", "Demonstrou interesse": "Conversando",
+        "Reunião agendada": "Conversando", "Proposta enviada": "Conversando",
+        "Contrato fechado": "Fechado", "Sem interesse": "Não fechado",
+    }
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        cursor = conn.execute(
+            "UPDATE leads SET commercial_outcome = ?, status = ? WHERE place_id = ?",
+            (outcome, status_map[outcome], place_id),
+        )
+        if not cursor.rowcount:
+            return jsonify({"success": False, "error": "Lead não encontrado."}), 404
+        conn.execute(
+            """INSERT INTO lead_interactions
+               (place_id, interaction_type, channel, content, sentiment)
+               VALUES (?, 'resultado_comercial', 'Sistema', ?, 'neutro')""",
+            (place_id, f"Resultado comercial registrado: {outcome}"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"success": True, "outcome": outcome, "status": status_map[outcome]})
 
 @app.route("/export/csv")
 def export_csv():
@@ -2297,6 +2423,186 @@ def load_search_runs(limit=8):
                 item[field_name.removesuffix("_json")] = {}
         runs.append(item)
     return runs
+
+
+def load_conversion_rows():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        return [dict(row) for row in conn.execute(
+            """SELECT nicho, bairro, lead_source, commercial_outcome
+               FROM leads WHERE trim(coalesce(commercial_outcome, '')) != ''"""
+        ).fetchall()]
+    finally:
+        conn.close()
+
+
+def modular_discovery_worker(data, config):
+    job_id = data.get("discovery_job_id", "")
+    search_run_id = data.get("search_run_id", "")
+    engine = DiscoveryEngine(DB_NAME, config)
+    started_at = time.monotonic()
+    stats = {
+        "encontrados": 0, "novos_resultados": 0, "analisados": 0, "salvos": 0,
+        "duplicados": 0, "com_site": 0, "site_sem_oportunidade": 0,
+        "telefone_invalido": 0, "sem_whatsapp": 0, "sem_email": 0,
+        "nota_baixa": 0, "prioridade": 0, "oportunidade_secundaria": 0,
+        "exploracao": 0, "erros": 0, "fontes": {}, "cache_hits": 0,
+        "consultas_planejadas": len(data.get("nichos_lista", [])) * len(data.get("bairros_lista", [])),
+        "consultas_concluidas": 0, "tentativas_busca": 0,
+    }
+
+    def publish(message, running=True):
+        stats["tempo_segundos"] = round(time.monotonic() - started_at, 1)
+        stats["ignorados"] = sum(stats[key] for key in (
+            "duplicados", "com_site", "site_sem_oportunidade", "telefone_invalido",
+            "sem_whatsapp", "sem_email", "nota_baixa",
+        ))
+        stats["taxa_adicao"] = round(stats["salvos"] * 100 / stats["novos_resultados"]) if stats["novos_resultados"] else 0
+        atualizar_status({
+            "rodando": running, "mensagem": message, "leads_salvos": stats["salvos"],
+            "metricas": stats.copy(), "search_run_id": search_run_id,
+            "discovery_job_id": job_id,
+            "cancelamento_solicitado": ler_status().get("cancelamento_solicitado", False),
+        })
+        if not running:
+            finish_search_run(search_run_id, "cancelled" if ler_status().get("cancelamento_solicitado") else "completed", stats)
+
+    def cancelled():
+        return bool(ler_status().get("cancelamento_solicitado"))
+
+    def discovery_progress(engine_stats, message):
+        stats["encontrados"] = int(engine_stats.get("candidates") or 0)
+        stats["novos_resultados"] = stats["encontrados"]
+        stats["cache_hits"] = int(engine_stats.get("cache_hits") or 0)
+        stats["tentativas_busca"] = int(engine_stats.get("requests") or 0)
+        stats["consultas_concluidas"] = int(engine_stats.get("tasks_completed") or 0)
+        publish(message)
+
+    try:
+        publish("Iniciando descoberta em múltiplas fontes...")
+        candidates = engine.run(job_id, progress=discovery_progress, cancelled=cancelled)
+        if cancelled():
+            publish("Busca cancelada. Os leads já salvos foram mantidos.", running=False)
+            return
+        stats["encontrados"] = len(candidates)
+        stats["novos_resultados"] = len(candidates)
+        existing_phones, existing_names, existing_emails, existing_domains = load_existing_lead_identities()
+        conversion_metrics = calculate_conversion_metrics(load_conversion_rows())
+        max_leads = max(5, min(100, int(data.get("max_leads", 30))))
+        minimum_score = max(0, min(100, int(data.get("min_potencial", 55))))
+        region = data.get("mercado", "br")
+        for index, candidate in enumerate(candidates):
+            if cancelled() or stats["salvos"] >= max_leads:
+                break
+            stats["analisados"] += 1
+            publish(f"Validando empresa {index + 1}/{len(candidates)}: {candidate.get('name', 'sem nome')}...")
+            try:
+                validation = validate_candidate(
+                    candidate, region=region,
+                    corroborating_sources=len(set(candidate.get("sources") or [candidate.get("source")])),
+                    inspect_site=True,
+                )
+                if not validation["valid_business"]:
+                    engine.update_candidate_validation(job_id, candidate, "rejected", validation)
+                    continue
+                name = candidate.get("name", "")
+                business_address = candidate.get("address") or candidate.get("location") or ""
+                location = candidate.get("location") or business_address
+                phone_key = re.sub(r"\D", "", validation["phone"]["digits"] or "")[-11:]
+                name_key = (normalize(name), normalize(business_address))
+                email_key = validation["email"]
+                domain_key = website_domain(candidate.get("website"))
+                if ((len(phone_key) >= 10 and phone_key in existing_phones) or name_key in existing_names
+                        or (email_key and email_key in existing_emails) or (domain_key and domain_key in existing_domains)):
+                    stats["duplicados"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "duplicate", validation)
+                    continue
+                site = validation["site"]
+                mode = data.get("site_filter_mode", "only_without_site")
+                if mode == "only_without_site" and site["present"]:
+                    stats["com_site"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "site_filtered", validation)
+                    continue
+                if mode == "without_and_weak" and site["present"] and site["working"] and site["belongs"]:
+                    stats["site_sem_oportunidade"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "site_filtered", validation)
+                    continue
+                rating = float(candidate.get("rating") or 0)
+                if rating and rating < float(data.get("min_nota", 0) or 0):
+                    stats["nota_baixa"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "rating_filtered", validation)
+                    continue
+                if data.get("strict_mobile") and not validation["phone"]["mobile"]:
+                    stats["telefone_invalido"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "phone_filtered", validation)
+                    continue
+                if data.get("req_whatsapp") and not validation["phone"]["whatsapp_candidate"]:
+                    stats["sem_whatsapp"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "whatsapp_filtered", validation)
+                    continue
+                if data.get("req_email") and not email_key:
+                    stats["sem_email"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "email_filtered", validation)
+                    continue
+                source_label = ", ".join(sorted(set(candidate.get("sources") or [candidate.get("source", "desconhecida")])))
+                adjustment = performance_adjustment(
+                    conversion_metrics, candidate.get("niche"), candidate.get("location"), candidate.get("source")
+                )
+                scoring_input = {
+                    "Nome": name, "Nicho": candidate.get("niche", ""), "Categoria Maps": candidate.get("category", ""),
+                    "Bairro": location, "Nota Maps": rating, "Qtd Avaliacoes": candidate.get("reviews", 0),
+                    "Telefone": validation["phone"]["digits"], "E-mail Encontrado": email_key,
+                    "Link Inicial": candidate.get("website", ""), "Oportunidade do Site": validation["site_opportunity_status"],
+                    "Status Validação": validation["validation_status"], "Confiança do Site": validation["site_confidence"],
+                    "Quantidade de Fontes": len(set(candidate.get("sources") or [])), "Mercado": region,
+                }
+                scoring = score_lead(scoring_input, site["present"], config.get("lead_score_weights"), adjustment)
+                lead_data = {
+                    **scoring_input,
+                    "WhatsApp Link": formatar_whatsapp(validation["phone"]["digits"], "") if validation["phone"]["whatsapp_candidate"] else "",
+                    "Google Maps": candidate.get("source_url", ""), "Prompt Prototipo": gerar_prompt_prototipo(name, candidate.get("niche", "")),
+                    "Potencial": scoring["score"], "Motivo Potencial": scoring["reason"],
+                    "Faixa Potencial": classificar_potencial(scoring["score"], minimum_score),
+                    "Score Breakdown": scoring, "Score Version": scoring["version"], "Search Run ID": search_run_id,
+                    "Origem": source_label, "ID na Fonte": candidate.get("source_id", ""),
+                    "Endereço": business_address,
+                    "Status Validação": validation["validation_status"], "Motivo Validação": validation["validation_reason"],
+                    "Confiança do Site": validation["site_confidence"], "Evidências": validation["evidence"],
+                    "Motivos da Oportunidade": [validation["site"]["reason"]],
+                }
+                place_id = f"{candidate.get('source', 'source')}:{candidate.get('source_id', uuid.uuid4().hex)}"
+                if save_lead_db(lead_data, place_id):
+                    stats["salvos"] += 1
+                    stats["fontes"][source_label] = stats["fontes"].get(source_label, 0) + 1
+                    range_key = {"Prioridade": "prioridade", "Oportunidade secundária": "oportunidade_secundaria", "Exploração": "exploracao"}[lead_data["Faixa Potencial"]]
+                    stats[range_key] += 1
+                    if len(phone_key) >= 10:
+                        existing_phones.add(phone_key)
+                    existing_names.add(name_key)
+                    if email_key:
+                        existing_emails.add(email_key)
+                    if domain_key:
+                        existing_domains.add(domain_key)
+                    engine.update_candidate_validation(job_id, candidate, "saved", validation)
+                    if data.get("ai_copy"):
+                        result = gerar_copy_inteligente(scoring_input, config, region != "br", use_external_ai=False)
+                        update_lead_ai(
+                            place_id, result.get("mensagem", ""), result.get("analise", ""), result.get("estrategia", ""),
+                            formatar_whatsapp(validation["phone"]["digits"], result.get("mensagem", "")) if validation["phone"]["whatsapp_candidate"] else "",
+                            result.get("versoes", {}), result.get("inteligencia", {}), result.get("qualidade", {}),
+                        )
+                else:
+                    stats["duplicados"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "duplicate", validation)
+            except Exception as error:
+                stats["erros"] += 1
+                engine.update_candidate_validation(job_id, candidate, "error", error=str(error))
+        publish(f"{stats['salvos']} lead(s) validados e adicionados por fontes configuradas.", running=False)
+    except Exception as error:
+        stats["erros"] += 1
+        finish_search_run(search_run_id, "interrupted", {**stats, "error": str(error)[:500]})
+        atualizar_status({"rodando": False, "mensagem": f"Descoberta interrompida: {str(error)[:180]}", "metricas": stats, "search_run_id": search_run_id, "discovery_job_id": job_id})
 
 def extrator_worker(data, config, queue):
     try:
@@ -2801,15 +3107,55 @@ def api_search():
             return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
         config = load_config()
         data["search_run_id"] = create_search_run(data)
-        atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0, "cancelamento_solicitado": False, "search_run_id": data["search_run_id"]})
-        t = threading.Thread(target=extrator_worker, args=(data, config, None), daemon=True)
+        data["nichos_lista"] = [item.strip() for item in str(data["nichos"]).split(",") if item.strip()]
+        data["bairros_lista"] = [item.strip() for item in str(data["bairros"]).split(",") if item.strip()]
+        modular_enabled = bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()) and str(config.get("enable_modular_discovery", "true")).lower() not in {"0", "false", "off", "no"}
+        if modular_enabled:
+            engine = DiscoveryEngine(DB_NAME, config)
+            data["discovery_job_id"] = engine.create_job({
+                "region": region,
+                "niches": data["nichos_lista"],
+                "locations": data["bairros_lista"],
+                "filters": {key: value for key, value in data.items() if key not in {"nichos", "bairros"}},
+            }, data["search_run_id"])
+        engine_label = "fontes oficiais e públicas" if modular_enabled else "Google Maps legado"
+        atualizar_status({"rodando": True, "mensagem": f"Busca iniciada com {engine_label}...", "leads_salvos": 0, "cancelamento_solicitado": False, "search_run_id": data["search_run_id"], "discovery_job_id": data.get("discovery_job_id", "")})
+        target = modular_discovery_worker if modular_enabled else extrator_worker
+        args = (data, config) if modular_enabled else (data, config, None)
+        t = threading.Thread(target=target, args=args, daemon=True)
         t.start()
     return jsonify({
         "success": True, "salvos": "Em andamento", "run_id": data["search_run_id"],
         "message": "Busca iniciada em segundo plano.",
         "locations": location_resolution["locations"],
         "location_expansions": location_resolution["expansions"],
+        "discovery_engine": "modular" if modular_enabled else "legacy_maps",
+        "discovery_job_id": data.get("discovery_job_id", ""),
     })
+
+
+@app.route("/api/discovery/jobs/<job_id>/resume", methods=["POST"])
+def resume_discovery_job(job_id):
+    if ler_status().get("rodando"):
+        return jsonify({"success": False, "error": "Já existe uma busca em andamento."}), 409
+    engine = DiscoveryEngine(DB_NAME, load_config())
+    try:
+        job = engine.job_status(job_id)
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 404
+    if job["status"] not in {"interrupted", "pending"}:
+        return jsonify({"success": False, "error": "Esta tarefa não está disponível para retomada."}), 409
+    payload = job["payload"]
+    data = {
+        **(payload.get("filters") or {}),
+        "mercado": payload.get("region", "br"),
+        "nichos_lista": payload.get("niches", []), "bairros_lista": payload.get("locations", []),
+        "nichos": ", ".join(payload.get("niches", [])), "bairros": ", ".join(payload.get("locations", [])),
+        "search_run_id": job.get("search_run_id", ""), "discovery_job_id": job_id,
+    }
+    atualizar_status({"rodando": True, "mensagem": "Retomando a descoberta do último ponto salvo...", "leads_salvos": 0, "cancelamento_solicitado": False, "search_run_id": data["search_run_id"], "discovery_job_id": job_id})
+    threading.Thread(target=modular_discovery_worker, args=(data, load_config()), daemon=True).start()
+    return jsonify({"success": True, "job_id": job_id, "message": "Tarefa retomada."})
 
 @app.route("/api/cancelar_busca", methods=["POST"])
 def cancelar_busca():
@@ -2842,7 +3188,8 @@ def carregar_leads_para_investigacao():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     rows = [dict(row) for row in conn.execute(
-        """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes, status
+        """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes, status,
+                  commercial_outcome, lead_source
            FROM leads"""
     ).fetchall()]
     conn.close()

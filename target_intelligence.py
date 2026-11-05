@@ -284,15 +284,15 @@ def build_research_plan(region, observations, pair_limit=8, focus_niches=None, f
 
 def _lead_evidence(rows, niche, city):
     matches = [row for row in rows if _matches(row.get("nicho"), niche["aliases"]) and _matches(row.get("bairro"), city["aliases"])]
-    contacted = [row for row in matches if row.get("status") in {"Contatado", "Conversando", "Fechado", "Não fechado"}]
+    contacted = [row for row in matches if row.get("commercial_outcome") in {"Contatado", "Respondeu", "Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado", "Sem interesse"}]
     return {
         "sample": len(matches), "no_site": sum(not has_own_site(row.get("link_inicial")) for row in matches),
         "contactable": sum(bool(str(row.get("telefone") or "").strip() or str(row.get("whatsapp_link") or "").strip() or str(row.get("email") or "").strip()) for row in matches),
         "mature": sum(_to_int(row.get("avaliacoes")) >= 10 for row in matches), "results": len(matches),
         "existing_leads": len(matches),
         "contacted": len(contacted),
-        "responses": sum(row.get("status") in {"Conversando", "Fechado", "Não fechado"} for row in matches),
-        "closed": sum(row.get("status") == "Fechado" for row in matches),
+        "responses": sum(row.get("commercial_outcome") in {"Respondeu", "Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado"} for row in matches),
+        "closed": sum(row.get("commercial_outcome") == "Contrato fechado" for row in matches),
     }
 
 
@@ -320,8 +320,8 @@ def _score_pair(niche, city, evidence):
     maturity_rate = (100 * evidence["mature"] / sample) if sample else 50
     demand = min(100, evidence["results"] * 12 + maturity_rate * 0.35)
     saturation_penalty = min(30, evidence["existing_leads"] * 2.5)
-    response_rate = 100 * evidence["responses"] / evidence["contacted"] if evidence["contacted"] else 0
-    conversion_signal = min(12, response_rate * 0.06 + evidence["closed"] * 4)
+    response_rate = 100 * evidence["responses"] / evidence["contacted"] if evidence["contacted"] >= 10 else 0
+    conversion_signal = min(12, response_rate * 0.06 + evidence["closed"] * 2) if evidence["contacted"] >= 10 else 0
     score = niche["ticket"] * 0.20 + niche["need"] * 0.19 + city["power"] * 0.15 + blended_gap * 0.25 + demand * 0.13 + contact_rate * 0.08 + min(evidence["research_runs"], 3) * 1.2 + conversion_signal - saturation_penalty
     return round(min(score, 100), 1)
 
@@ -340,7 +340,12 @@ def _evidence_label(evidence):
         gap = round(100 * evidence["no_site"] / sample)
         activity = f"{evidence['results']} resultados localizados" if evidence["results"] else "atividade local ainda limitada"
         saturation = f"; {evidence['existing_leads']} já estão na sua base" if evidence["existing_leads"] else ""
-        commercial = f"; {evidence['responses']} resposta(s) e {evidence['closed']} fechamento(s) no histórico" if evidence["contacted"] else ""
+        if evidence["contacted"] >= 10:
+            commercial = f"; {evidence['responses']} resposta(s) e {evidence['closed']} fechamento(s) em {evidence['contacted']} contatos"
+        elif evidence["contacted"]:
+            commercial = f"; histórico comercial ainda insuficiente ({evidence['contacted']}/10 contatos)"
+        else:
+            commercial = ""
         return confidence, f"{gap}% sem site próprio na amostra de {sample} empresas; {activity}{saturation}{commercial}."
     return confidence, "Ainda não passou pela investigação ao vivo do Google Maps."
 

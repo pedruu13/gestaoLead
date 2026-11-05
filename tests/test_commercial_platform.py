@@ -182,7 +182,9 @@ class CommercialIntelligenceTests(unittest.TestCase):
         self.assertEqual("email", recommend_contact_strategy(email_only)["recommended_mode"])
 
     def test_score_v2_is_transparent_and_keeps_lower_potential_leads(self):
-        priority = score_lead(sample_lead(), has_own_site=False)
+        verified = sample_lead()
+        verified.update({"Status Validação": "CONFIRMADO", "Confiança do Site": "PROVÁVEL", "Quantidade de Fontes": 2})
+        priority = score_lead(verified, has_own_site=False)
         exploration = score_lead({"Nome": "Negócio sem dados"}, has_own_site=True)
         self.assertEqual(SCORE_VERSION, priority["version"])
         self.assertEqual(100, sum(priority["weights"].values()))
@@ -195,8 +197,12 @@ class CommercialIntelligenceTests(unittest.TestCase):
     def test_site_opportunity_changes_need_score_without_discarding_the_lead(self):
         weak_site = sample_lead()
         weak_site["Oportunidade do Site"] = "Site com oportunidade de melhoria"
+        weak_site["Status Validação"] = "CONFIRMADO"
+        weak_site["Confiança do Site"] = "CONFIRMADO"
         healthy_site = sample_lead()
         healthy_site["Oportunidade do Site"] = "Site encontrado — sem sinal claro"
+        healthy_site["Status Validação"] = "CONFIRMADO"
+        healthy_site["Confiança do Site"] = "CONFIRMADO"
         weak_score = score_lead(weak_site, has_own_site=True)
         healthy_score = score_lead(healthy_site, has_own_site=True)
         self.assertGreater(weak_score["score"], healthy_score["score"])
@@ -486,7 +492,7 @@ class PreviewStudioTests(unittest.TestCase):
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
-                self.assertEqual("2026.11.05-search-engine-v8", health.get_json()["commercial_release"])
+                self.assertEqual("2026.11.05-discovery-engine-v9", health.get_json()["commercial_release"])
                 self.assertEqual("4.3", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})

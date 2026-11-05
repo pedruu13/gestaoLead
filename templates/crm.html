@@ -37,12 +37,32 @@
                 <input type="text" id="filter_nome" value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
             </div>
 
+            <label class="w-full sm:w-32 text-[9px] font-black uppercase tracking-wide text-slate-500">Score mínimo
+                <input id="filter_min_score" type="number" min="0" max="100" value="{{ crm_filters.min_score or '' }}" onchange="applyCrmFilters()" class="mt-1 block w-full rounded-xl border border-[#1F2B44] bg-[#080B12] p-2.5 text-xs text-white outline-none" placeholder="0">
+            </label>
+
             <div class="relative w-full sm:w-44">
                 <select id="filter_quality" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Qualquer qualidade</option>
                     <option value="Confiável" {{ 'selected' if crm_filters.qualidade == 'Confiável' else '' }}>Dados confiáveis</option>
                     <option value="Incompleto" {{ 'selected' if crm_filters.qualidade == 'Incompleto' else '' }}>Dados incompletos</option>
                     <option value="Revisar" {{ 'selected' if crm_filters.qualidade == 'Revisar' else '' }}>Revisão necessária</option>
+                </select>
+            </div>
+
+            <div class="relative w-full sm:w-44">
+                <select id="filter_validation" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                    <option value="">Qualquer validação</option>
+                    {% for value in ['CONFIRMADO', 'PROVÁVEL', 'NÃO VERIFICADO'] %}<option value="{{ value }}" {{ 'selected' if crm_filters.validacao == value else '' }}>{{ value }}</option>{% endfor %}
+                </select>
+            </div>
+
+            <div class="relative w-full sm:w-44">
+                <select id="filter_source" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                    <option value="">Todas as origens</option>
+                    <option value="google_places" {{ 'selected' if crm_filters.origem == 'google_places' else '' }}>Google Places API</option>
+                    <option value="openstreetmap" {{ 'selected' if crm_filters.origem == 'openstreetmap' else '' }}>OpenStreetMap</option>
+                    <option value="legacy_maps" {{ 'selected' if crm_filters.origem == 'legacy_maps' else '' }}>Google Maps legado</option>
                 </select>
             </div>
 
@@ -471,7 +491,8 @@
     const crmFilterFields = {
         nome: 'filter_nome', status: 'filter_status', nicho: 'filter_nicho',
         potencial: 'filter_potencial', followup: 'filter_followup',
-        site: 'filter_site_opportunity', qualidade: 'filter_quality'
+        site: 'filter_site_opportunity', qualidade: 'filter_quality',
+        validacao: 'filter_validation', origem: 'filter_source', min_score: 'filter_min_score'
     };
     const crmFilterStorageKey = `phdigital:crm-filters:${crmView}`;
 

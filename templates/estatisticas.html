@@ -154,6 +154,68 @@
         </div>
     </section>
 
+    <section class="grid gap-5 xl:grid-cols-3">
+        <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 xl:col-span-2">
+            <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Motor de descoberta</span>
+            <h2 class="mt-1 text-lg font-black text-white">Uso, custo estimado e falhas por fonte</h2>
+            <p class="mt-1 text-xs text-slate-500">O valor é uma estimativa interna para controle; a cobrança real depende do provedor.</p>
+            <div class="mt-4 overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="border-b border-[#1E293B] text-[9px] uppercase tracking-wider text-slate-500">
+                        <tr><th class="px-3 py-2">Data</th><th class="px-3 py-2">Fonte</th><th class="px-3 py-2">Requisições</th><th class="px-3 py-2">Candidatos</th><th class="px-3 py-2">Erros</th><th class="px-3 py-2">Estimativa</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#1A2338] text-slate-300">
+                        {% for usage in source_usage %}
+                        <tr><td class="px-3 py-2">{{ usage.usage_date }}</td><td class="px-3 py-2 font-bold text-white">{{ usage.source }}</td><td class="px-3 py-2">{{ usage.requests }}</td><td class="px-3 py-2">{{ usage.candidates }}</td><td class="px-3 py-2 {% if usage.errors %}text-rose-300{% endif %}">{{ usage.errors }}</td><td class="px-3 py-2">US$ {{ '%.4f'|format(usage.estimated_cost_micros / 1000000) }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="6" class="px-3 py-5 text-center text-slate-500">Nenhuma consulta do novo motor foi executada ainda.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                {% for job in discovery_jobs[:6] %}
+                <div class="rounded-xl border border-[#1F2B44] bg-[#080D17] p-3">
+                    <div class="flex items-center justify-between gap-2"><span class="text-[10px] font-bold text-slate-500">{{ job.created_at }}</span><strong class="text-[10px] uppercase {% if job.status == 'completed' %}text-emerald-300{% elif job.status == 'interrupted' %}text-amber-300{% else %}text-cyan-300{% endif %}">{{ job.status }}</strong></div>
+                    <p class="mt-2 text-xs text-slate-300">{{ job.stats.get('candidates', 0) }} candidatos · {{ job.stats.get('requests', 0) }} requisições · {{ job.stats.get('errors', 0) }} erros</p>
+                    {% if job.error %}<p class="mt-1 line-clamp-2 text-[10px] text-rose-300">{{ job.error }}</p>{% endif %}
+                    {% if job.status in ['interrupted', 'pending'] %}<button type="button" onclick="resumeDiscovery('{{ job.job_id }}', this)" class="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[9px] font-black uppercase text-amber-300">Retomar tarefa</button>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5">
+            <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Confiabilidade</span>
+            <h2 class="mt-1 text-lg font-black text-white">Validação individual</h2>
+            <div class="mt-4 space-y-3">
+                {% for status, count in validation_counts.items() %}
+                <div class="flex items-center justify-between rounded-xl border border-[#1F2B44] bg-[#080D17] px-4 py-3">
+                    <span class="text-xs text-slate-400">{{ status }}</span><strong class="text-lg text-white">{{ count }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="mt-4 text-[10px] leading-relaxed text-slate-500">“Não verificado” permanece visível para impedir que ausência de resultado seja tratada como ausência confirmada de site.</p>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 md:p-6">
+        <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Aprendizado comercial</span>
+        <h2 class="mt-1 text-lg font-black text-white">Conversão por nicho, local e origem</h2>
+        <p class="mt-1 text-xs text-slate-500">O motor só recalibra recomendações com pelo menos 10 contatos registrados no mesmo grupo.</p>
+        <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="border-b border-[#1E293B] text-[9px] uppercase tracking-wider text-slate-500"><tr><th class="px-3 py-2">Dimensão</th><th class="px-3 py-2">Grupo</th><th class="px-3 py-2">Amostra</th><th class="px-3 py-2">Resposta</th><th class="px-3 py-2">Interesse</th><th class="px-3 py-2">Fechamento</th><th class="px-3 py-2">Uso</th></tr></thead>
+                <tbody class="divide-y divide-[#1A2338] text-slate-300">
+                    {% for row in conversion_rows %}
+                    <tr><td class="px-3 py-2">{{ row.dimension }}</td><td class="px-3 py-2 font-bold text-white">{{ row.value }}</td><td class="px-3 py-2">{{ row.contacted }}</td><td class="px-3 py-2">{{ row.response_rate }}%</td><td class="px-3 py-2">{{ row.interest_rate }}%</td><td class="px-3 py-2">{{ row.close_rate }}%</td><td class="px-3 py-2"><span class="rounded-full px-2 py-1 text-[9px] font-black {% if row.sufficient_sample %}bg-emerald-500/10 text-emerald-300{% else %}bg-amber-500/10 text-amber-300{% endif %}">{% if row.sufficient_sample %}calibra o score{% else %}amostra insuficiente{% endif %}</span></td></tr>
+                    {% else %}
+                    <tr><td colspan="7" class="px-3 py-5 text-center text-slate-500">Registre resultados comerciais nos leads para formar uma base real.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Gráfico 1: Funil de Conversão Comercial -->
@@ -254,6 +316,19 @@
 
 {% block scripts %}
 <script>
+    async function resumeDiscovery(jobId, button) {
+        button.disabled = true;
+        button.textContent = 'Retomando...';
+        const response = await fetch(`/api/discovery/jobs/${encodeURIComponent(jobId)}/resume`, {method: 'POST'});
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            button.disabled = false;
+            button.textContent = 'Tentar novamente';
+            showAppToast(data.error || 'Não foi possível retomar.', 'error');
+            return;
+        }
+        window.location.href = '/';
+    }
     const dashboardData = {{ dashboard_data | tojson | safe }};
     const nichoCounts = dashboardData.nichos || {};
     const nichoSemSiteCounts = dashboardData.nichos_sem_site || {};

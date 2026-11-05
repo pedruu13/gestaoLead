@@ -30,12 +30,14 @@ class SearchEngineV8Tests(unittest.TestCase):
         self.assertIn("treinamento funcional", terms)
 
     def test_suggestion_evidence_uses_commercial_results(self):
-        rows = [
-            {"nicho": "Academia", "bairro": "Campinas - SP", "link_inicial": "", "telefone": "11987654321", "whatsapp_link": "", "email": "", "avaliacoes": "30", "status": "Conversando"},
-            {"nicho": "Academia", "bairro": "Campinas - SP", "link_inicial": "", "telefone": "11987654322", "whatsapp_link": "", "email": "", "avaliacoes": "20", "status": "Fechado"},
-        ]
+        rows = [{
+            "nicho": "Academia", "bairro": "Campinas - SP", "link_inicial": "",
+            "telefone": f"119876543{index:02d}", "whatsapp_link": "", "email": "",
+            "avaliacoes": "30", "status": "Conversando",
+            "commercial_outcome": "Respondeu" if index < 9 else "Contrato fechado",
+        } for index in range(10)]
         result = suggest_targets("br", rows, focus_niches=["Academia"], focus_locations=["Campinas - SP"])
-        self.assertIn("2 resposta(s)", result["pracas"][0]["evidencia"])
+        self.assertIn("10 resposta(s)", result["pracas"][0]["evidencia"])
         self.assertIn("1 fechamento(s)", result["pracas"][0]["evidencia"])
 
     def test_direct_whatsapp_records_contact_after_official_api_acceptance(self):

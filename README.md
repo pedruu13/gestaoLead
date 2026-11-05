@@ -19,6 +19,10 @@ O principal objetivo desta ferramenta é identificar negócios locais que **não
 * 🕵️ **Caçador Profundo (E-mails e Redes Sociais)**: Entra nas páginas de redes sociais dos leads e extrai **E-mails**, **Instagram**, **Facebook** e **LinkedIn** automaticamente via Regex.
 * 📊 **Dashboard em Tempo Real**: Placar de métricas durante a busca, CRM e funil comercial completo.
 * 📥 **Exportação Nativa**: Baixe os resultados consolidados em CSV.
+* 🔎 **Descoberta modular**: Quando configurado, combina Google Places API (New) e OpenStreetMap, usa consultas alternativas, paginação, cache, quotas e retomada de tarefas.
+* ✅ **Validação por evidências**: Classifica existência e presença de site como `CONFIRMADO`, `PROVÁVEL` ou `NÃO VERIFICADO`, sem tratar ausência de resultado como prova definitiva.
+* 🎯 **Score explicável 0–100**: Organiza os leads em prioridade alta, média ou baixa e mostra os sinais usados; a nota não é probabilidade de compra.
+* 📈 **Aprendizado comercial controlado**: Calcula conversão por nicho, cidade e origem usando resultados registrados no CRM, mas só recalibra o score com amostra mínima de 10 contatos.
 
 ---
 
@@ -69,6 +73,15 @@ O workflow `.github/workflows/deploy-oracle.yml` atualiza o servidor a cada push
 
 ### WhatsApp Cloud API
 Para enviar dentro do CRM, configure em **Configurações** o token permanente, o Phone Number ID e um template aprovado com uma variável no corpo. A plataforma usa somente a API oficial da Meta e registra o envio no histórico do lead.
+
+### Motor modular de descoberta
+- Defina `GOOGLE_PLACES_API_KEY` ou informe a chave em **Configurações**. A chave deve ter acesso à Places API (New).
+- Ajuste o limite diário, o número de consultas alternativas e o período de cache antes de buscas grandes.
+- O OpenStreetMap complementa apenas nichos com categorias compatíveis; ele não substitui a cobertura do Google Places.
+- Sem chave do Google, o coletor legado permanece disponível para preservar o funcionamento atual.
+- O painel **Estatísticas** mostra requisições, candidatos, erros, estimativa interna de custo, validação e amostras comerciais.
+- A aplicação não contorna CAPTCHA, autenticação, bloqueios ou limites de provedores.
+- A cobrança real do Google depende dos campos e SKUs habilitados na conta; o valor exibido pelo sistema é apenas estimativa operacional.
 
 ## 🛠️ Tecnologias Utilizadas
 - **Python 3**
