@@ -50,7 +50,15 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
             if cancelled() or time_exhausted():
                 break
             progress(completed_samples, total_samples, f"Investigando {pair['niche']} em {pair['city']}...")
-            result = {"region": pair["region"], "niche": pair["niche"], "city": pair["city"], "results_count": 0, "sample_size": 0, "no_site_count": 0, "contactable_count": 0, "mature_count": 0}
+            result = {
+                "region": pair["region"], "niche": pair["niche"], "city": pair["city"],
+                "results_count": 0, "sample_size": 0, "verified_count": 0,
+                "own_site_count": 0, "confirmed_no_site_count": 0, "probable_no_site_count": 0, "weak_site_count": 0,
+                "site_unknown_count": 0, "no_site_count": 0, "contactable_count": 0,
+                "active_count": 0, "mature_count": 0, "qualified_count": 0,
+                "duplicate_count": 0, "discarded_count": 0,
+                "sources": ["Google Maps"], "examples": [],
+            }
             try:
                 hrefs = []
                 for search_term in search_terms_for_niche(pair["region"], pair["niche"]):
@@ -72,6 +80,7 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
                     if len(hrefs) >= sample_per_pair:
                         break
                 result["results_count"] = len(hrefs)
+                seen_places = set()
                 for href in hrefs[:sample_per_pair]:
                     if cancelled() or time_exhausted():
                         break
@@ -79,12 +88,35 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
                         page.goto(href, wait_until="domcontentloaded", timeout=12000)
                         page.wait_for_selector("h1", timeout=3500)
                         page.wait_for_timeout(350)
+                        canonical_href = href.split("?", 1)[0]
+                        if canonical_href in seen_places:
+                            result["duplicate_count"] += 1
+                            continue
+                        seen_places.add(canonical_href)
+                        name = (page.locator("h1").first.inner_text() or "").strip()
                         website = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']").first
                         website_url = _external_url(website.get_attribute("href")) if website.count() else ""
+                        review_count = _review_count(page)
+                        has_phone = page.locator("button[data-item-id^='phone']").count() > 0
                         result["sample_size"] += 1
-                        result["no_site_count"] += int(not has_own_site(website_url))
-                        result["contactable_count"] += int(page.locator("button[data-item-id^='phone']").count() > 0)
-                        result["mature_count"] += int(_review_count(page) >= 10)
+                        result["verified_count"] += 1
+                        if has_own_site(website_url):
+                            result["own_site_count"] += 1
+                            site_status = "site próprio informado"
+                        else:
+                            result["site_unknown_count"] += 1
+                            result["no_site_count"] += 1
+                            site_status = "site não localizado, ainda não confirmado"
+                        result["contactable_count"] += int(has_phone)
+                        result["active_count"] += int(review_count > 0)
+                        result["mature_count"] += int(review_count >= 10)
+                        if len(result["examples"]) < 5:
+                            result["examples"].append({
+                                "name": name or "Empresa sem nome extraído", "city": pair["city"],
+                                "site_status": site_status,
+                                "contact": "telefone público" if has_phone else "não localizado",
+                                "source_url": href,
+                            })
                     except Exception:
                         pass
                     finally:

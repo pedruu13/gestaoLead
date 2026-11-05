@@ -91,3 +91,10 @@ Para enviar dentro do CRM, configure em **Configurações** o token permanente, 
 
 ---
 *Feito com 💡 para facilitar a prospecção ativa de clientes.*
+# GestãoLead
+
+## Inteligência de nichos
+
+O botão **Sugerir nichos** executa pesquisa de mercado antes de recomendar. O motor combina catálogo inicial, segmentos encontrados no CRM e categorias públicas observadas, verifica uma amostra configurável de empresas e apresenta fontes, tamanho real da amostra, contatos, situação do site, saturação e confiança.
+
+Configure `GOOGLE_PLACES_API_KEY` para usar Google Places com fila, cache, quotas e validação modular. Sem a chave, o sistema usa a coleta gratuita existente como contingência e mantém ausências de site como não confirmadas. Consulte `NICHE_INTELLIGENCE_AUDIT.md` para arquitetura e limitações.

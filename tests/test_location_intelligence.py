@@ -106,9 +106,9 @@ class LocationIntelligenceTests(unittest.TestCase):
                 response = client.get("/api/sugerir_alvos?regiao=br&cidades=MG")
                 data = response.get_json()
                 self.assertEqual(200, response.status_code, data)
-                self.assertEqual(4, len(data["cidades"]))
-                self.assertTrue(all(location.endswith("- MG") for location in data["cidades"]))
-                self.assertEqual(3, len(data["nichos"]))
+                self.assertTrue(data["research_required"])
+                self.assertEqual([], data["cidades"])
+                self.assertEqual([], data["nichos"])
             finally:
                 application.DB_NAME = old_db
 

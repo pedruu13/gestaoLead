@@ -4,7 +4,7 @@ import urllib.parse
 from collections import defaultdict
 
 
-TARGET_ENGINE_VERSION = "7.0"
+TARGET_ENGINE_VERSION = "8.0"
 
 
 NICHE_SEARCH_TERMS = {
@@ -238,7 +238,7 @@ def _resolve_cities(market, values):
     return resolved
 
 
-def build_research_plan(region, observations, pair_limit=8, focus_niches=None, focus_locations=None):
+def build_research_plan(region, observations, pair_limit=8, focus_niches=None, focus_locations=None, candidate_niches=None):
     if region not in MARKETS:
         raise ValueError("Mercado inválido.")
     market = MARKETS[region]
@@ -253,7 +253,12 @@ def build_research_plan(region, observations, pair_limit=8, focus_niches=None, f
     city_exposure = {city["name"]: sum(studied[(normalize(niche["name"]), normalize(city["name"]))]["sample"] + studied[(normalize(niche["name"]), normalize(city["name"]))]["runs"] * 3 for niche in market["niches"]) for city in market["cities"]}
     focused_niches = _resolve_niches(market, focus_niches)
     focused_cities = _resolve_cities(market, focus_locations)
-    niches = focused_niches or sorted(market["niches"], key=lambda item: (niche_exposure[item["name"]], -(item["ticket"] + item["need"] + item["gap"]), item["name"]))[:4]
+    dynamic_niches = _resolve_niches(market, candidate_niches) if candidate_niches else []
+    niche_candidates = dynamic_niches or list(market["niches"])
+    niches = focused_niches or sorted(
+        niche_candidates,
+        key=lambda item: (niche_exposure.get(item["name"], 0), -(item["ticket"] + item["need"] + item["gap"]), item["name"]),
+    )[:4]
     cities = focused_cities or sorted(market["cities"], key=lambda item: (city_exposure[item["name"]], -(item["power"] + item["gap"]), item["name"]))[:4]
     candidates = []
     if focused_niches or focused_cities:

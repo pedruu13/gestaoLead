@@ -116,7 +116,9 @@ class TargetIntelligenceTests(unittest.TestCase):
         client = application.app.test_client()
         self.authenticate(client)
         html = client.get("/").get_data(as_text=True)
-        self.assertIn("Sugerir nichos e locais", html)
+        self.assertIn("Sugerir nichos", html)
+        self.assertIn("recomendacoes_detalhadas", html)
+        self.assertIn("Ver amostra", html)
         self.assertIn("parsePickerValues", html)
         self.assertIn("Adicionados ao CRM", html)
         self.assertIn('id="search_result_summary"', html)
@@ -170,11 +172,10 @@ class TargetIntelligenceTests(unittest.TestCase):
                 response = client.get("/api/sugerir_alvos?regiao=br")
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
-                self.assertEqual("7.0", data["engine_version"])
-                self.assertEqual(3, len(data["nichos"]))
-                self.assertEqual(4, len(data["cidades"]))
-                self.assertEqual(12, data["total_combinacoes"])
-                self.assertIn(next(item for item in data["pracas"] if item["nome"] == "Moema - São Paulo")["confianca"], ("sinal forte", "validado"))
+                self.assertEqual("8.0", data["engine_version"])
+                self.assertTrue(data["research_required"])
+                self.assertEqual([], data["nichos"])
+                self.assertEqual([], data["recomendacoes_detalhadas"])
             finally:
                 application.DB_NAME = old_db
 
@@ -187,19 +188,23 @@ class TargetIntelligenceTests(unittest.TestCase):
             try:
                 application.init_db()
 
-                def fake_probe(plan, **_kwargs):
-                    self.assertEqual(6, len(plan))
-                    self.assertEqual(2, _kwargs["sample_per_pair"])
-                    self.assertEqual(45, _kwargs["max_seconds"])
+                def fake_research(_db_name, _config, plan, **kwargs):
+                    self.assertEqual(8, len(plan))
+                    self.assertEqual(50, kwargs["sample_target"])
                     return [{
                         "region": item["region"], "niche": item["niche"], "city": item["city"],
-                        "results_count": 9, "sample_size": 5, "no_site_count": 3,
-                        "contactable_count": 5, "mature_count": 4,
+                        "results_count": 10, "sample_size": 8, "verified_count": 8,
+                        "no_site_count": 5, "own_site_count": 3, "confirmed_no_site_count": 3,
+                        "probable_no_site_count": 1, "weak_site_count": 1, "site_unknown_count": 0,
+                        "contactable_count": 7, "active_count": 7, "mature_count": 7,
+                        "qualified_count": 5, "duplicate_count": 1, "discarded_count": 1,
+                        "sources": ["Google Places"], "examples": [{"name": "Empresa teste", "city": item["city"]}],
                     } for item in plan]
 
                 client = application.app.test_client()
                 headers = self.authenticate(client)
-                with mock.patch.object(application, "probe_google_maps", side_effect=fake_probe):
+                discovered = {"catalog_names": [item["name"] for item in application.MARKETS["br"]["niches"]], "crm_names": [], "discovered": []}
+                with mock.patch.object(application, "discover_public_niches", return_value=discovered), mock.patch.object(application, "research_market_samples", side_effect=fake_research):
                     response = client.post("/api/sugerir_alvos", json={"regiao": "br"}, headers=headers)
                     self.assertEqual(202, response.status_code, response.get_data(as_text=True))
                     for _ in range(100):
@@ -208,10 +213,12 @@ class TargetIntelligenceTests(unittest.TestCase):
                             break
                         time.sleep(0.02)
                 self.assertTrue(status["concluido"], status)
-                self.assertEqual(3, len(status["resultado"]["nichos"]))
-                self.assertEqual(4, len(status["resultado"]["cidades"]))
+                self.assertGreaterEqual(len(status["resultado"]["nichos"]), 2)
+                self.assertLessEqual(len(status["resultado"]["nichos"]), 4)
+                self.assertTrue(status["resultado"]["recomendacoes_detalhadas"])
                 connection = application.sqlite3.connect(application.DB_NAME)
-                self.assertEqual(6, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
+                self.assertEqual(8, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
+                self.assertGreater(connection.execute("SELECT COUNT(*) FROM niche_recommendation_history").fetchone()[0], 0)
                 connection.close()
             finally:
                 application.DB_NAME = old_db
@@ -238,12 +245,12 @@ class TargetIntelligenceTests(unittest.TestCase):
                 connection.close()
                 client = application.app.test_client()
                 headers = self.authenticate(client)
-                with mock.patch.object(application, "probe_google_maps") as probe:
+                with mock.patch.object(application, "research_market_samples") as research:
                     response = client.post("/api/sugerir_alvos", json={"regiao": "br"}, headers=headers)
                 self.assertEqual(200, response.status_code)
                 self.assertTrue(response.get_json()["cached"])
                 self.assertTrue(response.get_json()["resultado"]["investigacao"]["reutilizado"])
-                probe.assert_not_called()
+                research.assert_not_called()
             finally:
                 application.DB_NAME = old_db
                 application.TARGET_RESEARCH_STATUS_FILE = old_status_file

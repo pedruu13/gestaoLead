@@ -118,6 +118,14 @@
                             <option value="168" {% if config.get('discovery_cache_hours', 168)|int == 168 %}selected{% endif %}>7 dias</option>
                         </select>
                     </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Amostra alvo por nicho
+                        <input type="number" min="10" max="100" name="niche_sample_target" value="{{ config.get('niche_sample_target', 50) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
+                        <small class="mt-1 block normal-case font-normal text-slate-500">O sistema mostra o tamanho real alcançado quando não houver 50 empresas disponíveis.</small>
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Tempo máximo da pesquisa
+                        <input type="number" min="30" max="900" name="niche_research_max_seconds" value="{{ config.get('niche_research_max_seconds', 180) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
+                        <small class="mt-1 block normal-case font-normal text-slate-500">Limite em segundos para o coletor gratuito de contingência.</small>
+                    </label>
                 </div>
             </div>
 

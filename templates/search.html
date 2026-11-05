@@ -46,8 +46,13 @@
                         <option value="us">Estados Unidos</option>
                         <option value="europa">Europa</option>
                     </select>
+                    <select id="niche_sample_target" aria-label="Amostra por nicho" class="rounded-xl bg-[#080B12] border border-[#1F2B44] text-slate-200 text-xs font-bold px-3 py-2.5 focus:border-blue-500 outline-none">
+                        <option value="25">Amostra 25</option>
+                        <option value="50" selected>Amostra 50</option>
+                        <option value="75">Amostra 75</option>
+                    </select>
                     <button type="button" onclick="sugerirAlvosIA()" id="btn-ia-sugerir" class="inline-flex justify-center items-center gap-2 rounded-xl bg-[#131A2B] hover:bg-[#1A2338] border border-[#1F2B44] text-white text-xs font-bold px-4 py-2.5 transition-colors">
-                        <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Sugerir nichos e locais
+                        <i id="icon-ia-sugerir" class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Sugerir nichos
                     </button>
                 </div>
             </div>
@@ -95,7 +100,7 @@
                     <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                         <div>
                             <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Radar de oportunidade</span>
-                            <h3 class="text-sm font-black text-white mt-1">Poucas apostas, com motivo para testar</h3>
+                            <h3 class="text-sm font-black text-white mt-1">Oportunidades pesquisadas no mercado</h3>
                             <p id="target_recommendation_summary" class="text-xs text-slate-400 mt-1"></p>
                         </div>
                         <span id="target_recommendation_volume" class="self-start rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-300"></span>
@@ -104,8 +109,8 @@
                         <div class="h-1.5 overflow-hidden rounded-full bg-[#080B12]"><div id="target_research_progress" class="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500" style="width:0%"></div></div>
                         <p id="target_research_status" class="mt-2 text-[11px] text-cyan-300"></p>
                     </div>
-                    <div id="target_recommendation_niches" class="grid md:grid-cols-2 gap-2.5 mt-4"></div>
-                    <div id="target_recommendation_places" class="grid md:grid-cols-2 gap-2.5 mt-4"></div>
+                    <div id="target_recommendation_niches" class="grid xl:grid-cols-2 gap-3 mt-4"></div>
+                    <div id="target_comparison" class="hidden mt-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.05] p-4"></div>
                     <p id="target_recommendation_method" class="text-[10px] leading-relaxed text-slate-500 mt-3"></p>
                 </section>
 
@@ -420,51 +425,80 @@
     let targetResearchTimer = null;
     let activeTargetResearchRegion = null;
     let lastTargetRecommendationWasCached = false;
+    let targetRecommendations = [];
+    const comparedTargets = new Set();
     function setTargetResearchState(message, progress = 0) {
         const panel = document.getElementById('target_recommendation');
         panel.classList.remove('hidden');
-        document.getElementById('target_recommendation_summary').textContent = 'O detetive está testando nichos e cidades no Google Maps antes de recomendar.';
-        document.getElementById('target_recommendation_volume').textContent = '2 a 4 nichos prontos';
+        document.getElementById('target_recommendation_summary').textContent = 'O motor está descobrindo segmentos e verificando empresas reais antes de recomendar.';
+        document.getElementById('target_recommendation_volume').textContent = 'pesquisa em andamento';
         document.getElementById('target_recommendation_niches').replaceChildren();
-        document.getElementById('target_recommendation_places').replaceChildren();
-        document.getElementById('target_recommendation_method').textContent = 'A recomendação só será aplicada depois da análise das empresas encontradas.';
+        document.getElementById('target_comparison').classList.add('hidden');
+        document.getElementById('target_recommendation_method').textContent = 'Nenhum nicho será aplicado aos filtros sem sua escolha.';
         document.getElementById('target_research_progress_wrap').classList.remove('hidden');
         document.getElementById('target_research_progress').style.width = `${Math.max(3, progress)}%`;
         document.getElementById('target_research_status').textContent = message;
     }
+    function recommendationByKey(key) { return targetRecommendations.find(item => item.niche_key === key); }
+    function useTargetRecommendation(key) {
+        const item = recommendationByKey(key); if (!item) return;
+        pickerState.nichos = []; pickerState.bairros = [];
+        addPickerValue('nichos', item.niche, false);
+        (item.cities || []).slice(0, 4).forEach(city => addPickerValue('bairros', city, false));
+        syncPicker('nichos'); syncPicker('bairros');
+        document.getElementById('nichos_chips').scrollIntoView({behavior: 'smooth', block: 'center'});
+        showAppToast(`${item.niche} aplicado com ${(item.cities || []).length} praça(s) pesquisada(s).`);
+    }
+    function toggleTargetExamples(key) { document.getElementById(`target-examples-${key}`)?.classList.toggle('hidden'); }
+    function renderTargetComparison() {
+        const panel = document.getElementById('target_comparison');
+        const selected = [...comparedTargets].map(recommendationByKey).filter(Boolean);
+        if (selected.length < 2) { panel.classList.add('hidden'); return; }
+        panel.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-xs text-white">Comparação observada</strong><button type="button" onclick="clearTargetComparison()" class="text-[10px] font-bold text-slate-400 hover:text-white">Limpar</button></div><div class="mt-3 grid gap-2 md:grid-cols-2">${selected.map(item => `<div class="rounded-lg bg-[#090D16] p-3 text-[10px] text-slate-400"><strong class="block text-xs text-white mb-2">${escapeHtml(item.niche)}</strong><p>Score: <b class="text-cyan-300">${item.score}</b> · Confiança: <b class="text-white">${escapeHtml(item.confidence)}</b></p><p class="mt-1">Qualificados: ${item.companies_qualified}/${item.companies_verified} · Contatos: ${item.contact_availability_percent}%</p><p class="mt-1">Sem site confirmado: ${item.confirmed_no_site_percent}% · Site fraco: ${item.weak_site_count}</p></div>`).join('')}</div>`;
+        panel.classList.remove('hidden');
+    }
+    function compareTarget(key) {
+        if (comparedTargets.has(key)) comparedTargets.delete(key); else {
+            if (comparedTargets.size >= 2) comparedTargets.delete([...comparedTargets][0]);
+            comparedTargets.add(key);
+        }
+        renderTargetComparison(); renderTargetCards();
+    }
+    function clearTargetComparison() { comparedTargets.clear(); renderTargetComparison(); renderTargetCards(); }
+    function researchOtherRegion(key) {
+        const item = recommendationByKey(key); if (!item) return;
+        const market = document.getElementById('mercado');
+        market.value = market.value === 'br' ? 'us' : market.value === 'us' ? 'europa' : 'br';
+        pickerState.nichos = []; pickerState.bairros = []; addPickerValue('nichos', item.niche, false);
+        syncPicker('nichos'); syncPicker('bairros'); aplicarMercado(); sugerirAlvosIA(true);
+    }
+    function refreshTarget(key) {
+        const item = recommendationByKey(key); if (!item) return;
+        sugerirAlvosIA(true, {niches: [item.niche], cities: item.cities || []});
+    }
+    function renderTargetCards() {
+        document.getElementById('target_recommendation_niches').innerHTML = targetRecommendations.map((item, index) => {
+            const examples = (item.examples || []).map(example => `<li class="rounded-lg border border-[#1F2B44] bg-[#080B12] p-2"><b class="text-slate-200">${escapeHtml(example.name || example.nome || 'Empresa verificada')}</b><span class="block text-slate-500">${escapeHtml(example.city || example.cidade || '')}${example.site_status ? ` · ${escapeHtml(example.site_status)}` : ''}</span></li>`).join('');
+            const selected = comparedTargets.has(item.niche_key);
+            const comparison = item.comparison || {};
+            return `<article class="rounded-2xl border ${index === 0 ? 'border-cyan-400/30' : 'border-[#1F2B44]'} bg-[#0A0E18] p-4"><div class="flex items-start justify-between gap-3"><div><span class="text-[9px] font-black uppercase tracking-widest text-cyan-400">${index === 0 ? 'Melhor evidência' : `Alternativa ${index + 1}`}</span><h4 class="mt-1 text-sm font-black text-white">${escapeHtml(item.niche)}</h4><p class="mt-1 text-[10px] text-slate-500">${escapeHtml((item.cities || []).join(' · ') || item.region)}</p></div><span class="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-black text-cyan-300">${item.score}/100</span></div><div class="mt-3 grid grid-cols-2 gap-2 text-[10px] md:grid-cols-4"><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Pesquisadas</span><b class="text-white">${item.companies_searched}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Verificadas</span><b class="text-white">${item.companies_verified}/${item.sample_target}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Qualificadas</span><b class="text-emerald-300">${item.companies_qualified}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Sem site confirmado</span><b class="text-white">${item.confirmed_no_site_percent}%</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Contatos públicos</span><b class="text-white">${item.contact_availability_percent}%</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Saturação observada</span><b class="text-white">${escapeHtml(item.observed_saturation || 'não medida')}</b></div><div class="rounded-lg bg-[#111728] p-2"><span class="block text-slate-500">Confiança</span><b class="text-amber-300">${escapeHtml(item.confidence)}</b></div></div><p class="mt-3 text-[11px] leading-relaxed text-slate-300">${escapeHtml(item.justification)}</p><p class="mt-2 text-[10px] leading-relaxed text-slate-500"><b class="text-slate-400">Potencial comercial:</b> ${escapeHtml(item.commercial_potential)}</p><div class="mt-2 flex flex-wrap gap-1.5 text-[9px] text-slate-500"><span>Pesquisa: ${escapeHtml(item.researched_at)}</span><span>·</span><span>Fontes: ${escapeHtml((item.sources || []).join(', ') || 'não informada')}</span><span>·</span><span>${escapeHtml(comparison.status || '')}</span></div>${examples ? `<div id="target-examples-${item.niche_key}" class="hidden mt-3"><p class="mb-2 text-[10px] font-bold text-slate-300">Empresas da amostra</p><ul class="space-y-1.5 text-[10px]">${examples}</ul></div>` : ''}<div class="mt-4 flex flex-wrap gap-2"><button type="button" onclick="useTargetRecommendation('${item.niche_key}')" class="rounded-lg bg-cyan-500 px-3 py-2 text-[10px] font-black text-slate-950 hover:bg-cyan-300">Buscar leads</button><button type="button" onclick="compareTarget('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold ${selected ? 'text-cyan-300 border-cyan-400/40' : 'text-slate-300'}">Comparar</button><button type="button" onclick="researchOtherRegion('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Outra região</button>${examples ? `<button type="button" onclick="toggleTargetExamples('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Ver amostra</button>` : ''}<button type="button" onclick="refreshTarget('${item.niche_key}')" class="rounded-lg border border-[#263550] px-3 py-2 text-[10px] font-bold text-slate-300">Atualizar</button></div></article>`;
+        }).join('');
+    }
     function renderTargetRecommendation(data) {
         const panel = document.getElementById('target_recommendation');
         const investigation = data.investigacao || {};
-        const evidenceSummary = investigation.reutilizado
-            ? `com base em ${investigation.amostra_nova || 0} empresas da investigação recente`
-            : `após analisar ${investigation.amostra_nova || 0} empresas nesta rodada`;
-        document.getElementById('target_recommendation_summary').textContent = `${data.nichos.length} nicho(s) e ${data.cidades.length} local(is) prontos para pesquisar, ${evidenceSummary}.`;
-        document.getElementById('target_recommendation_volume').textContent = `${data.total_combinacoes} combinações prontas`;
+        targetRecommendations = data.recomendacoes_detalhadas || [];
+        comparedTargets.clear();
+        document.getElementById('target_recommendation_summary').textContent = `${targetRecommendations.length} oportunidade(s) ranqueada(s) após ${investigation.amostra_nova || 0} verificações reais. Escolha uma antes de buscar leads.`;
+        document.getElementById('target_recommendation_volume').textContent = `${investigation.combinacoes_estudadas || data.total_combinacoes || 0} pesquisas`;
         document.getElementById('target_recommendation_method').textContent = data.metodologia;
         document.getElementById('target_research_progress_wrap').classList.add('hidden');
-        document.getElementById('target_recommendation_niches').innerHTML = (data.recomendacoes || []).map((recommendation, index) => `<article class="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.05] p-3.5">
-            <div class="flex items-center justify-between gap-3"><strong class="text-xs text-white">${index + 1}. ${escapeHtml(recommendation.nicho)}</strong><span class="rounded-full bg-cyan-400/10 px-2 py-1 text-[9px] font-black text-cyan-300">NICHO RECOMENDADO</span></div>
-            <p class="mt-2 text-[11px] leading-relaxed text-slate-400">${escapeHtml(recommendation.motivo)}</p>
-            <p class="mt-2 text-[10px] text-slate-500"><strong class="text-slate-300">Locais:</strong> ${escapeHtml((recommendation.cidades || []).join(' · '))}</p>
-        </article>`).join('');
-        document.getElementById('target_recommendation_places').innerHTML = data.pracas.map(place => {
-            const badgeClass = place.confianca === 'validado' ? 'text-emerald-300 bg-emerald-400/10 border-emerald-400/20' : place.confianca.includes('sinal') ? 'text-amber-300 bg-amber-400/10 border-amber-400/20' : 'text-blue-300 bg-blue-400/10 border-blue-400/20';
-            return `<article class="rounded-xl border border-[#1F2B44] bg-[#0A0E18] p-3.5">
-                <div class="flex items-start justify-between gap-3">
-                    <div><strong class="block text-xs text-white">${escapeHtml(place.nome)}</strong><span class="text-[10px] text-slate-500">Melhor encaixe: ${escapeHtml(place.nicho_principal)}</span></div>
-                    <span class="rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-wide ${badgeClass}">${escapeHtml(place.confianca)}</span>
-                </div>
-                <p class="text-[11px] leading-relaxed text-slate-400 mt-2">${escapeHtml(place.evidencia)}</p>
-                <p class="text-[10px] leading-relaxed text-slate-500 mt-1.5"><strong class="text-slate-400">Por que precisa de site:</strong> ${escapeHtml(place.necessidade_site)}</p>
-            </article>`;
-        }).join('');
+        renderTargetCards(); renderTargetComparison();
         panel.classList.remove('hidden');
     }
-    function applyTargetRecommendation(data, message = 'Investigação concluída. Novos alvos aplicados.', cached = false) {
+    function applyTargetRecommendation(data, message = 'Investigação concluída. Escolha uma oportunidade para aplicar.', cached = false) {
         lastTargetRecommendationWasCached = cached;
-        pickerState.nichos = []; pickerState.bairros = [];
-        data.nichos.forEach(value => addPickerValue('nichos', value)); data.cidades.forEach(value => addPickerValue('bairros', value));
-        aplicarMercado(); renderTargetRecommendation(data);
+        renderTargetRecommendation(data);
         const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir');
         button.disabled = false; button.classList.remove('opacity-50'); icon.className = 'fa-solid fa-wand-magic-sparkles text-cyan-400';
         showAppToast(message);
@@ -490,10 +524,10 @@
             showAppToast(error.message || 'Não foi possível investigar novos alvos.', 'error');
         }
     }
-    async function sugerirAlvosIA(forceRefresh = false) {
+    async function sugerirAlvosIA(forceRefresh = false, targetOverride = null) {
         const button = document.getElementById('btn-ia-sugerir'); const icon = document.getElementById('icon-ia-sugerir'); const mercado = document.getElementById('mercado').value;
-        const nichosInformados = [...pickerState.nichos];
-        const cidadesInformadas = [...pickerState.bairros];
+        const nichosInformados = targetOverride?.niches || [...pickerState.nichos];
+        const cidadesInformadas = targetOverride?.cities || [...pickerState.bairros];
         activeTargetResearchRegion = mercado;
         button.disabled = true; button.classList.add('opacity-50'); icon.className = 'fa-solid fa-circle-notch fa-spin text-cyan-400';
         const contexto = nichosInformados.length && !cidadesInformadas.length
@@ -509,7 +543,7 @@
             const response = await fetch('/api/sugerir_alvos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({regiao: mercado, atualizar, nichos: nichosInformados, cidades: cidadesInformadas}),
+                body: JSON.stringify({regiao: mercado, atualizar, nichos: nichosInformados, cidades: cidadesInformadas, amostra_alvo: Number(document.getElementById('niche_sample_target').value || 50)}),
             });
             const data = await response.json();
             if (!response.ok && !(response.status === 409 && data.status?.rodando && data.status.regiao === mercado)) throw new Error(data.erro || 'Não foi possível iniciar a investigação.');

@@ -28,8 +28,9 @@ from contact_quality import assess_phone, normalize_email, website_domain
 from discovery_engine import DiscoveryEngine, init_discovery_schema
 from lead_validation import validate_candidate
 from location_intelligence import expand_locations
-from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, search_terms_for_niche, suggest_targets
-from target_research import probe_google_maps
+from niche_intelligence import NICHE_ENGINE_VERSION, build_candidate_pool, rank_niche_opportunities
+from niche_research import discover_public_niches, research_market_samples
+from target_intelligence import MARKETS, TARGET_ENGINE_VERSION, build_research_plan, normalize, search_terms_for_niche
 from whatsapp_cloud import cloud_configured, send_approved_template
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
@@ -388,6 +389,19 @@ def init_db():
                   sample_size INTEGER DEFAULT 0, no_site_count INTEGER DEFAULT 0,
                   contactable_count INTEGER DEFAULT 0, mature_count INTEGER DEFAULT 0,
                   error TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    for col, tipo in [
+        ("verified_count", "INTEGER DEFAULT 0"), ("own_site_count", "INTEGER DEFAULT 0"),
+        ("confirmed_no_site_count", "INTEGER DEFAULT 0"), ("probable_no_site_count", "INTEGER DEFAULT 0"),
+        ("weak_site_count", "INTEGER DEFAULT 0"),
+        ("site_unknown_count", "INTEGER DEFAULT 0"), ("active_count", "INTEGER DEFAULT 0"),
+        ("qualified_count", "INTEGER DEFAULT 0"), ("duplicate_count", "INTEGER DEFAULT 0"),
+        ("discarded_count", "INTEGER DEFAULT 0"), ("sources_json", "TEXT DEFAULT '[]'"),
+        ("examples_json", "TEXT DEFAULT '[]'"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE target_research_observations ADD COLUMN {col} {tipo}")
+        except sqlite3.OperationalError:
+            pass
     c.execute("""CREATE TABLE IF NOT EXISTS target_research_runs
                  (run_id TEXT PRIMARY KEY, region TEXT NOT NULL, plan_json TEXT NOT NULL,
                   result_json TEXT, status TEXT NOT NULL, error TEXT, context_key TEXT DEFAULT '',
@@ -397,6 +411,17 @@ def init_db():
         c.execute("ALTER TABLE target_research_runs ADD COLUMN context_key TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
+    c.execute("""CREATE TABLE IF NOT EXISTS dynamic_niche_catalog
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, region TEXT NOT NULL, niche_key TEXT NOT NULL,
+                  niche_name TEXT NOT NULL, source TEXT NOT NULL, observed_businesses INTEGER DEFAULT 0,
+                  first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(region, niche_key, source))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS niche_recommendation_history
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, region TEXT NOT NULL,
+                  niche TEXT NOT NULL, niche_key TEXT NOT NULL, score REAL NOT NULL,
+                  confidence TEXT NOT NULL, evidence_hash TEXT NOT NULL, metrics_json TEXT NOT NULL,
+                  sources_json TEXT DEFAULT '[]', recommended_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     c.execute("""CREATE TABLE IF NOT EXISTS lead_discovery_history
                  (place_id TEXT PRIMARY KEY, first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, times_seen INTEGER DEFAULT 1,
@@ -421,6 +446,7 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_discovery_last_seen ON lead_discovery_history(last_seen_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_target_research_context ON target_research_runs(region, context_key, finished_at DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_niche_history_region ON niche_recommendation_history(region, recommended_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_leads_source_validation ON leads(lead_source, validation_status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_lead_evidence_place ON lead_evidence(place_id, observed_at DESC)")
     c.execute(
@@ -1375,6 +1401,7 @@ def health():
             "follow_up": bool(interaction_table),
             "commercial_release": "2026.11.05-discovery-engine-v9",
             "target_engine_version": TARGET_ENGINE_VERSION,
+            "niche_engine_version": NICHE_ENGINE_VERSION,
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
             "whatsapp_cloud": cloud_configured(),
@@ -3174,8 +3201,11 @@ def carregar_dados_investigacao(regiao=None):
     where = " WHERE region = ?" if regiao else ""
     params = (regiao,) if regiao else ()
     observations = [dict(row) for row in conn.execute(
-        f"""SELECT region, niche, city, results_count, sample_size, no_site_count,
-                   contactable_count, mature_count, error, created_at
+        f"""SELECT run_id, region, niche, city, results_count, sample_size, no_site_count,
+                   verified_count, own_site_count, confirmed_no_site_count, probable_no_site_count, weak_site_count,
+                   site_unknown_count, contactable_count, active_count, mature_count,
+                   qualified_count, duplicate_count, discarded_count, sources_json,
+                   examples_json, error, created_at
             FROM target_research_observations{where}
             ORDER BY created_at DESC""",
         params,
@@ -3213,6 +3243,21 @@ def carregar_nichos_recentes(regiao, limite=2):
         except (TypeError, json.JSONDecodeError):
             continue
     return niches
+
+
+def carregar_historico_recomendacoes(regiao, limite=100):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        return [dict(row) for row in conn.execute(
+            """SELECT run_id, region, niche, niche_key, score, confidence, evidence_hash,
+                      metrics_json, sources_json, recommended_at
+               FROM niche_recommendation_history
+               WHERE region = ? ORDER BY recommended_at DESC LIMIT ?""",
+            (regiao, limite),
+        ).fetchall()]
+    finally:
+        conn.close()
 
 
 def normalizar_foco_alvos(values, limit):
@@ -3267,12 +3312,29 @@ def carregar_resultado_investigacao_recente(regiao, context_key="", max_age_days
     return result
 
 
-def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_locations=None, context_key=""):
+def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_locations=None, context_key="", sample_target=50, refresh_catalog=False):
     try:
+        try:
+            max_research_seconds = max(60, min(600, int(config.get("niche_research_max_seconds", 180) or 180)))
+        except (TypeError, ValueError):
+            max_research_seconds = 180
         observations = carregar_dados_investigacao(regiao)
+        catalog_names = [item["name"] for item in MARKETS[regiao]["niches"]]
+        discovery_locations = focus_locations or [item["name"] for item in MARKETS[regiao]["cities"][:4]]
+        discovery = discover_public_niches(
+            DB_NAME, regiao, discovery_locations, catalog_names,
+            refresh=refresh_catalog, limit=12, config=config,
+        )
+        history = carregar_historico_recomendacoes(regiao)
+        candidate_pool = build_candidate_pool(
+            regiao, discovery["catalog_names"], discovery["crm_names"], discovery["discovered"],
+            history=history, limit=8,
+        )
+        candidate_names = focus_niches or [item["name"] for item in candidate_pool]
         plan = build_research_plan(
-            regiao, observations, pair_limit=6,
+            regiao, observations, pair_limit=8,
             focus_niches=focus_niches, focus_locations=focus_locations,
+            candidate_niches=candidate_names,
         )
         conn = sqlite3.connect(DB_NAME)
         conn.execute(
@@ -3290,42 +3352,84 @@ def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_loc
                 "progresso": round(min(index, total) * 100 / max(total, 1)),
             })
 
-        results = probe_google_maps(
-            plan,
-            headless=config.get("headless", True),
-            sample_per_pair=2,
-            max_seconds=45,
+        results = research_market_samples(
+            DB_NAME, config, plan,
+            sample_target=sample_target,
             progress=progress,
+            max_seconds=max_research_seconds,
         )
-        successful_samples = sum(item.get("sample_size", 0) for item in results)
+        successful_samples = sum(item.get("verified_count", item.get("sample_size", 0)) for item in results)
         if not successful_samples:
-            raise RuntimeError("O Google Maps não retornou empresas analisáveis nesta rodada.")
+            raise RuntimeError("As fontes consultadas não retornaram empresas verificáveis nesta rodada.")
 
         conn = sqlite3.connect(DB_NAME)
         for item in results:
             conn.execute(
                 """INSERT INTO target_research_observations
                    (run_id, region, niche, city, results_count, sample_size, no_site_count,
-                    contactable_count, mature_count, error)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    verified_count, own_site_count, confirmed_no_site_count, probable_no_site_count, weak_site_count,
+                    site_unknown_count, contactable_count, active_count, mature_count,
+                    qualified_count, duplicate_count, discarded_count, sources_json,
+                    examples_json, error)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (run_id, item["region"], item["niche"], item["city"], item["results_count"],
-                 item["sample_size"], item["no_site_count"], item["contactable_count"],
-                 item["mature_count"], item.get("error")),
+                 item["sample_size"], item["no_site_count"],
+                 item.get("verified_count", item["sample_size"]), item.get("own_site_count", 0),
+                 item.get("confirmed_no_site_count", 0), item.get("probable_no_site_count", 0), item.get("weak_site_count", 0),
+                 item.get("site_unknown_count", item["no_site_count"]), item["contactable_count"],
+                 item.get("active_count", item["mature_count"]), item["mature_count"],
+                 item.get("qualified_count", 0), item.get("duplicate_count", 0),
+                 item.get("discarded_count", 0), json.dumps(item.get("sources", []), ensure_ascii=False),
+                 json.dumps(item.get("examples", []), ensure_ascii=False), item.get("error")),
             )
         conn.commit()
         conn.close()
-
-        result = suggest_targets(
-            regiao,
-            carregar_leads_para_investigacao(),
-            carregar_dados_investigacao(regiao),
-            carregar_nichos_recentes(regiao) if not focus_niches else [],
-            focus_niches=focus_niches,
-            focus_locations=focus_locations,
+        current_observations = [item for item in carregar_dados_investigacao(regiao) if item.get("run_id") == run_id]
+        recommendations = rank_niche_opportunities(
+            regiao, current_observations, carregar_leads_para_investigacao(), history,
+            sample_target=sample_target, limit=4,
         )
-        result["run_id"] = run_id
-        result["investigacao"]["amostra_nova"] = successful_samples
+        if not recommendations:
+            raise RuntimeError("A pesquisa terminou, mas a amostra foi inconclusiva para recomendar um nicho.")
+        cities = []
+        for item in recommendations:
+            for city in item["cities"]:
+                if city not in cities:
+                    cities.append(city)
+        result = {
+            "engine_version": TARGET_ENGINE_VERSION, "niche_engine_version": NICHE_ENGINE_VERSION,
+            "run_id": run_id, "mercado": MARKETS[regiao]["label"],
+            "nichos": [item["niche"] for item in recommendations], "cidades": cities[:6],
+            "recomendacoes_detalhadas": recommendations,
+            "pracas": [{
+                "nome": city, "regiao": regiao, "nicho_principal": item["niche"],
+                "score": round(item["score"]), "confianca": item["confidence"],
+                "amostra": item["companies_verified"], "evidencia": item["justification"],
+                "necessidade_site": item["site_return_reason"],
+            } for item in recommendations for city in item["cities"][:1]],
+            "quantidade_nichos": len(recommendations), "quantidade_locais": len(cities[:6]),
+            "total_combinacoes": len(plan),
+            "contexto": {"nichos_informados": focus_niches or [], "locais_informados": focus_locations or []},
+            "investigacao": {
+                "amostra_nova": successful_samples, "amostra_alvo_por_nicho": sample_target,
+                "combinacoes_estudadas": len(results),
+                "fontes": sorted({source for item in results for source in item.get("sources", [])}),
+                "candidatos": candidate_pool,
+                "catalogo_dinamico": bool(discovery["discovered"]),
+                "reutilizado": False,
+            },
+            "metodologia": "Pesquisa empresas reais, valida presença digital e contatos, mede confiança da amostra e aplica histórico comercial somente quando há volume suficiente.",
+        }
         conn = sqlite3.connect(DB_NAME)
+        for item in recommendations:
+            conn.execute(
+                """INSERT INTO niche_recommendation_history
+                   (run_id, region, niche, niche_key, score, confidence, evidence_hash, metrics_json, sources_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (run_id, regiao, item["niche"], item["niche_key"], item["score"], item["confidence"],
+                 item["evidence_hash"], json.dumps(item["metrics"], ensure_ascii=False),
+                 json.dumps(item["sources"], ensure_ascii=False)),
+            )
         conn.execute(
             """UPDATE target_research_runs
                SET result_json = ?, status = 'concluido', finished_at = CURRENT_TIMESTAMP
@@ -3336,7 +3440,7 @@ def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_loc
         conn.close()
         atualizar_status_investigacao({
             "rodando": False, "concluido": True, "run_id": run_id, "regiao": regiao,
-            "mensagem": f"Investigação concluída com {successful_samples} empresas analisadas.",
+            "mensagem": f"Pesquisa concluída com {successful_samples} empresas verificadas.",
             "progresso": 100, "resultado": result,
         })
     except Exception as error:
@@ -3366,14 +3470,19 @@ def sugerir_alvos():
         focus_locations = normalizar_foco_alvos(location_resolution["locations"], 6)
         context_key = chave_contexto_alvos(focus_niches, focus_locations)
         if request.method == "GET":
-            return jsonify(suggest_targets(
-                regiao,
-                carregar_leads_para_investigacao(),
-                carregar_dados_investigacao(regiao),
-                carregar_nichos_recentes(regiao) if not focus_niches else [],
-                focus_niches=focus_niches,
-                focus_locations=focus_locations,
-            ))
+            cached_result = carregar_resultado_investigacao_recente(regiao, context_key, max_age_days=30, min_sample=1)
+            if cached_result:
+                return jsonify(cached_result)
+            return jsonify({
+                "success": False, "research_required": True, "engine_version": TARGET_ENGINE_VERSION,
+                "nichos": [], "cidades": [], "recomendacoes_detalhadas": [],
+                "mensagem": "Ainda não existe pesquisa real para este contexto. Inicie uma investigação.",
+            })
+        config = load_config()
+        try:
+            sample_target = max(10, min(100, int(payload.get("amostra_alvo") or config.get("niche_sample_target", 50) or 50)))
+        except (TypeError, ValueError):
+            sample_target = 50
         if not payload.get("atualizar"):
             cached_result = carregar_resultado_investigacao_recente(regiao, context_key)
             if cached_result:
@@ -3387,10 +3496,8 @@ def sugerir_alvos():
             current = ler_status_investigacao()
             if current.get("rodando"):
                 return jsonify({"erro": "Já existe uma investigação em andamento.", "status": current}), 409
-            build_research_plan(
-                regiao, carregar_dados_investigacao(regiao), pair_limit=6,
-                focus_niches=focus_niches, focus_locations=focus_locations,
-            )
+            if regiao not in MARKETS:
+                raise ValueError("Mercado inválido.")
             run_id = uuid.uuid4().hex
             atualizar_status_investigacao({
                 "rodando": True, "run_id": run_id, "regiao": regiao,
@@ -3399,11 +3506,14 @@ def sugerir_alvos():
             })
             thread = threading.Thread(
                 target=worker_investigar_alvos,
-                args=(regiao, run_id, load_config(), focus_niches, focus_locations, context_key),
+                args=(regiao, run_id, config, focus_niches, focus_locations, context_key, sample_target, bool(payload.get("atualizar"))),
                 daemon=True,
             )
             thread.start()
-        return jsonify({"success": True, "run_id": run_id, "mensagem": "Investigação de mercado iniciada."}), 202
+        return jsonify({
+            "success": True, "run_id": run_id, "amostra_alvo": sample_target,
+            "mensagem": "Pesquisa real de mercado iniciada.",
+        }), 202
     except ValueError as error:
         return jsonify({"erro": str(error)}), 400
     except Exception as error:
