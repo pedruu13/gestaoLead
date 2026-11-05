@@ -120,6 +120,8 @@ class TargetIntelligenceTests(unittest.TestCase):
         self.assertIn("parsePickerValues", html)
         self.assertIn("Adicionados ao CRM", html)
         self.assertIn('id="search_result_summary"', html)
+        self.assertIn('id="search_filter_breakdown"', html)
+        self.assertIn("searchDiagnosis", html)
 
     def test_custom_niche_is_preserved_in_research_plan(self):
         plan = build_research_plan("br", [], pair_limit=4, focus_niches=["Lavanderia premium"])
@@ -168,7 +170,7 @@ class TargetIntelligenceTests(unittest.TestCase):
                 response = client.get("/api/sugerir_alvos?regiao=br")
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
-                self.assertEqual("5.0", data["engine_version"])
+                self.assertEqual("6.0", data["engine_version"])
                 self.assertEqual(3, len(data["nichos"]))
                 self.assertEqual(4, len(data["cidades"]))
                 self.assertEqual(12, data["total_combinacoes"])
@@ -186,9 +188,9 @@ class TargetIntelligenceTests(unittest.TestCase):
                 application.init_db()
 
                 def fake_probe(plan, **_kwargs):
-                    self.assertEqual(4, len(plan))
-                    self.assertEqual(3, _kwargs["sample_per_pair"])
-                    self.assertEqual(35, _kwargs["max_seconds"])
+                    self.assertEqual(6, len(plan))
+                    self.assertEqual(2, _kwargs["sample_per_pair"])
+                    self.assertEqual(45, _kwargs["max_seconds"])
                     return [{
                         "region": item["region"], "niche": item["niche"], "city": item["city"],
                         "results_count": 9, "sample_size": 5, "no_site_count": 3,
@@ -209,7 +211,7 @@ class TargetIntelligenceTests(unittest.TestCase):
                 self.assertEqual(3, len(status["resultado"]["nichos"]))
                 self.assertEqual(4, len(status["resultado"]["cidades"]))
                 connection = application.sqlite3.connect(application.DB_NAME)
-                self.assertEqual(4, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
+                self.assertEqual(6, connection.execute("SELECT COUNT(*) FROM target_research_observations").fetchone()[0])
                 connection.close()
             finally:
                 application.DB_NAME = old_db

@@ -4,7 +4,44 @@ import urllib.parse
 from collections import defaultdict
 
 
-TARGET_ENGINE_VERSION = "5.0"
+TARGET_ENGINE_VERSION = "6.0"
+
+
+NICHE_SEARCH_TERMS = {
+    "br": {
+        "clinica de estetica": "clínica de estética",
+        "odontologia": "dentista",
+        "advocacia": "escritório de advocacia",
+        "moveis planejados": "móveis planejados",
+        "arquitetura e interiores": "escritório de arquitetura",
+        "energia solar": "empresa de energia solar",
+        "clinica veterinaria": "clínica veterinária",
+        "fisioterapia": "clínica de fisioterapia",
+        "psicologia": "clínica de psicologia",
+        "contabilidade para empresas": "escritório de contabilidade",
+        "reformas e construcao": "empresa de reformas",
+        "climatizacao e ar condicionado": "empresa de ar condicionado",
+        "academia e treinamento": "academia",
+        "escola particular": "escola particular",
+        "fotografia profissional": "fotógrafo profissional",
+    },
+    "us": {
+        "med spa": "med spa", "roofing company": "roofing contractor",
+        "personal injury lawyer": "personal injury lawyer", "custom home builder": "custom home builder",
+        "cosmetic dentist": "cosmetic dentist", "hvac contractor": "HVAC contractor",
+        "pool builder": "pool builder", "kitchen remodeling": "kitchen remodeling contractor",
+        "landscaping company": "landscaping company", "immigration lawyer": "immigration lawyer",
+        "physical therapy": "physical therapy clinic", "commercial cleaning": "commercial cleaning company",
+    },
+    "europa": {
+        "clinica de estetica": "aesthetic clinic", "arquitetura e interiores": "architecture studio",
+        "odontologia estetica": "cosmetic dentist", "imobiliaria premium": "real estate agency",
+        "energia solar": "solar installer", "contabilidade para empresas": "accounting firm",
+        "clinica veterinaria": "veterinary clinic", "fisioterapia": "physiotherapy clinic",
+        "reformas residenciais": "home renovation company", "advocacia para estrangeiros": "law firm",
+        "gestao de alojamento local": "property management company", "escola de idiomas": "language school",
+    },
+}
 
 
 SOCIAL_OR_DIRECTORY_DOMAINS = (
@@ -117,6 +154,10 @@ def normalize(value):
     return re.sub(r"[^a-z0-9]+", " ", text.casefold()).strip()
 
 
+def search_term_for_niche(region, niche):
+    return NICHE_SEARCH_TERMS.get(region, {}).get(normalize(niche), str(niche or "").strip())
+
+
 def _matches(value, aliases):
     normalized = normalize(value)
     return any(normalize(alias) in normalized for alias in aliases)
@@ -165,7 +206,7 @@ def _resolve_niches(market, values):
 
 def _resolve_cities(market, values):
     resolved = []
-    for value in _unique_values(values, 4):
+    for value in _unique_values(values, 6):
         match = next((item for item in market["cities"] if _matches(value, (item["name"], *item["aliases"]))), None)
         resolved.append(match or _city(value, (value,), 78, 46))
     return resolved
@@ -297,7 +338,7 @@ def suggest_targets(region, rows, observations=None, recent_niches=None, focus_n
             rank_score = sum(pair["score"] for pair in niche_pairs[:3]) / min(3, len(niche_pairs)) + min(evidence_total, 20) * 0.25
             niche_rank.append((round(rank_score, 1), niche))
     investigated_niche_count = len({pair["niche"]["name"] for pair in investigated_pairs})
-    niche_limit = len(focused_niches) if focused_niches else 3 if investigated_niche_count >= 3 or not observations else 2
+    niche_limit = len(focused_niches) if focused_niches else 3
     selected_niches = focused_niches or [item[1] for item in sorted(niche_rank, key=lambda item: (-item[0], item[1]["name"]))[:niche_limit]]
     if len(selected_niches) < niche_limit:
         fallback_niches = sorted(
@@ -311,7 +352,7 @@ def suggest_targets(region, rows, observations=None, recent_niches=None, focus_n
         current = city_best.get(pair["city"]["name"])
         if current is None or pair["score"] > current["score"]:
             city_best[pair["city"]["name"]] = pair
-    city_limit = len(focused_cities) if focused_cities else 4
+    city_limit = min(4, len(focused_cities)) if focused_cities else 4
     top_places = sorted(city_best.values(), key=lambda pair: (-pair["score"], pair["city"]["name"]))[:city_limit]
     if len(top_places) < city_limit:
         remaining = [pair for pair in pairs if pair["niche"] in selected_niches and pair["city"]["name"] not in {item["city"]["name"] for item in top_places}]

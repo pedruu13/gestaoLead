@@ -2,7 +2,7 @@ import re
 import time
 import urllib.parse
 
-from target_intelligence import MARKETS, has_own_site
+from target_intelligence import MARKETS, has_own_site, search_term_for_niche
 
 
 def _external_url(value):
@@ -52,7 +52,8 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
             progress(completed_samples, total_samples, f"Investigando {pair['niche']} em {pair['city']}...")
             result = {"region": pair["region"], "niche": pair["niche"], "city": pair["city"], "results_count": 0, "sample_size": 0, "no_site_count": 0, "contactable_count": 0, "mature_count": 0}
             try:
-                query = urllib.parse.quote(f"{pair['niche']} {pair['city']}")
+                search_term = search_term_for_niche(pair["region"], pair["niche"])
+                query = urllib.parse.quote(f"{search_term} {pair['city']}")
                 page.goto(f"https://www.google.com/maps/search/{query}", wait_until="domcontentloaded", timeout=18000)
                 try:
                     page.wait_for_selector("a.hfpxzc, a[href*='/maps/place/']", timeout=3500)

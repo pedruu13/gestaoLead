@@ -23,7 +23,8 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
-from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, suggest_targets
+from location_intelligence import expand_locations
+from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, search_term_for_niche, suggest_targets
 from target_research import probe_google_maps
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
@@ -642,7 +643,11 @@ def update_lead_ai(place_id, copy_texto, analise_ia, estrategia_ia, whatsapp_lin
 def load_existing_place_ids():
     conn = sqlite3.connect(DB_NAME)
     try:
-        return {row[0] for row in conn.execute("SELECT place_id FROM lead_discovery_history")}
+        return {
+            row[0] for row in conn.execute(
+                "SELECT place_id FROM lead_discovery_history WHERE outcome IN ('saved', 'duplicate_identity')"
+            )
+        }
     finally:
         conn.close()
 
@@ -1321,7 +1326,7 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.11.04-search-radar-v6",
+            "commercial_release": "2026.11.05-search-engine-v7",
             "target_engine_version": TARGET_ENGINE_VERSION,
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
@@ -2346,9 +2351,10 @@ def extrator_worker(data, config, queue):
                     if busca_cancelada():
                         browser.close()
                         return
-                    busca = f"{nicho} {bairro}"
+                    termo_busca = search_term_for_niche(data.get("mercado", "br"), nicho)
+                    busca = f"{termo_busca} {bairro}"
                     print(f"[WORKER] Buscando: {busca}")
-                    publicar_status(f"Buscando '{nicho}' em '{bairro}'...")
+                    publicar_status(f"Buscando '{nicho}' em '{bairro}' com o termo '{termo_busca}'...")
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
                     try:
                         page.goto(url, wait_until="domcontentloaded", timeout=30000)
@@ -2367,7 +2373,7 @@ def extrator_worker(data, config, queue):
                     painel = page.locator("div[role='feed']").first
                     hrefs = []
                     try:
-                        for scroll_index in range(10):
+                        for scroll_index in range(14):
                             links = page.locator("a.hfpxzc")
                             if links.count() == 0:
                                 links = page.locator("a[href*='/maps/place/']")
@@ -2386,9 +2392,10 @@ def extrator_worker(data, config, queue):
                                 break
                             previous_count = len(hrefs)
                             painel.evaluate("node => node.scrollTop = node.scrollHeight")
-                            time.sleep(random.uniform(0.25, 0.45))
+                            page.wait_for_timeout(random.randint(550, 850))
                             if scroll_index >= 2 and len(hrefs) == previous_count:
                                 page.keyboard.press("End")
+                                page.wait_for_timeout(500)
                     except Exception as e:
                         print("Aviso interno painel:", e)
 
@@ -2436,9 +2443,12 @@ def extrator_worker(data, config, queue):
                             
                             nome_el = page.locator("h1").first
                             nome = nome_el.inner_text() if nome_el.count() > 0 else page.title().split(" - Google")[0]
-                            if not nome or "Google Maps" in nome: continue
+                            if not nome or "Google Maps" in nome:
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "invalid_profile")
+                                continue
                             if data.get("anti_franchise") and any(rede in nome.lower() for rede in GRANDES_REDES):
                                 stats["franquias"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "franchise_filtered")
                                 continue
                             
                             link_el = page.locator("a[data-item-id='authority'], a[data-tooltip='Abrir website'], a[data-tooltip='Open website']")
@@ -2456,6 +2466,7 @@ def extrator_worker(data, config, queue):
                             is_real_website = possui_site_proprio(link_encontrado)
                             if data.get("strict_no_socials") and is_real_website and not data.get("include_site_opportunities"):
                                 stats["com_site"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "site_filtered")
                                 print(f"[WORKER] Ignorando {nome} - Possui SITE REAL ({link_encontrado}) e o filtro de EXCLUIR COM SITE esta ativo.")
                                 continue
 
@@ -2472,21 +2483,25 @@ def extrator_worker(data, config, queue):
                                 continue
                             if data.get("strict_mobile") and not whatsapp_provavel:
                                 stats["telefone_invalido"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "phone_filtered")
                                 continue
                             end_el = page.locator("button[data-item-id='address']")
                             endereco = end_el.first.get_attribute("aria-label").replace("Endereco: ", "").strip() if end_el.count() > 0 else ""
                             if data.get("strict_bairro") and bairro.split("-")[0].strip().lower() not in endereco.lower():
                                 stats["fora_regiao"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "location_filtered")
                                 continue
                             nota_str, avaliacoes_str = extrair_avaliacoes(page)
                             try: nota_float = float(nota_str.replace(",", "."))
                             except ValueError: nota_float = 0.0
                             if nota_float < float(data.get("min_nota", 0)):
                                 stats["nota_baixa"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "rating_filtered")
                                 print(f"[WORKER] Ignorando {nome} - Nota {nota_float} muito baixa")
                                 continue
                             if data.get("req_whatsapp") and not whatsapp_provavel:
                                 stats["sem_whatsapp"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "whatsapp_filtered")
                                 print(f"[WORKER] Ignorando {nome} - Sem WhatsApp")
                                 continue
                             categoria_el = page.locator("button[jsaction*='pane.rating.category'], span[jsaction*='pane.rating.category'], button[data-item-id='address'] + div button, div.fontBodyMedium button").first
@@ -2513,6 +2528,7 @@ def extrator_worker(data, config, queue):
                             )
                             if data.get("req_email") and not dados_profundos["email"]:
                                 stats["sem_email"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "email_filtered")
                                 print(f"[WORKER] Ignorando {nome} - Sem e-mail encontrado")
                                 continue
 
@@ -2570,6 +2586,7 @@ def extrator_worker(data, config, queue):
                                 and site_assessment["status"] == "Site encontrado — sem sinal claro"
                             ):
                                 stats["site_sem_oportunidade"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "site_quality_filtered")
                                 publicar_status(f"Site sem oportunidade objetiva ignorado: {nome}")
                                 continue
                             lead_data["Oportunidade do Site"] = site_assessment["status"]
@@ -2629,8 +2646,11 @@ def extrator_worker(data, config, queue):
                                         resultado_ia.get("inteligencia", {}),
                                         resultado_ia.get("qualidade", {}),
                                     )
+                            else:
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "duplicate_identity")
                         except Exception as e:
                             stats["erros"] += 1
+                            record_lead_discovery(place_id, nicho, bairro, search_run_id, "analysis_error")
                             print(f"[WORKER] Erro no lead {href}: {e}")
                     stats["consultas_concluidas"] += 1
             limit_reason = search_limit_reason()
@@ -2676,6 +2696,12 @@ def api_search():
     data = normalizar_modo_filtro_site(request.get_json(silent=True) or {})
     if not data.get("nichos") or not data.get("bairros"):
         return jsonify({"success": False, "error": "Nichos ou Bairros vazios"})
+    region = str(data.get("mercado") or "br").strip().lower()
+    location_resolution = expand_locations(region, data.get("bairros"), per_group=5, max_total=24)
+    if not location_resolution["locations"]:
+        return jsonify({"success": False, "error": "Nenhuma cidade válida foi informada."}), 400
+    data["bairros"] = ", ".join(location_resolution["locations"])
+    data["location_expansions"] = location_resolution["expansions"]
     if ler_status_investigacao().get("rodando"):
         return jsonify({"success": False, "error": "Aguarde a investigação de mercado terminar antes de iniciar a busca de leads."}), 409
     try:
@@ -2690,7 +2716,12 @@ def api_search():
         atualizar_status({"rodando": True, "mensagem": "Busca iniciada, abrindo navegador...", "leads_salvos": 0, "cancelamento_solicitado": False, "search_run_id": data["search_run_id"]})
         t = threading.Thread(target=extrator_worker, args=(data, config, None), daemon=True)
         t.start()
-    return jsonify({"success": True, "salvos": "Em andamento", "run_id": data["search_run_id"], "message": "Busca iniciada em segundo plano."})
+    return jsonify({
+        "success": True, "salvos": "Em andamento", "run_id": data["search_run_id"],
+        "message": "Busca iniciada em segundo plano.",
+        "locations": location_resolution["locations"],
+        "location_expansions": location_resolution["expansions"],
+    })
 
 @app.route("/api/cancelar_busca", methods=["POST"])
 def cancelar_busca():
@@ -2805,7 +2836,7 @@ def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_loc
     try:
         observations = carregar_dados_investigacao(regiao)
         plan = build_research_plan(
-            regiao, observations, pair_limit=4,
+            regiao, observations, pair_limit=6,
             focus_niches=focus_niches, focus_locations=focus_locations,
         )
         conn = sqlite3.connect(DB_NAME)
@@ -2827,8 +2858,8 @@ def worker_investigar_alvos(regiao, run_id, config, focus_niches=None, focus_loc
         results = probe_google_maps(
             plan,
             headless=config.get("headless", True),
-            sample_per_pair=3,
-            max_seconds=35,
+            sample_per_pair=2,
+            max_seconds=45,
             progress=progress,
         )
         successful_samples = sum(item.get("sample_size", 0) for item in results)
@@ -2895,7 +2926,9 @@ def sugerir_alvos():
         payload = request.get_json(silent=True) or {}
         regiao = (payload.get("regiao") or request.args.get("regiao") or "br").lower()
         focus_niches = normalizar_foco_alvos(payload.get("nichos") or request.args.get("nichos"), 4)
-        focus_locations = normalizar_foco_alvos(payload.get("cidades") or request.args.get("cidades"), 4)
+        raw_locations = payload.get("cidades") or request.args.get("cidades")
+        location_resolution = expand_locations(regiao, raw_locations, per_group=6, max_total=6)
+        focus_locations = normalizar_foco_alvos(location_resolution["locations"], 6)
         context_key = chave_contexto_alvos(focus_niches, focus_locations)
         if request.method == "GET":
             return jsonify(suggest_targets(
@@ -2920,7 +2953,7 @@ def sugerir_alvos():
             if current.get("rodando"):
                 return jsonify({"erro": "Já existe uma investigação em andamento.", "status": current}), 409
             build_research_plan(
-                regiao, carregar_dados_investigacao(regiao), pair_limit=4,
+                regiao, carregar_dados_investigacao(regiao), pair_limit=6,
                 focus_niches=focus_niches, focus_locations=focus_locations,
             )
             run_id = uuid.uuid4().hex
