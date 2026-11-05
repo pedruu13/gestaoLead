@@ -15,6 +15,7 @@ import socket
 import zipfile
 from datetime import datetime, timedelta
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import psutil
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
@@ -26,6 +27,11 @@ from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 from conversion_intelligence import VALID_OUTCOMES, calculate_conversion_metrics, performance_adjustment
 from contact_quality import assess_phone, normalize_email, website_domain
 from discovery_engine import DiscoveryEngine, init_discovery_schema
+from geographic_campaigns import (campaign_detail, claim_batch, complete_location, create_campaign,
+                                  finalize_campaign_if_done, init_geographic_schema, list_campaigns,
+                                  list_location_sets, save_location_set, set_campaign_status)
+from geographic_intelligence import (GEOGRAPHY_VERSION, load_catalog, municipality_label,
+                                     rank_smart_locations, search_municipalities, select_municipalities)
 from lead_validation import validate_candidate
 from location_intelligence import expand_locations
 from niche_intelligence import NICHE_ENGINE_VERSION, build_candidate_pool, rank_niche_opportunities
@@ -162,6 +168,8 @@ def config_publica(config):
 
 STATUS_FILE = "search_status.json"
 SEARCH_LOCK = threading.Lock()
+GEO_CAMPAIGN_LOCK = threading.Lock()
+ACTIVE_GEO_CAMPAIGNS = set()
 TARGET_RESEARCH_STATUS_FILE = "target_research_status.json"
 TARGET_RESEARCH_LOCK = threading.Lock()
 SITE_AUDIT_STATUS_FILE = "site_audit_status.json"
@@ -431,11 +439,17 @@ def init_db():
                   niches_json TEXT NOT NULL, locations_json TEXT NOT NULL, filters_json TEXT NOT NULL,
                   status TEXT NOT NULL, stats_json TEXT, started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   finished_at TIMESTAMP)""")
+    for col, tipo in [("geo_campaign_id", "TEXT"), ("municipality_id", "INTEGER")]:
+        try:
+            c.execute(f"ALTER TABLE search_runs ADD COLUMN {col} {tipo}")
+        except sqlite3.OperationalError:
+            pass
     c.execute("""CREATE TABLE IF NOT EXISTS lead_evidence
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL, source TEXT NOT NULL,
                   evidence_type TEXT NOT NULL, value TEXT NOT NULL, confidence TEXT NOT NULL,
                   source_url TEXT, observed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     init_discovery_schema(conn)
+    init_geographic_schema(conn)
     c.execute(
         """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
            WHERE status = 'running'"""
@@ -2404,11 +2418,12 @@ def create_search_run(data):
     try:
         conn.execute(
             """INSERT INTO search_runs
-               (run_id, name, market, niches_json, locations_json, filters_json, status, stats_json)
-               VALUES (?, ?, ?, ?, ?, ?, 'running', '{}')""",
+               (run_id, name, market, niches_json, locations_json, filters_json, status, stats_json,
+                geo_campaign_id, municipality_id)
+               VALUES (?, ?, ?, ?, ?, ?, 'running', '{}', ?, ?)""",
             (run_id, name, normalizar_texto(data.get("mercado", "br"), 20),
              json.dumps(niches, ensure_ascii=False), json.dumps(locations, ensure_ascii=False),
-             json.dumps(filters, ensure_ascii=False)),
+             json.dumps(filters, ensure_ascii=False), data.get("geo_campaign_id"), data.get("municipality_id")),
         )
         conn.commit()
     finally:
@@ -2464,7 +2479,7 @@ def load_conversion_rows():
         conn.close()
 
 
-def modular_discovery_worker(data, config):
+def modular_discovery_worker(data, config, publish_global=True, cancelled_callback=None):
     job_id = data.get("discovery_job_id", "")
     search_run_id = data.get("search_run_id", "")
     engine = DiscoveryEngine(DB_NAME, config)
@@ -2486,16 +2501,19 @@ def modular_discovery_worker(data, config):
             "sem_whatsapp", "sem_email", "nota_baixa",
         ))
         stats["taxa_adicao"] = round(stats["salvos"] * 100 / stats["novos_resultados"]) if stats["novos_resultados"] else 0
-        atualizar_status({
-            "rodando": running, "mensagem": message, "leads_salvos": stats["salvos"],
-            "metricas": stats.copy(), "search_run_id": search_run_id,
-            "discovery_job_id": job_id,
-            "cancelamento_solicitado": ler_status().get("cancelamento_solicitado", False),
-        })
+        if publish_global:
+            atualizar_status({
+                "rodando": running, "mensagem": message, "leads_salvos": stats["salvos"],
+                "metricas": stats.copy(), "search_run_id": search_run_id,
+                "discovery_job_id": job_id,
+                "cancelamento_solicitado": cancelled(),
+            })
         if not running:
-            finish_search_run(search_run_id, "cancelled" if ler_status().get("cancelamento_solicitado") else "completed", stats)
+            finish_search_run(search_run_id, "cancelled" if cancelled() else "completed", stats)
 
     def cancelled():
+        if cancelled_callback:
+            return bool(cancelled_callback())
         return bool(ler_status().get("cancelamento_solicitado"))
 
     def discovery_progress(engine_stats, message):
@@ -2625,11 +2643,17 @@ def modular_discovery_worker(data, config):
             except Exception as error:
                 stats["erros"] += 1
                 engine.update_candidate_validation(job_id, candidate, "error", error=str(error))
+        stats["search_run_id"] = search_run_id
         publish(f"{stats['salvos']} lead(s) validados e adicionados por fontes configuradas.", running=False)
+        return stats
     except Exception as error:
         stats["erros"] += 1
+        stats["search_run_id"] = search_run_id
+        stats["error"] = str(error)[:500]
         finish_search_run(search_run_id, "interrupted", {**stats, "error": str(error)[:500]})
-        atualizar_status({"rodando": False, "mensagem": f"Descoberta interrompida: {str(error)[:180]}", "metricas": stats, "search_run_id": search_run_id, "discovery_job_id": job_id})
+        if publish_global:
+            atualizar_status({"rodando": False, "mensagem": f"Descoberta interrompida: {str(error)[:180]}", "metricas": stats, "search_run_id": search_run_id, "discovery_job_id": job_id})
+        return stats
 
 def extrator_worker(data, config, queue):
     try:
@@ -3091,6 +3115,204 @@ def extrator_worker(data, config, queue):
         print(f"[WORKER] ERRO FATAL: {e}")
         finish_search_run((data or {}).get("search_run_id", ""), "failed", {"error": str(e)})
         atualizar_status({"rodando": False, "mensagem": "A busca foi interrompida por uma falha interna. Tente novamente.", "leads_salvos": 0})
+
+def _geographic_campaign_status(campaign_id):
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        row = conn.execute("SELECT status FROM geographic_campaigns WHERE campaign_id = ?", (campaign_id,)).fetchone()
+        return row[0] if row else "missing"
+    finally:
+        conn.close()
+
+
+def _process_geographic_location(campaign, location, config):
+    campaign_id = campaign["campaign_id"]
+    if _geographic_campaign_status(campaign_id) == "cancelled":
+        complete_location(DB_NAME, location["id"], error="Campanha cancelada antes do processamento.")
+        return
+    label = f"{location['municipality_name']} - {location['uf']}"
+    filters = dict(campaign.get("filters") or {})
+    data = normalizar_modo_filtro_site({
+        **filters, "mercado": "br", "nichos": ", ".join(campaign["niches"]), "bairros": label,
+        "nichos_lista": campaign["niches"], "bairros_lista": [label],
+        "campaign_name": f"{campaign['name']} · {label}", "geo_campaign_id": campaign_id,
+        "municipality_id": location["municipality_id"],
+    })
+    data["search_run_id"] = create_search_run(data)
+    engine = DiscoveryEngine(DB_NAME, config)
+    data["discovery_job_id"] = engine.create_job({
+        "region": "br", "niches": data["nichos_lista"], "locations": [label],
+        "filters": filters, "municipality_id": location["municipality_id"],
+    }, data["search_run_id"])
+    stats = modular_discovery_worker(
+        data, config, publish_global=False,
+        cancelled_callback=lambda: _geographic_campaign_status(campaign_id) == "cancelled",
+    ) or {}
+    complete_location(DB_NAME, location["id"], stats, stats.get("error", ""))
+
+
+def geographic_campaign_worker(campaign_id):
+    try:
+        current = campaign_detail(DB_NAME, campaign_id)
+        if current["status"] in {"pending", "interrupted"}:
+            set_campaign_status(DB_NAME, campaign_id, "running")
+        config = load_config()
+        while _geographic_campaign_status(campaign_id) == "running":
+            campaign = campaign_detail(DB_NAME, campaign_id)
+            batch = claim_batch(DB_NAME, campaign_id)
+            if not batch:
+                finalize_campaign_if_done(DB_NAME, campaign_id)
+                break
+            with ThreadPoolExecutor(max_workers=campaign["concurrency"]) as executor:
+                futures = {executor.submit(_process_geographic_location, campaign, location, config): location for location in batch}
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as error:
+                        complete_location(DB_NAME, futures[future]["id"], error=str(error))
+                        print("[CAMPANHA GEOGRÁFICA] Falha em município:", error)
+            finalize_campaign_if_done(DB_NAME, campaign_id)
+    finally:
+        with GEO_CAMPAIGN_LOCK:
+            ACTIVE_GEO_CAMPAIGNS.discard(campaign_id)
+
+
+def start_geographic_campaign(campaign_id):
+    with GEO_CAMPAIGN_LOCK:
+        if campaign_id in ACTIVE_GEO_CAMPAIGNS:
+            return False
+        ACTIVE_GEO_CAMPAIGNS.add(campaign_id)
+    threading.Thread(target=geographic_campaign_worker, args=(campaign_id,), daemon=True).start()
+    return True
+
+
+def _geographic_evidence():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    try:
+        evidence = [dict(row) for row in conn.execute("""SELECT city, sample_size, verified_count,
+            qualified_count, contactable_count FROM target_research_observations""").fetchall()]
+        conversions = [dict(row) for row in conn.execute("""SELECT bairro, commercial_outcome FROM leads
+            WHERE trim(coalesce(commercial_outcome, '')) != ''""").fetchall()]
+        coverage = [dict(row) for row in conn.execute("""SELECT municipality_id,
+            CASE WHEN SUM(queries_planned) > 0 THEN SUM(queries_completed) * 100.0 / SUM(queries_planned) ELSE 0 END AS coverage_percent
+            FROM geographic_campaign_locations GROUP BY municipality_id""").fetchall()]
+        return evidence, conversions, coverage
+    finally:
+        conn.close()
+
+
+def _resolve_geographic_payload(payload):
+    catalog = load_catalog()
+    mode = str(payload.get("mode") or "custom").strip().lower()
+    if mode == "smart":
+        evidence, conversions, coverage = _geographic_evidence()
+        ranked = rank_smart_locations(catalog, evidence, conversions, coverage, payload.get("limit", 20))
+        locations = [item for item in ranked]
+    else:
+        locations = select_municipalities(
+            catalog, mode=mode, state_codes=payload.get("states"), regions=payload.get("regions"),
+            municipality_ids=payload.get("municipality_ids"), excluded_ids=payload.get("excluded_ids"),
+            center_id=payload.get("center_id"), radius_km=payload.get("radius_km"),
+        )
+        ranked = []
+    if payload.get("exclude_researched"):
+        conn = sqlite3.connect(DB_NAME)
+        try:
+            researched = {row[0] for row in conn.execute("""SELECT municipality_id FROM geographic_campaign_locations
+                GROUP BY municipality_id HAVING SUM(queries_planned) > 0
+                AND SUM(queries_completed) >= SUM(queries_planned)""").fetchall()}
+        finally:
+            conn.close()
+        locations = [item for item in locations if item["id"] not in researched]
+    return catalog, locations, ranked
+
+
+@app.route("/api/geography/catalog")
+def geography_catalog():
+    catalog = load_catalog()
+    municipalities = search_municipalities(
+        catalog, request.args.get("q", ""), request.args.get("uf", ""),
+        request.args.get("region", ""), request.args.get("limit", 50),
+    )
+    return jsonify({
+        "version": GEOGRAPHY_VERSION, "fetched_at": catalog["fetched_at"],
+        "source": catalog["official_source"], "states": catalog["states"], "regions": catalog["regions"],
+        "municipalities": municipalities, "total_municipalities": len(catalog["municipalities"]),
+    })
+
+
+@app.route("/api/geography/selection", methods=["POST"])
+def geography_selection():
+    try:
+        _, locations, ranked = _resolve_geographic_payload(request.get_json(silent=True) or {})
+        return jsonify({
+            "success": True, "count": len(locations), "municipality_ids": [item["id"] for item in locations],
+            "preview": [{**item, "label": municipality_label(item)} for item in locations[:200]],
+            "ranking": ranked[:50], "truncated": len(locations) > 200,
+        })
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 400
+
+
+@app.route("/api/geography/sets", methods=["GET", "POST"])
+def geography_sets():
+    if request.method == "GET":
+        return jsonify({"sets": list_location_sets(DB_NAME)})
+    payload = request.get_json(silent=True) or {}
+    name = normalizar_texto(payload.get("name"), 100)
+    if not name:
+        return jsonify({"success": False, "error": "Informe um nome para o conjunto."}), 400
+    save_location_set(DB_NAME, name, payload.get("selection") or {})
+    return jsonify({"success": True, "sets": list_location_sets(DB_NAME)})
+
+
+@app.route("/api/geographic-campaigns", methods=["GET", "POST"])
+def geographic_campaigns_api():
+    if request.method == "GET":
+        return jsonify({"campaigns": list_campaigns(DB_NAME)})
+    payload = request.get_json(silent=True) or {}
+    niches = normalizar_foco_alvos(payload.get("niches"), 12)
+    if not niches:
+        return jsonify({"success": False, "error": "Selecione pelo menos um nicho."}), 400
+    try:
+        _, locations, ranked = _resolve_geographic_payload(payload)
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 400
+    if not locations:
+        message = "Não existem evidências geográficas suficientes para o modo inteligente." if payload.get("mode") == "smart" else "Nenhum município foi selecionado."
+        return jsonify({"success": False, "error": message}), 400
+    name = normalizar_texto(payload.get("name"), 120) or f"Campanha {niches[0]} · {len(locations)} municípios"
+    campaign_id = create_campaign(
+        DB_NAME, name, payload.get("mode", "custom"), niches, locations,
+        {key: payload.get(key) for key in ("states", "regions", "municipality_ids", "excluded_ids", "center_id", "radius_km", "exclude_researched")},
+        payload.get("filters") or {}, payload.get("batch_size", 10), payload.get("concurrency", 1),
+    )
+    start_geographic_campaign(campaign_id)
+    return jsonify({"success": True, "campaign": campaign_detail(DB_NAME, campaign_id), "smart_ranking": ranked}), 202
+
+
+@app.route("/api/geographic-campaigns/<campaign_id>")
+def geographic_campaign_detail_api(campaign_id):
+    try:
+        return jsonify(campaign_detail(DB_NAME, campaign_id))
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 404
+
+
+@app.route("/api/geographic-campaigns/<campaign_id>/<action>", methods=["POST"])
+def geographic_campaign_action(campaign_id, action):
+    status_by_action = {"pause": "paused", "resume": "running", "cancel": "cancelled"}
+    if action not in status_by_action:
+        return jsonify({"success": False, "error": "Ação inválida."}), 400
+    try:
+        set_campaign_status(DB_NAME, campaign_id, status_by_action[action])
+        if action == "resume":
+            start_geographic_campaign(campaign_id)
+        return jsonify({"success": True, "campaign": campaign_detail(DB_NAME, campaign_id)})
+    except ValueError as error:
+        return jsonify({"success": False, "error": str(error)}), 404
+
 
 @app.route("/api/status")
 def api_status():

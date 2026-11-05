@@ -96,6 +96,29 @@
                     <div class="flex flex-wrap gap-2 mt-2.5" id="bairros_presets"></div>
                 </div>
 
+                <section id="geographic_automation" class="rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 md:p-5">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div><span class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Automação geográfica IBGE</span><h3 class="mt-1 text-sm font-black text-white">Campanha nacional em lotes</h3><p class="mt-1 text-[11px] text-slate-400">Selecione estados, regiões ou municípios oficiais sem digitar cidade por cidade.</p></div>
+                        <span id="geo_catalog_status" class="rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-[10px] font-bold text-blue-300">Carregando base oficial…</span>
+                    </div>
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modo<select id="geo_mode" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs normal-case text-white"><option value="custom">Região personalizada</option><option value="state">Estado completo</option><option value="brazil">Brasil inteiro</option><option value="smart">Localização inteligente</option></select></label>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Estados<select id="geo_states" multiple size="4" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2 text-xs normal-case text-white"></select></label>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Regiões<select id="geo_regions" multiple size="4" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2 text-xs normal-case text-white"></select></label>
+                        <div class="relative"><label for="geo_city_search" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Buscar município</label><input id="geo_city_search" autocomplete="off" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500" placeholder="Comece a digitar"><div id="geo_city_results" class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-xl border border-[#263550] bg-[#0A0E18] p-1 shadow-2xl"></div><div id="geo_selected_cities" class="mt-2 flex flex-wrap gap-1.5"></div></div>
+                    </div>
+                    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Raio em km<input id="geo_radius" type="number" min="1" max="1000" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white" placeholder="Opcional"></label>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lote<select id="geo_batch_size" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white"><option>5</option><option selected>10</option><option>25</option><option>50</option></select></label>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Concorrência<select id="geo_concurrency" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs text-white"><option>1</option><option selected>2</option><option>3</option></select></label>
+                        <label class="flex items-center gap-2 rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-[11px] font-bold text-slate-300"><input id="geo_exclude_researched" type="checkbox" checked> Excluir cidades totalmente pesquisadas</label>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Salvar conjunto<input id="geo_set_name" maxlength="100" class="mt-1.5 w-full rounded-xl border border-[#263550] bg-[#080B12] px-3 py-2.5 text-xs normal-case text-white" placeholder="Ex.: Interior de SP"></label>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2"><button type="button" onclick="previewGeoSelection()" class="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2.5 text-xs font-black text-blue-200">Pré-visualizar seleção</button><button type="button" onclick="saveGeoSet()" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-bold text-slate-300">Salvar conjunto</button><button type="button" onclick="startGeoCampaign()" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2.5 text-xs font-black text-white">Criar e iniciar campanha</button></div>
+                    <div id="geo_selection_preview" class="mt-4 hidden rounded-xl border border-[#263550] bg-[#080B12] p-3"></div>
+                    <div id="geo_campaigns" class="mt-4 space-y-2"></div>
+                </section>
+
                 <section id="target_recommendation" class="hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 md:p-5" aria-live="polite">
                     <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                         <div>
@@ -409,8 +432,71 @@
     function removePickerValue(kind, value) { pickerState[kind] = pickerState[kind].filter(item => item !== value); syncPicker(kind); }
     function renderPresets(kind) { const presetContainer = document.getElementById(`${kind}_presets`); presetContainer.replaceChildren(); presets[document.getElementById('mercado').value][kind].forEach(value => { const button = document.createElement('button'); button.type = 'button'; button.className = 'preset-chip'; button.textContent = `+ ${value}`; button.addEventListener('click', () => addPickerValue(kind, value)); presetContainer.appendChild(button); }); }
     function setupPicker(kind) { const input = document.getElementById(kind === 'nichos' ? 'nicho_input' : 'cidade_input'); pickerState[kind] = parsePickerValues(document.getElementById(kind).value); input.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ',') { event.preventDefault(); addPickerValues(kind, input.value); input.value = ''; } if (event.key === 'Backspace' && !input.value && pickerState[kind].length) removePickerValue(kind, pickerState[kind][pickerState[kind].length - 1]); }); input.addEventListener('paste', event => { const pasted = event.clipboardData?.getData('text') || ''; if (!/[\n,;]/.test(pasted)) return; event.preventDefault(); addPickerValues(kind, pasted); input.value = ''; }); input.addEventListener('blur', () => { if (input.value.trim()) { addPickerValues(kind, input.value); input.value = ''; } }); syncPicker(kind); }
-    function aplicarMercado() { const internacional = document.getElementById('mercado').value !== 'br'; document.getElementById('req_email').checked = internacional; document.getElementById('req_whatsapp').checked = false; document.getElementById('strict_mobile').checked = false; renderPresets('nichos'); renderPresets('bairros'); savePreferences(); }
-    loadPreferences(); setupPicker('nichos'); setupPicker('bairros'); renderPresets('nichos'); renderPresets('bairros'); preferenceIds.filter(id => !['nichos', 'bairros'].includes(id)).forEach(id => document.getElementById(id)?.addEventListener('change', savePreferences)); document.getElementById('mercado').addEventListener('change', aplicarMercado);
+    function aplicarMercado() { const internacional = document.getElementById('mercado').value !== 'br'; document.getElementById('req_email').checked = internacional; document.getElementById('req_whatsapp').checked = false; document.getElementById('strict_mobile').checked = false; document.getElementById('geographic_automation').classList.toggle('hidden', internacional); renderPresets('nichos'); renderPresets('bairros'); savePreferences(); }
+    loadPreferences(); setupPicker('nichos'); setupPicker('bairros'); renderPresets('nichos'); renderPresets('bairros'); aplicarMercado(); preferenceIds.filter(id => !['nichos', 'bairros'].includes(id)).forEach(id => document.getElementById(id)?.addEventListener('change', savePreferences)); document.getElementById('mercado').addEventListener('change', aplicarMercado);
+    let geoCatalog = null;
+    let geoSearchTimer = null;
+    let geoCampaignTimer = null;
+    const geoSelectedCities = new Map();
+    const geoExcludedCities = new Set();
+    function selectedOptions(id) { return [...document.getElementById(id).selectedOptions].map(option => option.value); }
+    function renderGeoSelectedCities() { document.getElementById('geo_selected_cities').innerHTML = [...geoSelectedCities.values()].map(item => `<span class="selected-chip">${escapeHtml(item.name)} - ${escapeHtml(item.uf)} <button type="button" onclick="removeGeoCity(${item.id})">×</button></span>`).join(''); }
+    function selectGeoCity(item) { geoSelectedCities.set(Number(item.id), item); document.getElementById('geo_city_results').classList.add('hidden'); document.getElementById('geo_city_search').value = ''; renderGeoSelectedCities(); }
+    function removeGeoCity(id) { geoSelectedCities.delete(Number(id)); renderGeoSelectedCities(); }
+    async function loadGeoCatalog() {
+        try {
+            const response = await fetch('/api/geography/catalog?limit=1'); const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Base geográfica indisponível.');
+            geoCatalog = data;
+            document.getElementById('geo_states').innerHTML = data.states.map(item => `<option value="${item.code}">${item.code} · ${escapeHtml(item.name)}</option>`).join('');
+            document.getElementById('geo_regions').innerHTML = data.regions.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('');
+            document.getElementById('geo_catalog_status').textContent = `${data.total_municipalities} localidades · IBGE`;
+        } catch (error) { document.getElementById('geo_catalog_status').textContent = error.message; }
+    }
+    async function searchGeoCities(query) {
+        if (query.trim().length < 2) { document.getElementById('geo_city_results').classList.add('hidden'); return; }
+        const response = await fetch(`/api/geography/catalog?q=${encodeURIComponent(query)}&limit=20`); const data = await response.json();
+        const panel = document.getElementById('geo_city_results');
+        panel.innerHTML = (data.municipalities || []).map(item => `<button type="button" data-city-id="${item.id}" class="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-300 hover:bg-blue-500/10 hover:text-white">${escapeHtml(item.name)} - ${escapeHtml(item.uf)} <span class="text-slate-600">IBGE ${item.id}</span></button>`).join('') || '<p class="p-3 text-xs text-slate-500">Nenhum município encontrado.</p>';
+        panel.querySelectorAll('[data-city-id]').forEach(button => button.addEventListener('click', () => selectGeoCity(data.municipalities.find(item => String(item.id) === button.dataset.cityId))));
+        panel.classList.remove('hidden');
+    }
+    document.getElementById('geo_city_search').addEventListener('input', event => { clearTimeout(geoSearchTimer); geoSearchTimer = setTimeout(() => searchGeoCities(event.target.value), 250); });
+    function geoPayload() {
+        const radius = Number(document.getElementById('geo_radius').value || 0);
+        const firstCity = [...geoSelectedCities.keys()][0];
+        return { mode: document.getElementById('geo_mode').value, states: selectedOptions('geo_states'), regions: selectedOptions('geo_regions'), municipality_ids: [...geoSelectedCities.keys()], excluded_ids: [...geoExcludedCities], center_id: radius ? firstCity : null, radius_km: radius || null, exclude_researched: document.getElementById('geo_exclude_researched').checked, limit: 30 };
+    }
+    function excludeGeoCity(id) { geoExcludedCities.add(Number(id)); previewGeoSelection(); }
+    async function previewGeoSelection() {
+        const panel = document.getElementById('geo_selection_preview'); panel.classList.remove('hidden'); panel.innerHTML = '<p class="text-xs text-blue-300"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Resolvendo seleção oficial…</p>';
+        try {
+            const response = await fetch('/api/geography/selection', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(geoPayload())}); const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível resolver a seleção.');
+            const cards = (data.preview || []).slice(0, 30).map(item => `<span class="inline-flex items-center gap-1 rounded-lg border border-[#263550] bg-[#111728] px-2 py-1 text-[10px] text-slate-300">${escapeHtml(item.label)} <button type="button" onclick="excludeGeoCity(${item.id})" title="Excluir">×</button></span>`).join('');
+            panel.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-xs text-white">${data.count} município(s) selecionado(s)</strong><span class="text-[10px] text-slate-500">${data.truncated ? 'prévia limitada a 200' : 'seleção completa'}</span></div>${data.ranking?.length ? `<p class="mt-2 text-[10px] text-amber-300">Ranking inteligente baseado em evidências reais; cidades sem amostra não são classificadas.</p>` : ''}<div class="mt-3 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">${cards || '<span class="text-xs text-slate-500">Nenhuma cidade disponível.</span>'}</div>`;
+        } catch (error) { panel.innerHTML = `<p class="text-xs text-rose-300">${escapeHtml(error.message)}</p>`; }
+    }
+    async function saveGeoSet() {
+        const name = document.getElementById('geo_set_name').value.trim(); if (!name) return showAppToast('Informe o nome do conjunto.', 'error');
+        const response = await fetch('/api/geography/sets', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, selection: geoPayload()})}); const data = await response.json();
+        if (!response.ok || !data.success) return showAppToast(data.error || 'Não foi possível salvar.', 'error'); showAppToast('Conjunto geográfico salvo.');
+    }
+    function campaignFilters() { return Object.fromEntries(preferenceIds.filter(id => !['campaign_name', 'mercado', 'nichos', 'bairros'].includes(id)).map(id => { const field = document.getElementById(id); return [id, field.type === 'checkbox' ? field.checked : field.value]; })); }
+    async function startGeoCampaign() {
+        if (!pickerState.nichos.length) return showAppToast('Selecione pelo menos um nicho antes da campanha geográfica.', 'error');
+        const payload = {...geoPayload(), name: document.getElementById('campaign_name').value, niches: pickerState.nichos, filters: campaignFilters(), batch_size: Number(document.getElementById('geo_batch_size').value), concurrency: Number(document.getElementById('geo_concurrency').value)};
+        const response = await fetch('/api/geographic-campaigns', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}); const data = await response.json();
+        if (!response.ok || !data.success) return showAppToast(data.error || 'Não foi possível criar a campanha.', 'error'); showAppToast(`Campanha criada com ${data.campaign.total_municipalities} municípios.`); loadGeoCampaigns();
+    }
+    async function geoCampaignAction(id, action) { if (action === 'cancel') { const confirmed = await showAppConfirm({title: 'Cancelar campanha geográfica?', message: 'Municípios ainda pendentes serão cancelados. Leads já encontrados serão preservados.', confirmLabel: 'Cancelar campanha', danger: true}); if (!confirmed) return; } const response = await fetch(`/api/geographic-campaigns/${id}/${action}`, {method: 'POST'}); const data = await response.json(); if (!response.ok || !data.success) showAppToast(data.error || 'Ação não executada.', 'error'); loadGeoCampaigns(); }
+    async function loadGeoCampaigns() {
+        try {
+            const response = await fetch('/api/geographic-campaigns'); const data = await response.json();
+            document.getElementById('geo_campaigns').innerHTML = (data.campaigns || []).slice(0, 5).map(item => `<article class="rounded-xl border border-[#263550] bg-[#080B12] p-3"><div class="flex flex-wrap items-start justify-between gap-2"><div><strong class="text-xs text-white">${escapeHtml(item.name)}</strong><p class="mt-1 text-[10px] text-slate-500">${item.completed_municipalities || item.location_statuses.completed || 0}/${item.total_municipalities} municípios · ${item.queries_completed}/${item.queries_planned} consultas · ${item.qualified_leads} leads</p></div><span class="rounded-full bg-blue-400/10 px-2 py-1 text-[9px] font-black uppercase text-blue-300">${escapeHtml(item.status)}</span></div><div class="mt-2 h-1.5 overflow-hidden rounded-full bg-[#111728]"><div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400" style="width:${Math.min(100, item.coverage_percent || 0)}%"></div></div><div class="mt-2 flex flex-wrap gap-2"><button type="button" onclick="geoCampaignAction('${item.campaign_id}','pause')" class="text-[10px] font-bold text-amber-300">Pausar</button><button type="button" onclick="geoCampaignAction('${item.campaign_id}','resume')" class="text-[10px] font-bold text-emerald-300">Continuar</button><button type="button" onclick="geoCampaignAction('${item.campaign_id}','cancel')" class="text-[10px] font-bold text-rose-300">Cancelar</button><span class="ml-auto text-[10px] text-slate-500">Restam ~${item.estimated_queries_remaining} consultas</span></div></article>`).join('');
+        } catch (error) { console.warn('Campanhas geográficas indisponíveis.', error); }
+    }
+    loadGeoCatalog(); loadGeoCampaigns(); geoCampaignTimer = setInterval(loadGeoCampaigns, 5000);
     const btn = document.getElementById('btn_search'); const panel = document.getElementById('status_panel'); const log = document.getElementById('log_text'); const metrics = document.getElementById('status_metrics'); const cancelBtn = document.getElementById('btn_cancel_search'); const searchLoader = document.getElementById('search_loader'); const resultSummary = document.getElementById('search_result_summary'); let timer = null;
     function renderMetrics(data) { const source = data.metricas || {}; const formatTime = value => value == null ? '—' : value < 60 ? `${Math.round(value)}s` : `${Math.floor(value / 60)}m ${Math.round(value % 60)}s`; const queryProgress = source.consultas_planejadas ? `${source.consultas_concluidas || 0}/${source.consultas_planejadas}` : '—'; const items = [['Empresas encontradas', source.encontrados || 0], ['Resultados novos', source.novos_resultados || 0], ['Adicionados ao CRM', source.salvos || 0], ['Já conhecidos', source.duplicados || 0], ['Ignorados', source.ignorados || 0], ['Prioridade', source.prioridade || 0], ['Secundários', source.oportunidade_secundaria || 0], ['Combinações', queryProgress], ['Requisições', source.tentativas_busca || 0], ['Cache reutilizado', source.cache_hits || 0], ['Tempo', formatTime(source.tempo_segundos)], ['Erros', source.erros || 0]]; metrics.innerHTML = items.map(([label, value], index) => `<div class="rounded-xl ${index === 2 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-[#111728] border-[#1F2B44]'} border p-3 text-center"><span class="block text-[10px] uppercase tracking-wider ${index === 2 ? 'text-emerald-300' : 'text-slate-400'} font-extrabold">${label}</span><strong class="text-lg text-white font-black">${value}</strong></div>`).join(''); }
     function renderFilterBreakdown(source) { const reasons = [['Com site próprio', source.com_site], ['Já existentes', source.duplicados], ['Fora da região', source.fora_regiao], ['Sem celular válido', source.telefone_invalido], ['Sem WhatsApp', source.sem_whatsapp], ['Sem e-mail', source.sem_email], ['Nota abaixo do filtro', source.nota_baixa], ['Franquias', source.franquias], ['Site sem oportunidade', source.site_sem_oportunidade], ['Erros de análise', source.erros]]; document.getElementById('search_filter_breakdown').innerHTML = reasons.filter(([, value]) => Number(value) > 0).map(([label, value]) => `<span class="rounded-full border border-[#263550] bg-[#111728] px-3 py-1.5 text-[10px] font-bold text-slate-300">${escapeHtml(label)}: <strong class="text-white">${value}</strong></span>`).join(''); }
