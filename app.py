@@ -23,9 +23,11 @@ from ai_provider import MODEL_CANDIDATES, first_available_response, generate_tex
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import build_preview_config, capture_preview_png, render_preview_html
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
+from contact_quality import assess_phone, normalize_email, website_domain
 from location_intelligence import expand_locations
-from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, search_term_for_niche, suggest_targets
+from target_intelligence import TARGET_ENGINE_VERSION, build_research_plan, normalize, search_terms_for_niche, suggest_targets
 from target_research import probe_google_maps
+from whatsapp_cloud import cloud_configured, send_approved_template
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -149,6 +151,7 @@ def save_config(data):
 def config_publica(config):
     config_segura = dict(config)
     config_segura["gemini_configurada"] = bool(os.environ.get("GEMINI_API_KEY"))
+    config_segura["whatsapp_configurado"] = cloud_configured()
     config_segura.pop("gemini_api_key", None)
     return config_segura
 
@@ -657,7 +660,11 @@ def load_existing_lead_identities():
     try:
         phones = set()
         names = set()
-        for name, location, phone in conn.execute("SELECT nome, bairro, telefone FROM leads"):
+        emails = set()
+        domains = set()
+        for name, location, phone, email, website in conn.execute(
+            "SELECT nome, bairro, telefone, email, link_inicial FROM leads"
+        ):
             phone_key = re.sub(r"\D", "", phone or "")
             if len(phone_key) >= 10:
                 phones.add(phone_key[-11:])
@@ -665,7 +672,13 @@ def load_existing_lead_identities():
             location_key = normalize(location)
             if name_key:
                 names.add((name_key, location_key))
-        return phones, names
+            email_key = normalize_email(email)
+            if email_key:
+                emails.add(email_key)
+            domain_key = website_domain(website)
+            if domain_key and possui_site_proprio(website):
+                domains.add(domain_key)
+        return phones, names, emails, domains
     finally:
         conn.close()
 
@@ -738,21 +751,11 @@ def extrair_apenas_numeros(telefone):
         
     return numeros
 
-def eh_celular_valido(numeros):
+def eh_celular_valido(numeros, region=None):
     digits = re.sub(r"\D", "", str(numeros or ""))
-    if not digits or len(set(digits)) == 1:
-        return False
-    if digits.startswith("55"):
-        valid_ddd = {
-            "11", "12", "13", "14", "15", "16", "17", "18", "19",
-            "21", "22", "24", "27", "28", "31", "32", "33", "34", "35", "37", "38",
-            "41", "42", "43", "44", "45", "46", "47", "48", "49", "51", "53", "54", "55",
-            "61", "62", "63", "64", "65", "66", "67", "68", "69", "71", "73", "74", "75", "77",
-            "79", "81", "82", "83", "84", "85", "86", "87", "88", "89", "91", "92", "93", "94",
-            "95", "96", "97", "98", "99",
-        }
-        return len(digits) == 13 and digits[2:4] in valid_ddd and digits[4] == "9" and len(set(digits[4:])) >= 4
-    return 8 <= len(digits) <= 15 and len(set(digits[-8:])) >= 3
+    if region is None:
+        region = "us" if len(digits) == 11 and digits.startswith("1") else "br"
+    return assess_phone(numeros, region)["whatsapp_candidate"]
 
 def formatar_whatsapp(numeros, copy_texto=""):
     if not numeros: return ""
@@ -1326,10 +1329,11 @@ def health():
             "database": "ok",
             "studio": bool(preview_table),
             "follow_up": bool(interaction_table),
-            "commercial_release": "2026.11.05-search-engine-v7",
+            "commercial_release": "2026.11.05-search-engine-v8",
             "target_engine_version": TARGET_ENGINE_VERSION,
             "lead_score_version": SCORE_VERSION,
             "pitch_modes": 5,
+            "whatsapp_cloud": cloud_configured(),
             "pitch_pipeline_version": PITCH_PIPELINE_VERSION,
             "secure_cookie": bool(app.config.get("SESSION_COOKIE_SECURE")),
             "proxy_headers": isinstance(app.wsgi_app, ProxyFix),
@@ -1409,6 +1413,7 @@ def render_crm_view(status_scope, crm_view):
         is_descartados=crm_view == "discarded", crm_view=crm_view, follow_up_counts=follow_up_counts,
         page=page, total_pages=total_pages, total_leads=total, contact_payloads=contact_payloads,
         crm_filters=crm_filters, active_filters=active_filters, available_niches=available_niches,
+        whatsapp_cloud_enabled=cloud_configured(),
     )
 
 
@@ -1593,6 +1598,47 @@ def register_lead_contact(place_id):
         "next_action": next_action,
         "next_action_at": next_action_at.isoformat(timespec="minutes"),
     })
+
+
+@app.route("/api/leads/<path:place_id>/whatsapp", methods=["POST"])
+def send_lead_whatsapp(place_id):
+    lead = get_lead_by_id(place_id)
+    if not lead:
+        return jsonify({"success": False, "error": "Lead não encontrado"}), 404
+    if lead.get("do_not_contact"):
+        return jsonify({"success": False, "error": "Este lead está marcado como não contatar"}), 409
+    payload = request.get_json(silent=True) or {}
+    message = normalizar_texto(payload.get("message", ""), 1024)
+    assessment = assess_phone(lead.get("telefone"), "europa" if lead_is_international(lead) else "br")
+    if not assessment["valid"]:
+        return jsonify({"success": False, "error": assessment["reason"]}), 400
+    try:
+        delivery = send_approved_template(assessment["digits"], message)
+    except (ValueError, RuntimeError) as error:
+        return jsonify({"success": False, "error": str(error)}), 502
+
+    now = datetime.now()
+    next_action_at = add_business_days(now, 3).replace(hour=10, minute=0, second=0, microsecond=0)
+    next_action = "Confirmar se a mensagem foi recebida e fazer um retorno curto, sem repetir a abordagem inicial."
+    advanced_statuses = {"Conversando", "Fechado", "Não fechado"}
+    next_status = lead.get("status") if lead.get("status") in advanced_statuses else "Contatado"
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute(
+            """INSERT INTO lead_interactions
+               (place_id, interaction_type, channel, content, sentiment, next_action, next_action_at)
+               VALUES (?, 'abordagem', 'WhatsApp Cloud API', ?, 'aguardando resposta', ?, ?)""",
+            (place_id, message, next_action, next_action_at.isoformat(timespec="minutes")),
+        )
+        conn.execute(
+            """UPDATE leads SET status = ?, last_contact_at = ?, last_contact_channel = 'WhatsApp Cloud API',
+               contact_count = COALESCE(contact_count, 0) + 1, next_action = ?, next_action_at = ? WHERE place_id = ?""",
+            (next_status, now.isoformat(timespec="seconds"), next_action, next_action_at.isoformat(timespec="minutes"), place_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"success": True, "message_id": delivery["message_id"], "next_action_at": next_action_at.isoformat(timespec="minutes")})
 
 
 @app.route("/leads/<path:place_id>")
@@ -1901,6 +1947,10 @@ def configuracoes():
         data = load_config()
         nova_configuracao = request.form.to_dict()
         api_key = nova_configuracao.pop("gemini_api_key", "").strip()
+        whatsapp_token = nova_configuracao.pop("whatsapp_access_token", "").strip()
+        whatsapp_phone_id = nova_configuracao.pop("whatsapp_phone_number_id", "").strip()
+        whatsapp_template = nova_configuracao.pop("whatsapp_template_name", "").strip()
+        whatsapp_language = nova_configuracao.pop("whatsapp_template_language", "").strip()
         score_weights = {}
         for key, default in DEFAULT_WEIGHTS.items():
             raw_value = nova_configuracao.pop(f"score_{key}", str(default))
@@ -1913,6 +1963,14 @@ def configuracoes():
         data.update(nova_configuracao)
         if api_key:
             persist_secret("GEMINI_API_KEY", api_key)
+        for secret_name, secret_value in (
+            ("WHATSAPP_ACCESS_TOKEN", whatsapp_token),
+            ("WHATSAPP_PHONE_NUMBER_ID", whatsapp_phone_id),
+            ("WHATSAPP_TEMPLATE_NAME", whatsapp_template),
+            ("WHATSAPP_TEMPLATE_LANGUAGE", whatsapp_language),
+        ):
+            if secret_value:
+                persist_secret(secret_name, secret_value)
         data["headless"] = "headless" in nova_configuracao
         save_config(data)
         return render_template("configuracoes.html", config=config_publica(data), success=True)
@@ -2265,9 +2323,10 @@ def extrator_worker(data, config, queue):
             "oportunidade_secundaria": 0,
             "exploracao": 0,
             "erros": 0,
+            "tentativas_busca": 0,
         }
         existing_place_ids = load_existing_place_ids()
-        existing_phones, existing_names = load_existing_lead_identities()
+        existing_phones, existing_names, existing_emails, existing_domains = load_existing_lead_identities()
         search_run_id = data.get("search_run_id", "")
         started_at = time.monotonic()
         max_leads = max(5, min(100, int(data.get("max_leads", 30))))
@@ -2339,6 +2398,58 @@ def extrator_worker(data, config, queue):
             if is_headless:
                 page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
             consent_ok = False
+
+            def coletar_hrefs_maps(termo, local):
+                nonlocal consent_ok
+                busca = f"{termo} {local}"
+                stats["tentativas_busca"] += 1
+                publicar_status(f"Buscando '{nicho}' em '{local}' com o termo '{termo}'...")
+                try:
+                    page.goto(
+                        f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}",
+                        wait_until="domcontentloaded", timeout=22000,
+                    )
+                    if not consent_ok:
+                        tratar_consentimento_cookies(page)
+                        consent_ok = True
+                    page.wait_for_timeout(700)
+                    try:
+                        page.wait_for_selector("a.hfpxzc, a[href*='/maps/place/']", state="attached", timeout=6500)
+                    except Exception:
+                        pass
+                except Exception as error:
+                    print(f"[WORKER] Falha na consulta '{busca}': {error}")
+                    return []
+                painel = page.locator("div[role='feed']").first
+                collected = []
+                try:
+                    for scroll_index in range(14):
+                        links = page.locator("a.hfpxzc")
+                        if links.count() == 0:
+                            links = page.locator("a[href*='/maps/place/']")
+                        for link_index in range(min(links.count(), max_results_per_query)):
+                            href = links.nth(link_index).get_attribute("href")
+                            if href and href not in collected:
+                                collected.append(href)
+                        unseen_count = sum(
+                            1 for href in collected
+                            if extrair_id_unico(href) and extrair_id_unico(href) not in existing_place_ids
+                        )
+                        remaining_target = max_leads - stats["salvos"]
+                        if unseen_count >= min(20, max(8, remaining_target * 2)) or len(collected) >= max_results_per_query:
+                            break
+                        if painel.count() == 0:
+                            break
+                        previous_count = len(collected)
+                        painel.evaluate("node => node.scrollTop = node.scrollHeight")
+                        page.wait_for_timeout(random.randint(550, 850))
+                        if scroll_index >= 2 and len(collected) == previous_count:
+                            page.keyboard.press("End")
+                            page.wait_for_timeout(500)
+                except Exception as error:
+                    print(f"[WORKER] Falha ao rolar resultados: {error}")
+                return collected
+
             for bairro in bairros:
                 if search_limit_reason():
                     break
@@ -2351,53 +2462,17 @@ def extrator_worker(data, config, queue):
                     if busca_cancelada():
                         browser.close()
                         return
-                    termo_busca = search_term_for_niche(data.get("mercado", "br"), nicho)
-                    busca = f"{termo_busca} {bairro}"
-                    print(f"[WORKER] Buscando: {busca}")
-                    publicar_status(f"Buscando '{nicho}' em '{bairro}' com o termo '{termo_busca}'...")
-                    url = f"https://www.google.com/maps/search/{urllib.parse.quote(busca)}"
-                    try:
-                        page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                        print(f"[WORKER] Pagina: {page.title()} | {page.url}")
-                        if not consent_ok:
-                            tratar_consentimento_cookies(page)
-                            consent_ok = True
-                        page.wait_for_timeout(700)
-                    except Exception as e:
-                        print(f"[WORKER] Erro ao carregar pagina: {e}"); continue
-                    try:
-                        page.wait_for_selector("a.hfpxzc", state="attached", timeout=8000)
-                        print("[WORKER] Resultados encontrados!")
-                    except Exception as e:
-                        print(f"[WORKER] Timeout inicial a.hfpxzc: {e} | titulo: {page.title()}")
-                    painel = page.locator("div[role='feed']").first
                     hrefs = []
-                    try:
-                        for scroll_index in range(14):
-                            links = page.locator("a.hfpxzc")
-                            if links.count() == 0:
-                                links = page.locator("a[href*='/maps/place/']")
-                            for link_index in range(min(links.count(), max_results_per_query)):
-                                href = links.nth(link_index).get_attribute("href")
-                                if href and href not in hrefs:
-                                    hrefs.append(href)
-                            unseen_count = sum(
-                                1 for href in hrefs
-                                if extrair_id_unico(href) and extrair_id_unico(href) not in existing_place_ids
-                            )
-                            remaining_target = max_leads - stats["salvos"]
-                            if unseen_count >= min(20, max(8, remaining_target * 2)) or len(hrefs) >= max_results_per_query:
-                                break
-                            if painel.count() == 0:
-                                break
-                            previous_count = len(hrefs)
-                            painel.evaluate("node => node.scrollTop = node.scrollHeight")
-                            page.wait_for_timeout(random.randint(550, 850))
-                            if scroll_index >= 2 and len(hrefs) == previous_count:
-                                page.keyboard.press("End")
-                                page.wait_for_timeout(500)
-                    except Exception as e:
-                        print("Aviso interno painel:", e)
+                    for termo_busca in search_terms_for_niche(data.get("mercado", "br"), nicho):
+                        for href in coletar_hrefs_maps(termo_busca, bairro):
+                            if href not in hrefs:
+                                hrefs.append(href)
+                        unseen = sum(
+                            1 for href in hrefs
+                            if extrair_id_unico(href) and extrair_id_unico(href) not in existing_place_ids
+                        )
+                        if unseen >= 5:
+                            break
 
                     if not hrefs:
                         print("[WORKER] Definitivamente nenhum lead encontrado.")
@@ -2473,7 +2548,9 @@ def extrator_worker(data, config, queue):
                             tel_el = page.locator("button[data-item-id^='phone']")
                             telefone_raw = tel_el.first.get_attribute("aria-label").replace("Telefone: ", "").strip() if tel_el.count() > 0 else ""
                             numeros_whats = extrair_apenas_numeros(telefone_raw)
-                            whatsapp_provavel = eh_celular_valido(numeros_whats)
+                            phone_assessment = assess_phone(numeros_whats, data.get("mercado", "br"))
+                            numeros_whats = phone_assessment["digits"] or numeros_whats
+                            whatsapp_provavel = phone_assessment["whatsapp_candidate"]
                             phone_key = re.sub(r"\D", "", telefone_raw or "")[-11:]
                             name_key = (normalize(nome), normalize(bairro))
                             if (len(phone_key) >= 10 and phone_key in existing_phones) or name_key in existing_names:
@@ -2526,6 +2603,13 @@ def extrator_worker(data, config, queue):
                                 context, link_encontrado, nome=nome, bairro=bairro,
                                 buscar_email_externo=buscar_email_externo,
                             )
+                            email_key = normalize_email(dados_profundos["email"])
+                            domain_key = website_domain(link_encontrado) if is_real_website else ""
+                            if (email_key and email_key in existing_emails) or (domain_key and domain_key in existing_domains):
+                                stats["duplicados"] += 1
+                                record_lead_discovery(place_id, nicho, bairro, search_run_id, "duplicate_identity")
+                                publicar_status(f"Empresa já existente por e-mail ou domínio: {nome}")
+                                continue
                             if data.get("req_email") and not dados_profundos["email"]:
                                 stats["sem_email"] += 1
                                 record_lead_discovery(place_id, nicho, bairro, search_run_id, "email_filtered")
@@ -2622,6 +2706,10 @@ def extrator_worker(data, config, queue):
                                 if len(phone_key) >= 10:
                                     existing_phones.add(phone_key)
                                 existing_names.add(name_key)
+                                if email_key:
+                                    existing_emails.add(email_key)
+                                if domain_key:
+                                    existing_domains.add(domain_key)
                                 record_lead_discovery(place_id, nicho, bairro, search_run_id, "saved")
                                 stats["salvos"] += 1
                                 publicar_status(f"Lead salvo: {nome}")
@@ -2754,7 +2842,7 @@ def carregar_leads_para_investigacao():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     rows = [dict(row) for row in conn.execute(
-        """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes
+        """SELECT nicho, bairro, link_inicial, telefone, whatsapp_link, email, avaliacoes, status
            FROM leads"""
     ).fetchall()]
     conn.close()

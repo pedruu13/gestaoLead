@@ -2,7 +2,7 @@ import re
 import time
 import urllib.parse
 
-from target_intelligence import MARKETS, has_own_site, search_term_for_niche
+from target_intelligence import MARKETS, has_own_site, search_terms_for_niche
 
 
 def _external_url(value):
@@ -52,21 +52,25 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
             progress(completed_samples, total_samples, f"Investigando {pair['niche']} em {pair['city']}...")
             result = {"region": pair["region"], "niche": pair["niche"], "city": pair["city"], "results_count": 0, "sample_size": 0, "no_site_count": 0, "contactable_count": 0, "mature_count": 0}
             try:
-                search_term = search_term_for_niche(pair["region"], pair["niche"])
-                query = urllib.parse.quote(f"{search_term} {pair['city']}")
-                page.goto(f"https://www.google.com/maps/search/{query}", wait_until="domcontentloaded", timeout=18000)
-                try:
-                    page.wait_for_selector("a.hfpxzc, a[href*='/maps/place/']", timeout=3500)
-                except Exception:
-                    pass
-                links = page.locator("a.hfpxzc")
-                if not links.count():
-                    links = page.locator("a[href*='/maps/place/']")
                 hrefs = []
-                for index in range(min(links.count(), 20)):
-                    href = links.nth(index).get_attribute("href")
-                    if href and href not in hrefs:
-                        hrefs.append(href)
+                for search_term in search_terms_for_niche(pair["region"], pair["niche"]):
+                    if time_exhausted():
+                        break
+                    query = urllib.parse.quote(f"{search_term} {pair['city']}")
+                    page.goto(f"https://www.google.com/maps/search/{query}", wait_until="domcontentloaded", timeout=14000)
+                    try:
+                        page.wait_for_selector("a.hfpxzc, a[href*='/maps/place/']", timeout=3000)
+                    except Exception:
+                        pass
+                    links = page.locator("a.hfpxzc")
+                    if not links.count():
+                        links = page.locator("a[href*='/maps/place/']")
+                    for index in range(min(links.count(), 20)):
+                        href = links.nth(index).get_attribute("href")
+                        if href and href not in hrefs:
+                            hrefs.append(href)
+                    if len(hrefs) >= sample_per_pair:
+                        break
                 result["results_count"] = len(hrefs)
                 for href in hrefs[:sample_per_pair]:
                     if cancelled() or time_exhausted():

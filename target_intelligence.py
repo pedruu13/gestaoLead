@@ -4,7 +4,7 @@ import urllib.parse
 from collections import defaultdict
 
 
-TARGET_ENGINE_VERSION = "6.0"
+TARGET_ENGINE_VERSION = "7.0"
 
 
 NICHE_SEARCH_TERMS = {
@@ -158,6 +158,32 @@ def search_term_for_niche(region, niche):
     return NICHE_SEARCH_TERMS.get(region, {}).get(normalize(niche), str(niche or "").strip())
 
 
+def search_terms_for_niche(region, niche):
+    primary = search_term_for_niche(region, niche)
+    normalized = normalize(niche)
+    alternatives = {
+        "br": {
+            "academia e treinamento": ("academia", "centro de treinamento", "treinamento funcional"),
+            "clinica de estetica": ("clínica de estética", "estética avançada", "harmonização facial"),
+            "odontologia": ("dentista", "clínica odontológica", "odontologia"),
+            "advocacia": ("escritório de advocacia", "advogado", "serviços jurídicos"),
+            "reformas e construcao": ("empresa de reformas", "construtora", "reforma residencial"),
+            "moveis planejados": ("móveis planejados", "marcenaria", "cozinha planejada"),
+        },
+        "us": {
+            "roofing company": ("roofing contractor", "roof repair", "roofer"),
+            "hvac contractor": ("HVAC contractor", "air conditioning service", "AC repair"),
+            "med spa": ("med spa", "medical spa", "aesthetic clinic"),
+        },
+        "europa": {
+            "clinica de estetica": ("aesthetic clinic", "beauty clinic", "medical aesthetics"),
+            "reformas residenciais": ("home renovation company", "building contractor", "home improvement"),
+        },
+    }
+    values = alternatives.get(region, {}).get(normalized, (primary,))
+    return list(dict.fromkeys(value for value in (primary, *values) if value))[:3]
+
+
 def _matches(value, aliases):
     normalized = normalize(value)
     return any(normalize(alias) in normalized for alias in aliases)
@@ -258,11 +284,15 @@ def build_research_plan(region, observations, pair_limit=8, focus_niches=None, f
 
 def _lead_evidence(rows, niche, city):
     matches = [row for row in rows if _matches(row.get("nicho"), niche["aliases"]) and _matches(row.get("bairro"), city["aliases"])]
+    contacted = [row for row in matches if row.get("status") in {"Contatado", "Conversando", "Fechado", "Não fechado"}]
     return {
         "sample": len(matches), "no_site": sum(not has_own_site(row.get("link_inicial")) for row in matches),
         "contactable": sum(bool(str(row.get("telefone") or "").strip() or str(row.get("whatsapp_link") or "").strip() or str(row.get("email") or "").strip()) for row in matches),
         "mature": sum(_to_int(row.get("avaliacoes")) >= 10 for row in matches), "results": len(matches),
         "existing_leads": len(matches),
+        "contacted": len(contacted),
+        "responses": sum(row.get("status") in {"Conversando", "Fechado", "Não fechado"} for row in matches),
+        "closed": sum(row.get("status") == "Fechado" for row in matches),
     }
 
 
@@ -273,12 +303,12 @@ def _research_evidence(observations, region, niche, city):
         "contactable": sum(int(row.get("contactable_count") or 0) for row in matches), "mature": sum(int(row.get("mature_count") or 0) for row in matches),
         "results": max([int(row.get("results_count") or 0) for row in matches] or [0]),
         "runs": sum(1 for row in matches if int(row.get("sample_size") or 0) > 0),
-        "existing_leads": 0,
+        "existing_leads": 0, "contacted": 0, "responses": 0, "closed": 0,
     }
 
 
 def _combine_evidence(lead_data, research_data):
-    return {"sample": lead_data["sample"] + research_data["sample"], "no_site": lead_data["no_site"] + research_data["no_site"], "contactable": lead_data["contactable"] + research_data["contactable"], "mature": lead_data["mature"] + research_data["mature"], "results": max(lead_data["results"], research_data["results"]), "research_runs": research_data["runs"], "existing_leads": lead_data["existing_leads"]}
+    return {"sample": lead_data["sample"] + research_data["sample"], "no_site": lead_data["no_site"] + research_data["no_site"], "contactable": lead_data["contactable"] + research_data["contactable"], "mature": lead_data["mature"] + research_data["mature"], "results": max(lead_data["results"], research_data["results"]), "research_runs": research_data["runs"], "existing_leads": lead_data["existing_leads"], "contacted": lead_data["contacted"], "responses": lead_data["responses"], "closed": lead_data["closed"]}
 
 
 def _score_pair(niche, city, evidence):
@@ -290,7 +320,9 @@ def _score_pair(niche, city, evidence):
     maturity_rate = (100 * evidence["mature"] / sample) if sample else 50
     demand = min(100, evidence["results"] * 12 + maturity_rate * 0.35)
     saturation_penalty = min(30, evidence["existing_leads"] * 2.5)
-    score = niche["ticket"] * 0.20 + niche["need"] * 0.19 + city["power"] * 0.15 + blended_gap * 0.25 + demand * 0.13 + contact_rate * 0.08 + min(evidence["research_runs"], 3) * 1.2 - saturation_penalty
+    response_rate = 100 * evidence["responses"] / evidence["contacted"] if evidence["contacted"] else 0
+    conversion_signal = min(12, response_rate * 0.06 + evidence["closed"] * 4)
+    score = niche["ticket"] * 0.20 + niche["need"] * 0.19 + city["power"] * 0.15 + blended_gap * 0.25 + demand * 0.13 + contact_rate * 0.08 + min(evidence["research_runs"], 3) * 1.2 + conversion_signal - saturation_penalty
     return round(min(score, 100), 1)
 
 
@@ -308,7 +340,8 @@ def _evidence_label(evidence):
         gap = round(100 * evidence["no_site"] / sample)
         activity = f"{evidence['results']} resultados localizados" if evidence["results"] else "atividade local ainda limitada"
         saturation = f"; {evidence['existing_leads']} já estão na sua base" if evidence["existing_leads"] else ""
-        return confidence, f"{gap}% sem site próprio na amostra de {sample} empresas; {activity}{saturation}."
+        commercial = f"; {evidence['responses']} resposta(s) e {evidence['closed']} fechamento(s) no histórico" if evidence["contacted"] else ""
+        return confidence, f"{gap}% sem site próprio na amostra de {sample} empresas; {activity}{saturation}{commercial}."
     return confidence, "Ainda não passou pela investigação ao vivo do Google Maps."
 
 

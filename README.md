@@ -58,6 +58,18 @@ py app.py
 - O servidor cria diariamente um backup compactado em `backups/` e mantém os 14 mais recentes. Copie essa pasta para outro servidor ou armazenamento para proteção contra perda da máquina Oracle.
 - O endpoint `GET /health` permite verificar banco, Studio de Prévias e acompanhamento comercial sem expor dados de leads.
 
+### Deploy automático no Oracle
+O workflow `.github/workflows/deploy-oracle.yml` atualiza o servidor a cada push na `main`. Configure estes secrets no GitHub:
+
+- `ORACLE_HOST`: IP ou domínio do servidor.
+- `ORACLE_USER`: usuário SSH, normalmente `ubuntu`.
+- `ORACLE_SSH_KEY`: chave SSH privada autorizada no servidor.
+- `ORACLE_APP_PATH`: opcional; padrão `/home/ubuntu/gestaoLead`.
+- `ORACLE_SERVICE`: opcional; padrão `gestaolead`.
+
+### WhatsApp Cloud API
+Para enviar dentro do CRM, configure em **Configurações** o token permanente, o Phone Number ID e um template aprovado com uma variável no corpo. A plataforma usa somente a API oficial da Meta e registra o envio no histórico do lead.
+
 ## 🛠️ Tecnologias Utilizadas
 - **Python 3**
 - **Flask**: Interface Web e APIs.

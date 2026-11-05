@@ -359,6 +359,9 @@
         
         <footer class="border-t border-[#1E293B] px-6 py-5 md:px-8 bg-[#0D1322]">
             <div class="grid gap-3 sm:grid-cols-2">
+                <button id="central_whatsapp_cloud" type="button" onclick="enviarWhatsAppDireto()" class="hidden items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-emerald-500/20 transition-all">
+                    <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Enviar direto pela API
+                </button>
                 <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" onclick="prepararRetornoWhatsApp()" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
                     <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Abrir mensagem pronta
                 </a>
@@ -462,6 +465,7 @@
 
 {% block scripts %}
 <script>
+    const whatsappCloudEnabled = {{ whatsapp_cloud_enabled | tojson }};
     const contactPayloads = {{ contact_payloads | tojson | safe }};
     const crmView = {{ crm_view | tojson }};
     const crmFilterFields = {
@@ -719,8 +723,11 @@
         selecionarVariacaoPitch(selectedMode);
         const emailButton = document.getElementById('central_email');
         const whatsappButton = document.getElementById('central_whatsapp');
+        const whatsappCloudButton = document.getElementById('central_whatsapp_cloud');
         whatsappButton.classList.toggle('hidden', !whatsapp);
         whatsappButton.classList.toggle('flex', Boolean(whatsapp));
+        whatsappCloudButton.classList.toggle('hidden', !(whatsapp && whatsappCloudEnabled));
+        whatsappCloudButton.classList.toggle('flex', Boolean(whatsapp && whatsappCloudEnabled));
         if (email) {
             emailButton.classList.remove('hidden');
             emailButton.classList.add('flex');
@@ -861,6 +868,32 @@
         const registered = await registrarAbordagem(channel, {silent:true});
         if (!registered) return;
         abrirProximoLead(currentPlaceId);
+    }
+
+    async function enviarWhatsAppDireto() {
+        const editor = document.getElementById('central_copy');
+        const placeId = editor.dataset.placeId || '';
+        const button = document.getElementById('central_whatsapp_cloud');
+        if (!placeId || !editor.value.trim()) return;
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Enviando pela Meta...';
+        try {
+            const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/whatsapp`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: editor.value})
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'O WhatsApp não confirmou o envio.');
+            document.querySelectorAll('.lead-item').forEach(item => { if (item.dataset.placeId === placeId) item.remove(); });
+            delete contactPayloads[placeId];
+            showAppToast('Mensagem aceita pela WhatsApp Cloud API.');
+            abrirProximoLead(placeId);
+        } catch (error) {
+            showAppToast(error.message || 'Falha no envio direto.', 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-brands fa-whatsapp mr-2 text-base"></i> Enviar direto pela API';
+        }
     }
 
     function abrirDetalhes(btn) {

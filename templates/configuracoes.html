@@ -83,6 +83,30 @@
 
             <div>
                 <h3 class="text-lg font-black text-white flex items-center mb-2">
+                    <i class="fa-brands fa-whatsapp text-emerald-400 mr-3"></i> Envio direto pelo WhatsApp oficial
+                </h3>
+                <p class="text-slate-400 text-xs mb-4">Use a Cloud API da Meta com um template aprovado que tenha uma variável no corpo para receber a mensagem comercial.</p>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Access Token
+                        <input type="password" name="whatsapp_access_token" placeholder="{% if config.get('whatsapp_configurado') %}Integração já configurada{% else %}Token permanente da Meta{% endif %}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-emerald-500">
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Phone Number ID
+                        <input type="password" name="whatsapp_phone_number_id" placeholder="ID do número no WhatsApp Manager" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-emerald-500">
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Template aprovado
+                        <input type="text" name="whatsapp_template_name" placeholder="Ex.: ph_digital_primeiro_contato" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-emerald-500">
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Idioma do template
+                        <input type="text" name="whatsapp_template_language" value="pt_BR" placeholder="pt_BR" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-emerald-500">
+                    </label>
+                </div>
+                <p class="mt-3 text-[11px] text-slate-500">A plataforma não tenta contornar as regras da Meta. Para primeiro contato, o template precisa estar aprovado e o uso deve respeitar consentimento e políticas aplicáveis.</p>
+            </div>
+
+            <hr class="border-[#1E293B]">
+
+            <div>
+                <h3 class="text-lg font-black text-white flex items-center mb-2">
                     <i class="fa-solid fa-gauge-high text-cyan-400 mr-3"></i> Pesos da Qualificação Comercial
                 </h3>
                 <p class="text-slate-400 text-xs mb-4">Os cinco pesos devem somar 100. A nota organiza a fila, mas não representa garantia de compra.</p>

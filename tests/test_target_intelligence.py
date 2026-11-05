@@ -170,7 +170,7 @@ class TargetIntelligenceTests(unittest.TestCase):
                 response = client.get("/api/sugerir_alvos?regiao=br")
                 self.assertEqual(200, response.status_code)
                 data = response.get_json()
-                self.assertEqual("6.0", data["engine_version"])
+                self.assertEqual("7.0", data["engine_version"])
                 self.assertEqual(3, len(data["nichos"]))
                 self.assertEqual(4, len(data["cidades"]))
                 self.assertEqual(12, data["total_combinacoes"])

@@ -1,0 +1,45 @@
+name: Deploy Oracle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-oracle-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+      ORACLE_USER: ${{ secrets.ORACLE_USER }}
+      ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+      ORACLE_APP_PATH: ${{ secrets.ORACLE_APP_PATH }}
+      ORACLE_SERVICE: ${{ secrets.ORACLE_SERVICE }}
+    steps:
+      - name: Informar configuração pendente
+        if: ${{ env.ORACLE_HOST == '' || env.ORACLE_USER == '' || env.ORACLE_SSH_KEY == '' }}
+        run: echo "Deploy não executado. Configure ORACLE_HOST, ORACLE_USER e ORACLE_SSH_KEY nos secrets do repositório."
+
+      - name: Atualizar servidor Oracle
+        if: ${{ env.ORACLE_HOST != '' && env.ORACLE_USER != '' && env.ORACLE_SSH_KEY != '' }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.ORACLE_HOST }}
+          username: ${{ env.ORACLE_USER }}
+          key: ${{ env.ORACLE_SSH_KEY }}
+          script_stop: true
+          envs: ORACLE_APP_PATH,ORACLE_SERVICE
+          script: |
+            set -eu
+            APP_PATH="${ORACLE_APP_PATH:-/home/ubuntu/gestaoLead}"
+            SERVICE="${ORACLE_SERVICE:-gestaolead}"
+            cd "$APP_PATH"
+            git pull --ff-only origin main
+            python3 -m pip install -r requirements.txt
+            python3 -m playwright install chromium
+            sudo systemctl restart "$SERVICE"
+            sleep 4
+            sudo systemctl is-active --quiet "$SERVICE"
