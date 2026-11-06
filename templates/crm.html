@@ -34,7 +34,7 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
                 </div>
-                <input type="text" id="filter_nome" value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none transition-all placeholder:text-slate-600" placeholder="Buscar por empresa...">
+                <input type="text" id="filter_nome" data-clearable value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none placeholder:text-slate-600" placeholder="Buscar por empresa..." aria-label="Buscar empresa no CRM">
             </div>
 
             <label class="w-full sm:w-32 text-[9px] font-black uppercase tracking-wide text-slate-500">Score mínimo
@@ -302,16 +302,18 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="px-6 py-16 text-center text-slate-400 bg-[#090D15]">
-                            <div class="bg-[#101524] w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[#1E293B] text-slate-500">
+                        <td colspan="6" class="px-6 py-10 text-center text-slate-400 bg-[#090D15]">
+                            <div class="ui-empty-state max-w-lg mx-auto">
+                            <div class="ui-empty-state__icon">
                                 <i class="fa-solid fa-inbox text-2xl"></i>
                             </div>
-                            <h4 class="text-white font-bold text-base mb-1">Nenhum Lead Encontrado</h4>
+                            <h4 class="text-white font-bold text-base">Nenhum lead encontrado</h4>
                             <p class="text-xs text-slate-500 max-w-sm mx-auto">Esta visão está sem registros. Inicie uma nova caça de empresas sem site no menu de prospecção.</p>
-                            <a href="/" class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black text-xs shadow-md shadow-blue-500/20">
+                            <a href="/" class="ui-button ui-button--primary">
                                 <span>Iniciar Prospecção</span>
                                 <i class="fa-solid fa-arrow-right"></i>
                             </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

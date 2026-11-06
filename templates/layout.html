@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR" class="dark">
+{% from "_icons.html" import icon %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +8,9 @@
     <title>GestãoLead PRO &bull; Inteligência & Prospecção B2B</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Plus Jakarta Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -17,7 +19,7 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         darkBg: '#080B11',
                         darkPanel: '#0F1523',
@@ -33,7 +35,7 @@
     </script>
     <style>
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: Inter, sans-serif;
             background: radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.08) 0%, transparent 35%), 
                         radial-gradient(circle at 90% 15%, rgba(6, 182, 212, 0.05) 0%, transparent 30%), 
                         #080B11;
@@ -45,7 +47,7 @@
         @media (max-width: 640px) {
             .text-\[9px\], .text-\[10px\] { font-size: 0.6875rem !important; }
         }
-        .sidebar-link { transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+        .sidebar-link { transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease; }
         .executive-panel {
             background: linear-gradient(180deg, #121827 0%, #0E1422 100%);
             border: 1px solid #1E293B;
@@ -70,25 +72,26 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
 </head>
-<body class="flex h-screen overflow-hidden antialiased bg-[#080B11] text-[#F1F5F9]">
+<body class="app-shell flex h-screen overflow-hidden antialiased text-[#F1F5F9]">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
 
     <!-- Overlay p/ Mobile -->
-    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/75 z-40 hidden md:hidden transition-opacity opacity-0 backdrop-blur-md"></div>
+    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/75 z-40 hidden md:hidden transition-opacity opacity-0"></div>
 
     <!-- Sidebar High-End Executive Dark -->
-    <aside id="sidebar" class="w-64 bg-[#0A0E18] border-r border-[#1A2338] flex flex-col h-screen transition-transform duration-300 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden shadow-2xl">
+    <aside id="sidebar" class="app-sidebar w-64 border-r flex flex-col h-screen transition-transform duration-200 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden" aria-label="Navegação principal">
         
         <!-- Fechar Mobile -->
         <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-4 text-slate-400 hover:text-white bg-[#131A2B] rounded-xl w-8 h-8 flex items-center justify-center border border-[#1F2B44]">
-            <i class="fa-solid fa-xmark"></i>
+            {{ icon('x', 'w-4 h-4') }}
         </button>
 
         <!-- Logo Executiva -->
         <div class="p-6 flex items-center mb-2 w-64 border-b border-[#1A2338]">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 text-white flex items-center justify-center font-black shadow-lg shadow-blue-500/20 mr-3 shrink-0">
-                <i class="fa-solid fa-crosshairs text-base"></i>
+            <div class="app-logo-mark w-10 h-10 rounded-xl text-white flex items-center justify-center font-black mr-3 shrink-0">
+                {{ icon('crosshair', 'w-5 h-5') }}
             </div>
             <div class="min-w-0">
                 <div class="text-lg font-black text-white tracking-tight leading-none flex items-center gap-1.5">
@@ -101,8 +104,8 @@
         
         <!-- Botão Principal Executivo -->
         <div class="px-4 mb-4 mt-2 w-64">
-            <a href="/" class="flex items-center justify-center gap-2.5 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-black py-3 px-4 rounded-xl shadow-lg shadow-blue-600/25 transition-all group whitespace-nowrap w-full active:scale-[0.98]">
-                <i class="fa-solid fa-radar group-hover:scale-110 transition-transform duration-200 text-cyan-200"></i>
+            <a href="/" class="app-primary-action flex items-center justify-center gap-2.5 text-white text-xs font-black py-3 px-4 rounded-xl group whitespace-nowrap w-full">
+                {{ icon('scan-search', 'w-4 h-4 text-blue-100') }}
                 <span class="tracking-wider">NOVA PROSPECÇÃO</span>
             </a>
         </div>
@@ -113,36 +116,36 @@
                 <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Workspace</span>
             </div>
             
-            <a href="/crm" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'inbox' %}bg-blue-600/15 text-white border-l-2 border-blue-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-paper-plane w-4 text-center {% if active_page == 'crm' and crm_view == 'inbox' %}text-cyan-400{% else %}text-slate-400{% endif %}"></i>
+            <a href="/crm" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'inbox' %}text-white{% else %}text-slate-300{% endif %}">
+                {{ icon('send', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'crm' and crm_view == 'inbox' else 'text-slate-400')) }}
                 A abordar
             </a>
 
-            <a href="/crm/contatados" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'contacted' %}bg-emerald-500/15 text-emerald-200 border-l-2 border-emerald-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-comments w-4 text-center {% if active_page == 'crm' and crm_view == 'contacted' %}text-emerald-400{% else %}text-slate-400{% endif %}"></i>
+            <a href="/crm/contatados" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'contacted' %}text-white{% else %}text-slate-300{% endif %}">
+                {{ icon('messages', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'crm' and crm_view == 'contacted' else 'text-slate-400')) }}
                 Contatados
             </a>
 
-            <a href="/crm/descartados" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'discarded' %}bg-rose-500/15 text-rose-300 border-l-2 border-rose-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-ban w-4 text-center {% if active_page == 'crm' and crm_view == 'discarded' %}text-rose-400{% else %}text-slate-400{% endif %}"></i>
+            <a href="/crm/descartados" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'discarded' %}text-white{% else %}text-slate-300{% endif %}">
+                {{ icon('ban', 'w-4 h-4 ' ~ ('text-rose-300' if active_page == 'crm' and crm_view == 'discarded' else 'text-slate-400')) }}
                 Descartados
             </a>
             
             <!-- Módulo de Estatísticas -->
-            <a href="/estatisticas" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'estatisticas' %}bg-blue-600/15 text-white border-l-2 border-blue-500 shadow-sm{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-chart-line w-4 text-center {% if active_page == 'estatisticas' %}text-cyan-400{% else %}text-slate-400{% endif %}"></i> 
+            <a href="/estatisticas" {% if active_page == 'estatisticas' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'estatisticas' %}text-white{% else %}text-slate-300{% endif %}">
+                {{ icon('chart', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'estatisticas' else 'text-slate-400')) }}
                 Performance & Métricas
             </a>
         </nav>
         
         <!-- Sessão Inferior -->
         <div class="p-3 mb-2 flex flex-col gap-1 w-64 border-t border-[#1A2338]">
-            <a href="/configuracoes" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'configuracoes' %}bg-blue-600/15 text-white border-l-2 border-blue-500{% else %}text-slate-300 hover:bg-[#121827] hover:text-white{% endif %}">
-                <i class="fa-solid fa-sliders w-4 text-center {% if active_page == 'configuracoes' %}text-cyan-400{% else %}text-slate-400{% endif %}"></i>
+            <a href="/configuracoes" {% if active_page == 'configuracoes' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'configuracoes' %}text-white{% else %}text-slate-300{% endif %}">
+                {{ icon('sliders', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'configuracoes' else 'text-slate-400')) }}
                 Configurações
             </a>
             <a href="/logout" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap text-rose-400 hover:bg-rose-500/10 hover:text-rose-300">
-                <i class="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
+                {{ icon('log-out', 'w-4 h-4') }}
                 Encerrar Sessão
             </a>
             <div class="py-2 px-3 text-[10px] text-slate-400 text-center whitespace-nowrap">
@@ -152,11 +155,11 @@
     </aside>
 
     <!-- Main Content Dark Executive Mode -->
-    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden bg-[#080B11] relative w-full">
+    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden relative w-full">
         <!-- Headerbar Glass -->
-        <header class="h-16 bg-[#0A0E18]/85 backdrop-blur-xl flex items-center px-4 md:px-8 border-b border-[#1A2338] sticky top-0 z-30 shadow-md">
+        <header class="app-header h-16 flex items-center px-4 md:px-8 border-b sticky top-0 z-30">
             <button onclick="toggleSidebar()" class="mr-3 md:hidden text-slate-400 hover:text-white hover:bg-[#131A2B] w-10 h-10 rounded-xl flex items-center justify-center transition-colors focus:outline-none border border-[#1F2B44]">
-                <i class="fa-solid fa-bars"></i>
+                {{ icon('menu', 'w-5 h-5') }}
             </button>
             <div class="flex-1 min-w-0">
                 <h2 class="text-base md:text-lg font-black text-white tracking-tight truncate">{% block header_title %}{% endblock %}</h2>
@@ -164,7 +167,7 @@
             <div class="flex items-center gap-3 shrink-0">
                 <!-- Status Badge -->
                 <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#101626] border border-[#1F2B44] text-[11px] font-bold text-slate-300">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                     <span>Radar Ativo</span>
                 </div>
                 
@@ -173,7 +176,7 @@
                         {{ (session.get('user', 'PL')[:2]).upper() }}
                     </div>
                     <span class="text-xs font-bold text-slate-200 hidden sm:inline">{{ session.get('user', 'Admin') }}</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 hidden sm:inline"></i>
+                    {{ icon('chevron-down', 'w-3 h-3 text-slate-400 hidden sm:block') }}
                 </a>
             </div>
         </header>
@@ -185,19 +188,19 @@
     </main>
 
     <!-- Toast Executivo -->
-    <div id="app-toast" class="fixed right-5 top-5 z-[70] hidden max-w-sm rounded-2xl border border-blue-500/30 bg-[#0E1524] p-4 text-xs text-white shadow-2xl backdrop-blur-xl" role="status">
+    <div id="app-toast" class="ui-toast fixed right-5 top-5 z-[70] hidden max-w-sm rounded-xl p-4 text-xs text-white" role="status" aria-live="polite" aria-atomic="true">
         <div class="flex items-start gap-3">
-            <i id="app-toast-icon" class="fa-solid fa-circle-check mt-0.5 text-cyan-400 text-sm"></i>
+            <span id="app-toast-icon" class="text-blue-300 font-black" aria-hidden="true">✓</span>
             <p id="app-toast-text" class="font-bold leading-relaxed text-slate-200"></p>
         </div>
     </div>
 
     <!-- Confirm Modal Executivo -->
-    <div id="app-confirm" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="app-confirm-title">
-        <div class="w-full max-w-md rounded-2xl border border-[#1F2B44] bg-[#0E1524] p-6 shadow-2xl">
+    <div id="app-confirm" class="ui-modal fixed inset-0 z-[80] hidden flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
+        <div class="ui-modal__panel w-full max-w-md rounded-2xl border border-[#2A2F38] bg-[#181B20] p-6 shadow-2xl">
             <div class="flex items-start gap-4">
                 <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-500/15 text-cyan-400 border border-blue-500/25">
-                    <i class="fa-solid fa-shield-halved text-base"></i>
+                    {{ icon('shield-check', 'w-5 h-5') }}
                 </div>
                 <div class="min-w-0">
                     <h3 id="app-confirm-title" class="text-base font-black text-white"></h3>
@@ -205,8 +208,8 @@
                 </div>
             </div>
             <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button id="app-confirm-cancel" class="rounded-xl border border-[#1F2B44] bg-[#121827] px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-[#182033] hover:text-white transition-colors">Voltar</button>
-                <button id="app-confirm-accept" class="rounded-xl px-4 py-2.5 text-xs font-black shadow-lg transition-all"></button>
+                <button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button>
+                <button id="app-confirm-accept" class="ui-button ui-button--primary"></button>
             </div>
         </div>
     </div>
@@ -277,6 +280,7 @@
             }
         }
     </script>
+    <script src="{{ url_for('static', filename='js/ui-system.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

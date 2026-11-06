@@ -10,7 +10,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] border border-[#1E293B] shadow-xl">
         <div class="space-y-1">
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                 <span class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">Terminal Analítico em Tempo Real</span>
             </div>
             <h1 class="text-2xl font-black text-white tracking-tight">Métricas de Prospecção & Conversão</h1>
@@ -30,11 +30,11 @@
     <!-- 4 KPI Cards Executivos -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <!-- KPI 1: Base Total -->
-        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+        <div class="ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Total de empresas armazenadas, incluindo registros fora da fila ativa.">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Base Mapeada</span>
-                    <span class="text-3xl font-black text-white mt-1 block">{{ total }}</span>
+                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ total }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-cyan-400 shrink-0">
                     <i class="fa-solid fa-database text-sm"></i>
@@ -50,11 +50,11 @@
         </div>
 
         <!-- KPI 2: Alvo Puro Sem Site -->
-        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+        <div class="ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Empresas cuja evidência disponível indica oportunidade de criação de site.">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Alvos Sem Site</span>
-                    <span class="text-3xl font-black text-cyan-300 mt-1 block">{{ sem_site }}</span>
+                    <span class="text-3xl font-black text-blue-300 mt-1 block" data-metric>{{ sem_site }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
                     <i class="fa-solid fa-bullseye text-sm"></i>
@@ -70,11 +70,11 @@
         </div>
 
         <!-- KPI 3: Contato Imediato WhatsApp -->
-        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+        <div class="ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Leads com um canal público compatível com abordagem por WhatsApp.">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Canais c/ WhatsApp</span>
-                    <span class="text-3xl font-black text-white mt-1 block">{{ whats }}</span>
+                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ whats }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                     <i class="fa-solid fa-comment-dots text-sm"></i>
@@ -90,11 +90,11 @@
         </div>
 
         <!-- KPI 4: Conversão em Negociação & Fechamento -->
-        <div class="p-6 rounded-2xl bg-[#0F1524] border border-[#1E293B] shadow-xl relative overflow-hidden group hover:border-cyan-500/40 transition-all">
+        <div class="ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Soma dos leads em conversa comercial e contratos marcados como fechados.">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Negociações & Fechados</span>
-                    <span class="text-3xl font-black text-white mt-1 block">{{ em_negociacao + fechados }}</span>
+                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ em_negociacao + fechados }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-cyan-300 shrink-0">
                     <i class="fa-solid fa-handshake-simple text-sm"></i>
@@ -388,11 +388,11 @@
                 x: {
                     beginAtZero: true,
                     grid: { color: 'rgba(30, 41, 59, 0.4)' },
-                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                    ticks: { color: '#94A3B8', font: { family: 'Inter', size: 11, weight: 'bold' } }
                 },
                 y: {
                     grid: { display: false },
-                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                    ticks: { color: '#E2E8F0', font: { family: 'Inter', size: 11, weight: 'bold' } }
                 }
             }
         }
@@ -435,7 +435,7 @@
                         usePointStyle: true,
                         boxWidth: 8,
                         padding: 12,
-                        font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' }
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
                     }
                 },
                 tooltip: {
@@ -494,11 +494,11 @@
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(30, 41, 59, 0.4)' },
-                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                    ticks: { color: '#94A3B8', font: { family: 'Inter', size: 11, weight: 'bold' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                    ticks: { color: '#E2E8F0', font: { family: 'Inter', size: 11, weight: 'bold' } }
                 }
             }
         }
@@ -538,11 +538,11 @@
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(30, 41, 59, 0.4)' },
-                    ticks: { color: '#94A3B8', font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' } }
+                    ticks: { color: '#94A3B8', font: { family: 'Inter', size: 11, weight: 'bold' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#E2E8F0', font: { family: 'Plus Jakarta Sans', size: 10, weight: 'bold' } }
+                    ticks: { color: '#E2E8F0', font: { family: 'Inter', size: 10, weight: 'bold' } }
                 }
             }
         }

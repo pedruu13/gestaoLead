@@ -16,6 +16,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1E293B] pb-6">
             <div>
                 <div class="flex items-center gap-3">
+                    <span id="monitor_activity" class="ui-loader" aria-hidden="true"></span>
                     <span class="text-xs font-medium text-slate-400">Campanha atual</span>
                     <span id="monitor_status_badge" class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide border">
                         Preparando
@@ -201,7 +202,7 @@
                     <label class="block text-[11px] font-bold text-slate-300">
                         Pesquisar municípios pelo nome:
                         <div class="relative mt-1.5">
-                            <input id="city_autocomplete_input" type="text" autocomplete="off" placeholder="Digite o nome da cidade (ex.: Campinas, Maringá, Sorocaba)..." class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
+                            <input id="city_autocomplete_input" data-clearable type="text" autocomplete="off" placeholder="Digite o nome da cidade (ex.: Campinas, Maringá, Sorocaba)..." class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400" aria-label="Buscar município">
                             <div id="city_autocomplete_results" class="hidden absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-xl border border-[#1F2B44] bg-[#0A0E18] p-1 shadow-2xl"></div>
                         </div>
                     </label>
@@ -278,7 +279,7 @@
                             Digite ou adicione nichos personalizados:
                         </label>
                         <div class="flex gap-2">
-                            <input id="manual_niche_input" type="text" placeholder="Ex.: Clínicas Veterinárias, Construtoras..." class="flex-1 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
+                            <input id="manual_niche_input" data-clearable type="text" placeholder="Ex.: Clínicas Veterinárias, Construtoras..." class="flex-1 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400" aria-label="Adicionar nicho manualmente">
                             <button type="button" onclick="addCustomNiche()" class="rounded-xl bg-[#1A2338] hover:bg-[#253350] border border-[#263550] text-white text-xs font-bold px-4 py-2.5 transition-colors">
                                 Adicionar
                             </button>
@@ -448,9 +449,9 @@
 
 <style>
     .campaign-page {
-        --campaign-accent: #22c55e;
-        --campaign-border: #252b36;
-        --campaign-surface: #11151c;
+        --campaign-accent: #60A5FA;
+        --campaign-border: #2A2F38;
+        --campaign-surface: #181B20;
     }
     .campaign-hero,
     .campaign-panel {
@@ -460,17 +461,17 @@
     }
     .campaign-kicker {
         margin-bottom: 0.5rem;
-        color: #86efac;
+        color: #93C5FD;
         font-size: 0.72rem;
         font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
     .campaign-primary-button {
-        background: #168a45;
+        background: #3B82F6;
     }
     .campaign-primary-button:hover {
-        background: #1a9b50;
+        background: #4A8FF0;
     }
     .campaign-progress {
         background: var(--campaign-accent);
@@ -489,16 +490,16 @@
         border-radius: 0.75rem;
         background: #0d1117;
         cursor: pointer;
-        transition: all 0.18s ease;
+        transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
     }
     .decision-card:hover {
         border-color: #3c4656;
         background: #121821;
     }
     .decision-card.selected {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.07);
-        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
+        border-color: #60A5FA;
+        background: rgba(96, 165, 250, 0.08);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.16);
     }
     .decision-icon {
         width: 2.2rem;
@@ -510,10 +511,10 @@
         place-items: center;
         flex-shrink: 0;
         font-size: 0.95rem;
-        transition: all 0.18s ease;
+        transition: color 0.2s ease, background-color 0.2s ease;
     }
     .decision-card.selected .decision-icon {
-        background: #168a45;
+        background: #3B82F6;
         color: #ffffff;
     }
 
@@ -524,15 +525,15 @@
         background: #080B12;
         text-align: center;
         cursor: pointer;
-        transition: all 0.18s ease;
+        transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
     }
     .meta-card:hover {
         border-color: #3c4656;
     }
     .meta-card.selected {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.07);
-        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
+        border-color: #60A5FA;
+        background: rgba(96, 165, 250, 0.08);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.16);
     }
 
     .state-pill {
@@ -544,16 +545,16 @@
         font-size: 0.75rem;
         font-weight: 700;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
     }
     .state-pill:hover {
         border-color: #64748b;
         color: #ffffff;
     }
     .state-pill.active {
-        border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.12);
-        color: #86efac;
+        border-color: #60A5FA;
+        background: rgba(96, 165, 250, 0.12);
+        color: #BFDBFE;
     }
 
     .selected-tag {
@@ -597,12 +598,12 @@
         place-items: center;
         font-size: 0.7rem;
         color: transparent;
-        transition: all 0.15s ease;
+        transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
     }
     .filter-option:has(input:checked) .filter-box {
-        background: #22c55e;
-        border-color: #22c55e;
-        color: #07110a;
+        background: #60A5FA;
+        border-color: #60A5FA;
+        color: #0F1115;
     }
 </style>
 {% endblock %}
@@ -856,9 +857,7 @@
         };
 
         const btn = document.getElementById('btn_start_campaign');
-        btn.disabled = true;
-        btn.classList.add('opacity-60', 'cursor-not-allowed');
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Preparando busca...';
+        GestaoLeadUI.setButtonLoading(btn, true, 'Preparando busca...');
 
         try {
             const res = await fetch('/api/smart-campaigns', {
@@ -881,9 +880,7 @@
         } catch (error) {
             showAppToast(error.message || 'Erro ao iniciar campanha.', 'error');
         } finally {
-            btn.disabled = false;
-            btn.classList.remove('opacity-60', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass mr-2"></i>Iniciar busca';
+            GestaoLeadUI.setButtonLoading(btn, false);
         }
     }
 
@@ -933,6 +930,7 @@
 
         // Botões de Ação
         const isRunning = camp.status === 'running' || camp.status === 'pending';
+        document.getElementById('monitor_activity').classList.toggle('hidden', !isRunning);
         const isPaused = camp.status === 'paused' || camp.status === 'interrupted';
         document.getElementById('btn_pause_campaign').classList.toggle('hidden', !isRunning);
         document.getElementById('btn_resume_campaign').classList.toggle('hidden', !isPaused);
@@ -956,7 +954,7 @@
                         <strong class="text-white text-xs">${escapeHtml(loc.municipality_name)} - ${escapeHtml(loc.uf)}</strong>
                         <span class="text-slate-500 text-[10px] ml-2">${loc.businesses_found || 0} encontradas · ${loc.qualified_leads || 0} qualificados</span>
                     </div>
-                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${loc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-300' : loc.status === 'running' ? 'bg-cyan-500/10 text-cyan-300 animate-pulse' : 'bg-slate-500/10 text-slate-400'}">
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${loc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-300' : loc.status === 'running' ? 'bg-blue-500/10 text-blue-300' : 'bg-slate-500/10 text-slate-400'}">
                         ${escapeHtml(loc.status)}
                     </span>
                 </div>
