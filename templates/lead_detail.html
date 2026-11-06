@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "_components.html" import company_avatar, copy_button %}
 {% set active_page = 'crm' %}
 {% block header_title %}Inteligência Comercial{% endblock %}
 {% block content %}
@@ -7,10 +8,10 @@
         <div>
             <a href="/crm" class="text-xs font-bold text-cyan-400 hover:text-cyan-300"><i class="fa-solid fa-arrow-left mr-2"></i>Voltar ao pipeline</a>
             <div class="mt-4 flex flex-wrap items-center gap-3">
-                <h1 class="text-3xl font-black tracking-tight text-white">{{ lead.nome }}</h1>
+                {{ company_avatar(lead.nome, 'lg') }}
+                <div><h1 class="text-3xl font-black tracking-tight text-white">{{ lead.nome }}</h1><p class="mt-1 text-sm text-slate-400">{{ lead.nicho }}{% if lead.bairro %} · {{ lead.bairro }}{% endif %}</p></div>
                 <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-300">{{ lead.faixa_potencial or 'Em análise' }}</span>
             </div>
-            <p class="mt-2 text-sm text-slate-400">{{ lead.nicho }}{% if lead.bairro %} · {{ lead.bairro }}{% endif %}</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <button onclick="regenerarPitches()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-arrows-rotate mr-2 text-cyan-400"></i>Regenerar pitches</button>
@@ -60,7 +61,7 @@
         </div>
     </section>
 
-    <div class="grid gap-6 xl:grid-cols-[0.9fr_1.4fr]">
+    <div class="commercial-workbench grid gap-6 xl:grid-cols-[0.82fr_1.5fr]">
         <div class="space-y-6">
             <section class="executive-panel rounded-2xl p-6">
                 <h2 class="text-sm font-black uppercase tracking-widest text-white">Diagnóstico</h2>
@@ -91,8 +92,8 @@
                 <h2 class="text-sm font-black uppercase tracking-widest text-white">Canais e fontes</h2>
                 <div class="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs font-bold text-cyan-200">{{ lead.contact_strategy.label }}: {{ lead.contact_strategy.reason }}</div>
                 <div class="mt-4 grid gap-2 text-xs">
-                    {% if lead.telefone %}<div class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-phone mr-2 text-cyan-400"></i>{{ lead.telefone }}</div>{% endif %}
-                    {% if lead.email %}<a href="mailto:{{ lead.email }}" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-envelope mr-2 text-cyan-400"></i>{{ lead.email }}</a>{% endif %}
+                    {% if lead.telefone %}<div class="contact-line"><span><i class="fa-solid fa-phone"></i>{{ lead.telefone }}</span>{{ copy_button(lead.telefone, 'Copiar telefone') }}</div>{% endif %}
+                    {% if lead.email %}<div class="contact-line"><a href="mailto:{{ lead.email }}"><i class="fa-solid fa-envelope"></i>{{ lead.email }}</a>{{ copy_button(lead.email, 'Copiar e-mail') }}</div>{% endif %}
                     {% if lead.google_maps %}<a href="{{ lead.google_maps }}" target="_blank" rel="noopener" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-map-location-dot mr-2 text-cyan-400"></i>Perfil no Google</a>{% endif %}
                 </div>
             </section>
@@ -100,11 +101,11 @@
 
         <section class="executive-panel message-studio rounded-2xl">
             <div class="message-studio-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Pitches revisáveis</h2><p class="mt-1 text-xs text-slate-500">Edite antes de copiar ou abrir o WhatsApp.</p></div>
+                <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Mensagens para abordagem</h2><p class="mt-1 text-xs text-slate-500">Três caminhos curtos, baseados no diagnóstico disponível.</p></div>
                 {% if lead.qualidade_pitch %}<span class="rounded-full px-3 py-1 text-[10px] font-black {{ 'bg-emerald-500/10 text-emerald-300' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300' }}">Qualidade {{ lead.qualidade_pitch.score or 0 }}/100</span>{% endif %}
             </div>
             <div class="message-variants">
-                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('recepcao','Recepção')] %}
+                {% for mode, label in [('direta','Direta'),('consultiva','Consultiva'),('curiosidade','Curiosidade')] %}
                 <article class="message-variant">
                     <div class="message-variant-head"><h3>{{ label }}</h3><button type="button" class="message-copy" onclick="copyPitchMode('{{ mode }}', this)" aria-label="Copiar mensagem {{ label }}" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button></div>
                     <p>{{ lead.copies_pitch.get(mode) or 'Mensagem ainda não disponível para este lead.' }}</p>
@@ -113,7 +114,7 @@
             </div>
             <div class="message-editor">
             <div id="pitch-tabs" class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('personalizada','Personalizada'),('recepcao','Recepção/agendamento'),('email','E-mail'),('previa_visual','Prévia visual')] %}
+                {% for mode, label in [('direta','Direta'),('consultiva','Consultiva'),('curiosidade','Curiosidade'),('recepcao','Recepção/agendamento'),('email','E-mail'),('previa_visual','Prévia visual')] %}
                 <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#263550] bg-[#0B1120] px-3 py-3 text-[10px] font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Gere uma prévia para liberar esta abordagem"{% endif %}>{{ label }}</button>
                 {% endfor %}
             </div>

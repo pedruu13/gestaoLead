@@ -1976,6 +1976,7 @@ def estatisticas():
     contato_feito = sum(1 for lead in leads if lead.get("commercial_outcome") in commercial_outcomes)
     responderam = sum(1 for lead in leads if lead.get("commercial_outcome") in positive_outcomes)
     interessados = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado"})
+    reunioes = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Reunião agendada", "Proposta enviada", "Contrato fechado"})
     propostas = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Proposta enviada", "Contrato fechado"})
     qualificados = sum(1 for l in leads if l.get("faixa_potencial") == "Prioridade")
     descartados = sum(1 for l in leads if l.get("status") == "Descartado")
@@ -2058,6 +2059,7 @@ def estatisticas():
         contato_feito=contato_feito,
         responderam=responderam,
         interessados=interessados,
+        reunioes=reunioes,
         propostas=propostas,
         qualificados=qualificados,
         descartados=descartados,

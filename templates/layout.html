@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}};</script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261106-r2') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261106-r2') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261106-r3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261106-r3') }}">
 </head>
 <body class="gl-app">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
@@ -51,13 +51,29 @@
         <header class="gl-topbar">
             <button type="button" class="gl-icon-button gl-menu-button" onclick="toggleSidebar()" aria-label="Abrir menu">{{ icon('menu', 'w-5 h-5') }}</button>
             <div class="gl-page-heading"><span>GestãoLead</span><i>/</i><strong>{% block header_title %}{% endblock %}</strong></div>
-            <div class="gl-topbar-actions"><span class="gl-system-status"><i></i>Sistema operacional</span><a href="/" class="gl-topbar-cta">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova busca</span></a></div>
+            <button type="button" class="gl-global-search" data-command-open aria-label="Abrir busca global">
+                {{ icon('scan-search', 'w-4 h-4') }}<span>Buscar ou navegar</span><kbd>Ctrl K</kbd>
+            </button>
+            <div class="gl-topbar-actions"><span class="gl-system-status"><i></i>Operacional</span><a href="/" class="gl-topbar-cta">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova busca</span></a></div>
         </header>
         <main id="main-content" class="gl-main" tabindex="-1">{% block content %}{% endblock %}</main>
     </div>
     <div id="app-toast" class="ui-toast gl-toast hidden" role="status" aria-live="polite" aria-atomic="true"><span id="app-toast-icon" class="gl-toast-icon" aria-hidden="true">✓</span><p id="app-toast-text"></p></div>
     <div id="app-confirm" class="ui-modal gl-confirm hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
         <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" class="ui-button ui-button--primary"></button></div></div>
+    </div>
+    <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="command-title">
+        <div class="command-palette__panel">
+            <div class="command-palette__search">{{ icon('scan-search', 'w-5 h-5') }}<input id="command-input" type="search" placeholder="Buscar página ou ação" autocomplete="off"><kbd>Esc</kbd></div>
+            <div class="command-palette__body">
+                <span id="command-title">Navegação rápida</span>
+                <a href="/" data-command-item><strong>Nova prospecção</strong><small>Definir região, nicho e meta</small><kbd>N</kbd></a>
+                <a href="/crm" data-command-item><strong>Leads para abordar</strong><small>Abrir fila comercial</small><kbd>G A</kbd></a>
+                <a href="/crm/contatados" data-command-item><strong>Contatados</strong><small>Acompanhar conversas e retornos</small><kbd>G C</kbd></a>
+                <a href="/estatisticas" data-command-item><strong>Performance</strong><small>Ver métricas reais da operação</small><kbd>G P</kbd></a>
+                <a href="/configuracoes" data-command-item><strong>Configurações</strong><small>Integrações e preferências</small><kbd>G S</kbd></a>
+            </div>
+        </div>
     </div>
     <script>
         const nativeFetch=window.fetch.bind(window);
@@ -66,7 +82,7 @@
         function toggleSidebar(){const open=document.body.classList.toggle('sidebar-mobile-open');document.getElementById('mobile-overlay').setAttribute('aria-hidden',String(!open));}
         function toggleSidebarCollapse(){const collapsed=document.body.classList.toggle('sidebar-collapsed');localStorage.setItem('gestaolead:sidebar-collapsed',String(collapsed));document.getElementById('sidebar-collapse').setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');}
     </script>
-    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261106-r2') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261106-r3') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

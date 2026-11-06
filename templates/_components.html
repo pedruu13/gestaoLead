@@ -1,0 +1,21 @@
+{% macro company_avatar(name, size='md') -%}
+{% set clean_name = (name or 'Empresa')|trim %}
+{% set words = clean_name.split() %}
+{% set initials = ((words[0][0] if words else 'E') ~ (words[1][0] if words|length > 1 else ''))|upper %}
+<span class="company-avatar company-avatar--{{ size }}" aria-hidden="true">{{ initials }}</span>
+{%- endmacro %}
+
+{% macro copy_button(value, label='Copiar') -%}
+<button type="button" class="copy-button" data-copy-value="{{ value|e }}" aria-label="{{ label }}" data-tooltip="{{ label }}">
+    <span class="copy-button__idle"><i class="fa-regular fa-copy" aria-hidden="true"></i></span>
+    <span class="copy-button__done"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+</button>
+{%- endmacro %}
+
+{% macro metric_item(label, value, detail='', tone='default') -%}
+<article class="metric-item metric-item--{{ tone }}">
+    <span class="metric-item__label">{{ label }}</span>
+    <strong class="metric-item__value" data-metric>{{ value }}</strong>
+    {% if detail %}<small class="metric-item__detail">{{ detail }}</small>{% endif %}
+</article>
+{%- endmacro %}

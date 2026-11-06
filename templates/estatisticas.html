@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "_components.html" import metric_item %}
 {% set active_page = "estatisticas" %}
 {% block header_title %}Performance & Inteligência de Mercado{% endblock %}
 
@@ -6,125 +7,21 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="analytics-page pb-12">
-    <!-- Topo Executivo do Dashboard -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] border border-[#1E293B] shadow-xl">
-        <div class="space-y-1">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-300">Performance comercial</span>
-            </div>
-            <h1 class="text-2xl font-semibold text-white tracking-tight">Prospecção e conversão</h1>
-            <p class="text-xs text-slate-400">Acompanhe a qualidade da base, o andamento dos contatos e os mercados com melhor resposta.</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <div class="px-4 py-2 rounded-xl bg-[#131A2B] border border-[#1F2B44] text-right">
-                <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Taxa de Oportunidade</span>
-                <span class="text-base font-black text-cyan-300">{{ taxa_sem_site }}% sem site</span>
-            </div>
-            <a href="/export/csv" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-black shadow-lg shadow-blue-500/20 transition-all">
-                <i class="fa-solid fa-cloud-arrow-down"></i> Exportar Dados
-            </a>
-        </div>
-    </div>
+    <header class="analytics-header">
+        <div><span>Visão comercial</span><h1>Operação em números</h1><p>Métricas reais da descoberta até o fechamento, sem estimativas inventadas.</p></div>
+        <div class="analytics-header__actions"><span><i></i>Dados atualizados</span><a href="/export/csv"><i class="fa-solid fa-arrow-down"></i>Exportar CSV</a></div>
+    </header>
 
-    <!-- 4 KPI Cards Executivos -->
-    <div class="analytics-kpi-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <!-- KPI 1: Base Total -->
-        <div class="analytics-kpi ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Total de empresas armazenadas, incluindo registros fora da fila ativa.">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Base Mapeada</span>
-                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ total }}</span>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                    <i class="fa-solid fa-database text-sm"></i>
-                </div>
-            </div>
-            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
-                <span class="text-slate-400">Ativos no funil</span>
-                <span class="font-bold text-slate-200">{{ total - descartados }} empresas</span>
-            </div>
-            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-full" style="width: 100%"></div>
-            </div>
-        </div>
-
-        <!-- KPI 2: Alvo Puro Sem Site -->
-        <div class="analytics-kpi ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Empresas cuja evidência disponível indica oportunidade de criação de site.">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Alvos Sem Site</span>
-                    <span class="text-3xl font-black text-blue-300 mt-1 block" data-metric>{{ sem_site }}</span>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                    <i class="fa-solid fa-bullseye text-sm"></i>
-                </div>
-            </div>
-            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
-                <span class="text-slate-400">Penetração de Oportunidade</span>
-                <span class="font-bold text-cyan-400">{{ taxa_sem_site }}% da base</span>
-            </div>
-            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
-                <div class="bg-cyan-400 h-full rounded-full" style="width: {{ taxa_sem_site }}%"></div>
-            </div>
-        </div>
-
-        <!-- KPI 3: Contato Imediato WhatsApp -->
-        <div class="analytics-kpi ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Leads com um canal público compatível com abordagem por WhatsApp.">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Canais c/ WhatsApp</span>
-                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ whats }}</span>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                    <i class="fa-solid fa-comment-dots text-sm"></i>
-                </div>
-            </div>
-            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
-                <span class="text-slate-400">Eficiência de Contato</span>
-                <span class="font-bold text-blue-300">{{ taxa_whats }}% elegíveis</span>
-            </div>
-            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
-                <div class="bg-blue-500 h-full rounded-full" style="width: {{ taxa_whats }}%"></div>
-            </div>
-        </div>
-
-        <!-- KPI 4: Conversão em Negociação & Fechamento -->
-        <div class="analytics-kpi ui-panel p-6 rounded-2xl relative overflow-hidden group" data-tooltip="Soma dos leads em conversa comercial e contratos marcados como fechados.">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Negociações & Fechados</span>
-                    <span class="text-3xl font-black text-white mt-1 block" data-metric>{{ em_negociacao + fechados }}</span>
-                </div>
-                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-cyan-300 shrink-0">
-                    <i class="fa-solid fa-handshake-simple text-sm"></i>
-                </div>
-            </div>
-            <div class="flex items-center justify-between text-xs pt-3 border-t border-[#1A2338]">
-                <span class="text-slate-400">Fechados Definidos</span>
-                <span class="font-bold text-cyan-300">{{ fechados }} contratos</span>
-            </div>
-            <div class="w-full bg-[#1A2338] h-1.5 rounded-full mt-3 overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full" style="width: {{ taxa_fechamento }}%"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        {% for label, value, detail in [
-            ('Qualificados', qualificados, 'fila Prioridade'),
-            ('Taxa de resposta', taxa_resposta|string + '%', responderam|string + ' respostas'),
-            ('Taxa de interesse', taxa_interesse|string + '%', interessados|string + ' interessados'),
-            ('Taxa de proposta', taxa_proposta|string + '%', propostas|string + ' propostas'),
-            ('Conversão após contato', taxa_conversao_contato|string + '%', fechados|string + ' fechados')
-        ] %}
-        <div class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-4">
-            <span class="text-[9px] font-black uppercase tracking-widest text-slate-500">{{ label }}</span>
-            <strong class="mt-2 block text-2xl text-white">{{ value }}</strong>
-            <span class="mt-1 block text-[10px] text-cyan-300">{{ detail }}</span>
-        </div>
-        {% endfor %}
-    </div>
+    <section class="metrics-rail analytics-kpi-grid" aria-label="Indicadores comerciais">
+        {{ metric_item('Leads encontrados', total, (total - descartados)|string + ' ativos') }}
+        {{ metric_item('Qualificados', qualificados, 'fila Prioridade', 'accent') }}
+        {{ metric_item('Contatados', contato_feito, taxa_resposta|string + '% responderam') }}
+        {{ metric_item('Respostas', responderam, interessados|string + ' com interesse') }}
+        {{ metric_item('Reuniões', reunioes, 'resultado registrado') }}
+        {{ metric_item('Taxa de proposta', propostas, taxa_proposta|string + '% dos interessados') }}
+        {{ metric_item('Vendas', fechados, taxa_conversao_contato|string + '% após contato', 'success') }}
+        {{ metric_item('Sem site validado', sem_site, taxa_sem_site|string + '% da base', 'accent') }}
+    </section>
 
     <section class="rounded-2xl border border-[#1E293B] bg-[#0E1422] p-5 shadow-xl md:p-6">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

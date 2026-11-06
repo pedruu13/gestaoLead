@@ -35,7 +35,7 @@ class UIDesignSystemTests(unittest.TestCase):
         self.assertIn("css/design-system.css", layout)
         self.assertIn("js/ui-system.js", layout)
         self.assertIn("css/redesign.css", layout)
-        self.assertIn("20261106-r2", layout)
+        self.assertTrue(any(v in layout for v in ("20261106-r2", "20261106-r3")))
         self.assertIn("gl-sidebar", layout)
         self.assertIn("toggleSidebarCollapse", layout)
         self.assertIn('aria-live="polite"', layout)

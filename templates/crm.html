@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "_components.html" import company_avatar %}
 {% set active_page = "crm" %}
 {% block header_title %}{% if crm_view == 'inbox' %}Leads para abordar{% elif crm_view == 'contacted' %}Contatos em andamento{% else %}Leads descartados{% endif %}{% endblock %}
 
@@ -225,10 +226,12 @@
                     {% for lead in leads %}
                     <tr class="lead-item hover:bg-[#121828] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}" data-site-opportunity="{{ lead.site_opportunity_status }}" data-quality="{{ lead.data_quality_status }}">
                         <td class="px-6 py-4">
-                            <div class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">{{ lead.nome }}</div>
-                            <div class="text-xs text-slate-400 mt-0.5 truncate max-w-[220px] flex items-center gap-1">
-                                <i class="fa-solid fa-location-dot text-slate-600 text-[10px]"></i>
-                                <span>{{ lead.bairro }}</span>
+                            <div class="lead-company">
+                                {{ company_avatar(lead.nome) }}
+                                <div class="lead-company__copy">
+                                    <strong>{{ lead.nome }}</strong>
+                                    <span>{{ lead.bairro }}</span>
+                                </div>
                             </div>
                         </td>
                         <td class="px-6 py-4">
@@ -243,7 +246,7 @@
                                 {% if lead.nota and lead.nota not in ('0', '0.0', '0,0') %}<span class="mr-1.5">{{ lead.nota }}</span><i class="fa-solid fa-star text-[10px] text-cyan-400"></i>{% else %}<span class="text-slate-500">Não coletada</span>{% endif %}
                             </div>
                             {% if lead.potencial is not none %}
-                            <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}">
+                            <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}" data-tooltip="{{ lead.motivo_potencial or 'Pontuação heurística de priorização; não é probabilidade de compra.' }}">
                                 <i class="fa-solid fa-gem"></i> {{ lead.faixa_potencial }} · {{ lead.potencial }}/100
                             </div>
                             {% endif %}
