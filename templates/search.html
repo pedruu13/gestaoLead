@@ -1,52 +1,28 @@
 {% extends "layout.html" %}
-{% block header_title %}Nova Campanha Inteligente{% endblock %}
+{% block header_title %}Campanhas{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto pb-16 space-y-8">
-    <!-- Hero Banner Executivo -->
-    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0F1626] to-[#0A0E18] text-white border border-[#1E293B] shadow-2xl p-6 md:p-10">
-        <div class="absolute -top-24 -right-12 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-28 left-1/3 w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none"></div>
-        <div class="relative grid lg:grid-cols-[1fr_auto] gap-6 items-end">
-            <div>
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/20 text-cyan-300 text-[11px] font-black uppercase tracking-wider mb-3">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                    <span>Prospecção Autônoma B2B</span>
-                </div>
-                <h1 class="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
-                    Nova Campanha Inteligente
-                </h1>
-                <p class="text-slate-400 mt-3 max-w-2xl text-xs md:text-sm leading-relaxed">
-                    Encontre empresas com potencial de contratar seus serviços, sem precisar escolher cidades ou nichos manualmente.
-                </p>
-            </div>
-            <div class="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto">
-                <div class="flex-1 lg:w-44 rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
-                    <i class="fa-solid fa-wand-magic-sparkles text-cyan-400 mb-1.5 block text-base"></i>
-                    <strong class="block text-xs font-black text-white">3 DECISÕES</strong>
-                    <span class="text-[10px] text-slate-400">Local, nicho e meta</span>
-                </div>
-                <div class="flex-1 lg:w-44 rounded-2xl p-4 bg-[#111728] border border-[#1F2B44] shadow-md">
-                    <i class="fa-solid fa-bullseye text-blue-400 mb-1.5 block text-base"></i>
-                    <strong class="block text-xs font-black text-white">QUALIFICAÇÃO REAL</strong>
-                    <span class="text-[10px] text-slate-400">Score &ge; 70 com evidências</span>
-                </div>
-            </div>
-        </div>
+<div class="campaign-page max-w-5xl mx-auto pb-16 space-y-6">
+    <section class="campaign-hero rounded-2xl border p-6 md:p-8">
+        <p class="campaign-kicker">Prospecção</p>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">Buscar novos leads</h1>
+        <p class="text-slate-400 mt-2 max-w-2xl text-sm leading-relaxed">
+            Defina a região, o segmento e a quantidade desejada. A campanha registra cada consulta e mostra com clareza o que foi encontrado.
+        </p>
     </section>
 
     <!-- PAINEL DE ACOMPANHAMENTO (Tempo Real) -->
-    <section id="campaign_monitor" class="hidden rounded-3xl bg-[#0A0E18] border border-[#1E293B] text-white p-6 md:p-8 shadow-2xl space-y-6" aria-live="polite">
+    <section id="campaign_monitor" class="hidden campaign-panel rounded-2xl border text-white p-5 md:p-6 space-y-5" aria-live="polite">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1E293B] pb-6">
             <div>
                 <div class="flex items-center gap-3">
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Campanha em Andamento</span>
+                    <span class="text-xs font-medium text-slate-400">Campanha atual</span>
                     <span id="monitor_status_badge" class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide border">
                         Preparando
                     </span>
                 </div>
                 <h2 id="monitor_campaign_name" class="text-xl md:text-2xl font-black text-white mt-1">
-                    Campanha Inteligente #--
+                    Campanha #--
                 </h2>
                 <p id="monitor_campaign_subtitle" class="text-xs text-slate-400 mt-0.5">
                     Processando regiões e qualificando leads no banco de dados.
@@ -62,7 +38,7 @@
                 <button id="btn_cancel_campaign" type="button" onclick="handleCampaignAction('cancel')" class="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20 transition-all">
                     <i class="fa-solid fa-stop"></i> Cancelar
                 </button>
-                <a href="/crm" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-xs font-black text-white hover:opacity-90 shadow-lg shadow-blue-500/20 transition-all">
+                <a href="/crm" class="campaign-primary-button inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-colors">
                     <i class="fa-solid fa-users"></i> Visualizar leads
                 </a>
             </div>
@@ -81,8 +57,8 @@
                     Meta: 100 leads qualificados
                 </span>
             </div>
-            <div class="h-3 w-full rounded-full bg-[#080B12] overflow-hidden border border-[#1F2B44]">
-                <div id="monitor_progress_bar" class="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400 transition-all duration-500" style="width: 0%"></div>
+            <div class="h-2 w-full rounded-full bg-[#141820] overflow-hidden">
+                <div id="monitor_progress_bar" class="campaign-progress h-full rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
             <p id="monitor_status_hint" class="text-[11px] text-slate-400 flex items-center gap-2">
                 <i class="fa-solid fa-circle-notch fa-spin text-cyan-400 text-xs"></i>
@@ -91,36 +67,36 @@
         </div>
 
         <!-- Grid de Indicadores Detalhados -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            <div class="rounded-2xl bg-[#0E1422] border border-cyan-500/30 p-3.5 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="hidden rounded-xl bg-[#0E1422] border border-[#242a35] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-cyan-300 font-extrabold">Meta Leads</span>
                 <strong id="stat_meta" class="text-xl font-black text-white mt-0.5 block">100</strong>
             </div>
-            <div class="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 text-center">
+            <div class="metric-card rounded-xl border p-3.5">
                 <span class="block text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">Qualificados</span>
                 <strong id="stat_qualificados" class="text-xl font-black text-emerald-300 mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="metric-card rounded-xl border p-3.5">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Encontradas</span>
                 <strong id="stat_encontradas" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Analisadas</span>
                 <strong id="stat_analisadas" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Descartadas</span>
                 <strong id="stat_descartadas" class="text-xl font-black text-rose-300 mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Nichos</span>
                 <strong id="stat_nichos" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="metric-card rounded-xl border p-3.5">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Municípios</span>
                 <strong id="stat_municipios" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="metric-card rounded-xl border p-3.5">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Consultas</span>
                 <strong id="stat_consultas" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
@@ -140,12 +116,10 @@
         </details>
     </section>
 
-    <!-- FORMULÁRIO PRINCIPAL: 3 DECISÕES ESSENCIAIS -->
-    <div class="bg-[#0E1422] border border-[#1E293B] rounded-3xl shadow-xl overflow-hidden">
-        <div class="p-6 md:p-8 border-b border-[#1E293B] bg-[#0A0E18]">
-            <span class="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-black">Configuração Rápida</span>
-            <h2 class="text-xl md:text-2xl font-black text-white mt-0.5">Criar Campanha</h2>
-            <p class="text-xs text-slate-400 mt-1">Apenas 3 decisões para colocar a prospecção autônoma para trabalhar.</p>
+    <div class="campaign-panel border rounded-2xl overflow-hidden">
+        <div class="p-6 border-b border-[#242a35]">
+            <h2 class="text-lg font-semibold text-white">Nova campanha</h2>
+            <p class="text-sm text-slate-400 mt-1">Escolha onde buscar e quais empresas fazem sentido para sua prospecção.</p>
         </div>
 
         <form id="smart_campaign_form" onsubmit="event.preventDefault(); startSmartCampaign();" class="p-6 md:p-8 space-y-8">
@@ -163,10 +137,10 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <label class="decision-card selected" data-group="loc_mode" onclick="setLocMode('auto', this)">
                         <input type="radio" name="location_mode" value="auto" checked class="sr-only">
-                        <div class="decision-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <div class="decision-icon"><i class="fa-solid fa-location-dot"></i></div>
                         <div>
-                            <strong class="block text-xs font-black text-white">Automática</strong>
-                            <small class="text-[10px] text-slate-400 block mt-0.5">Recomendada · Motor IBGE</small>
+                            <strong class="block text-xs font-semibold text-white">Sugestão do sistema</strong>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Seleciona cidades da base do IBGE</small>
                         </div>
                     </label>
 
@@ -202,10 +176,11 @@
                 <div id="loc_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
                     <i class="fa-solid fa-circle-check text-cyan-400 text-sm mt-0.5"></i>
                     <div>
-                        <strong class="text-white block font-bold">Seleção Geográfica 100% Autônoma</strong>
+                        <strong class="text-white block font-medium">Seleção automática de cidades</strong>
                         <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                            O sistema consulta o histórico da sua base e o catálogo oficial do IBGE para priorizar cidades polo e regiões com alta densidade de empresas sem presença digital.
+                            O sistema usa o histórico disponível e distribui a busca entre cidades ainda pouco pesquisadas. Quando não há dados suficientes, a campanha é marcada como exploratória.
                         </p>
+                        <p id="source_capability_notice" class="mt-2 text-[11px] text-amber-300"></p>
                     </div>
                 </div>
 
@@ -267,7 +242,7 @@
                         <div class="decision-icon"><i class="fa-solid fa-compass"></i></div>
                         <div>
                             <strong class="block text-xs font-black text-white">Descobrir automaticamente</strong>
-                            <small class="text-[10px] text-slate-400 block mt-0.5">Recomendado · Inteligência v8 de nichos</small>
+                            <small class="text-[10px] text-slate-400 block mt-0.5">Usa o histórico da sua base</small>
                         </div>
                     </label>
 
@@ -285,9 +260,9 @@
                 <div id="niche_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
                     <i class="fa-solid fa-bolt-lightning text-cyan-400 text-sm mt-0.5"></i>
                     <div>
-                        <strong class="text-white block font-bold">Detecção Inteligente de Alto Ticket</strong>
+                        <strong class="text-white block font-medium">Sugestão baseada no histórico disponível</strong>
                         <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                            O motor prioriza nichos com comprovada capacidade de investimento e forte necessidade de presença digital (ex.: clínicas de estética, odontologia, advocacia, energia solar e projetos arquitetônicos).
+                            O sistema usa os resultados já registrados. Sem amostra suficiente, os nichos são tratados como exploração, não como garantia de venda.
                         </p>
                     </div>
                 </div>
@@ -463,40 +438,72 @@
             </details>
 
             <!-- BOTÃO PRINCIPAL DESTACADO -->
-            <button id="btn_start_campaign" type="submit" class="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-black py-4 px-6 shadow-2xl shadow-blue-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] text-sm md:text-base flex items-center justify-center gap-3">
-                <i class="fa-solid fa-rocket text-base"></i>
-                <span>INICIAR CAMPANHA INTELIGENTE</span>
+            <button id="btn_start_campaign" type="submit" class="campaign-primary-button w-full rounded-xl text-white font-semibold py-3.5 px-6 transition-colors text-sm flex items-center justify-center gap-3">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span>Iniciar busca</span>
             </button>
         </form>
     </div>
 </div>
 
 <style>
+    .campaign-page {
+        --campaign-accent: #22c55e;
+        --campaign-border: #252b36;
+        --campaign-surface: #11151c;
+    }
+    .campaign-hero,
+    .campaign-panel {
+        background: var(--campaign-surface);
+        border-color: var(--campaign-border);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+    }
+    .campaign-kicker {
+        margin-bottom: 0.5rem;
+        color: #86efac;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .campaign-primary-button {
+        background: #168a45;
+    }
+    .campaign-primary-button:hover {
+        background: #1a9b50;
+    }
+    .campaign-progress {
+        background: var(--campaign-accent);
+    }
+    .metric-card {
+        background: #0d1117;
+        border-color: var(--campaign-border);
+        text-align: left;
+    }
     .decision-card {
         display: flex;
         align-items: center;
         gap: 0.85rem;
         padding: 0.95rem;
         border: 1px solid #1F2B44;
-        border-radius: 1rem;
-        background: #080B12;
+        border-radius: 0.75rem;
+        background: #0d1117;
         cursor: pointer;
         transition: all 0.18s ease;
     }
     .decision-card:hover {
-        border-color: #38BDF8;
-        background: #0E1422;
-        transform: translateY(-1px);
+        border-color: #3c4656;
+        background: #121821;
     }
     .decision-card.selected {
-        border-color: #06B6D4;
-        background: rgba(6, 182, 212, 0.08);
-        box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4);
+        border-color: #22c55e;
+        background: rgba(34, 197, 94, 0.07);
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
     }
     .decision-icon {
         width: 2.2rem;
         height: 2.2rem;
-        border-radius: 0.75rem;
+        border-radius: 0.6rem;
         background: #111728;
         color: #94A3B8;
         display: grid;
@@ -506,27 +513,26 @@
         transition: all 0.18s ease;
     }
     .decision-card.selected .decision-icon {
-        background: linear-gradient(135deg, #2563EB, #06B6D4);
+        background: #168a45;
         color: #ffffff;
     }
 
     .meta-card {
         padding: 0.9rem;
         border: 1px solid #1F2B44;
-        border-radius: 1rem;
+        border-radius: 0.75rem;
         background: #080B12;
         text-align: center;
         cursor: pointer;
         transition: all 0.18s ease;
     }
     .meta-card:hover {
-        border-color: #38BDF8;
-        transform: translateY(-1px);
+        border-color: #3c4656;
     }
     .meta-card.selected {
-        border-color: #06B6D4;
-        background: rgba(6, 182, 212, 0.1);
-        box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4);
+        border-color: #22c55e;
+        background: rgba(34, 197, 94, 0.07);
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
     }
 
     .state-pill {
@@ -541,13 +547,13 @@
         transition: all 0.15s ease;
     }
     .state-pill:hover {
-        border-color: #38BDF8;
+        border-color: #64748b;
         color: #ffffff;
     }
     .state-pill.active {
-        border-color: #06B6D4;
-        background: rgba(6, 182, 212, 0.15);
-        color: #38BDF8;
+        border-color: #22c55e;
+        background: rgba(34, 197, 94, 0.12);
+        color: #86efac;
     }
 
     .selected-tag {
@@ -594,9 +600,9 @@
         transition: all 0.15s ease;
     }
     .filter-option:has(input:checked) .filter-box {
-        background: #06B6D4;
-        border-color: #06B6D4;
-        color: #080B12;
+        background: #22c55e;
+        border-color: #22c55e;
+        color: #07110a;
     }
 </style>
 {% endblock %}
@@ -852,7 +858,7 @@
         const btn = document.getElementById('btn_start_campaign');
         btn.disabled = true;
         btn.classList.add('opacity-60', 'cursor-not-allowed');
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>CRIANDO CAMPANHA...';
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Preparando busca...';
 
         try {
             const res = await fetch('/api/smart-campaigns', {
@@ -865,7 +871,7 @@
                 throw new Error(data.error || 'Não foi possível criar a campanha.');
             }
 
-            showAppToast('Campanha Inteligente iniciada com sucesso!');
+            showAppToast('Busca iniciada. Acompanhe as consultas abaixo.');
             state.activeCampaignId = data.campaign.campaign_id;
             updateMonitor(data.campaign);
             startPolling();
@@ -877,7 +883,7 @@
         } finally {
             btn.disabled = false;
             btn.classList.remove('opacity-60', 'cursor-not-allowed');
-            btn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i>INICIAR CAMPANHA INTELIGENTE';
+            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass mr-2"></i>Iniciar busca';
         }
     }
 
@@ -887,7 +893,7 @@
         const panel = document.getElementById('campaign_monitor');
         panel.classList.remove('hidden');
 
-        document.getElementById('monitor_campaign_name').textContent = camp.name || `Campanha Inteligente #${camp.campaign_id?.slice(0, 8)}`;
+        document.getElementById('monitor_campaign_name').textContent = camp.name || `Campanha #${camp.campaign_id?.slice(0, 8)}`;
         document.getElementById('monitor_campaign_subtitle').textContent =
             `Modo: ${camp.location_mode === 'auto' ? 'Localização Automática' : camp.location_mode} · ${camp.niches?.join(', ') || 'Nichos Automáticos'}`;
 
@@ -903,6 +909,7 @@
             'validando_leads': 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
             'concluida': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
             'pausada': 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
+            'interrompida': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
             'cancelada': 'bg-slate-500/10 text-slate-300 border-slate-500/30',
             'falha': 'bg-rose-500/10 text-rose-300 border-rose-500/30'
         };
@@ -926,14 +933,16 @@
 
         // Botões de Ação
         const isRunning = camp.status === 'running' || camp.status === 'pending';
-        const isPaused = camp.status === 'paused';
+        const isPaused = camp.status === 'paused' || camp.status === 'interrupted';
         document.getElementById('btn_pause_campaign').classList.toggle('hidden', !isRunning);
         document.getElementById('btn_resume_campaign').classList.toggle('hidden', !isPaused);
         document.getElementById('btn_cancel_campaign').classList.toggle('hidden', !isRunning && !isPaused);
 
         // Mensagem de Status
         const hintEl = document.getElementById('monitor_status_text');
-        if (camp.status === 'completed') hintEl.textContent = 'Campanha concluída com sucesso! Meta alcançada.';
+        if (camp.status === 'completed' && (camp.queries_completed || 0) > 0) hintEl.textContent = `Busca encerrada após ${camp.queries_completed} consulta(s).`;
+        else if (camp.status === 'failed') hintEl.textContent = camp.error || 'A busca falhou antes de executar consultas válidas.';
+        else if (camp.status === 'interrupted') hintEl.textContent = camp.error || 'O processo foi interrompido. Clique em continuar para retomar.';
         else if (camp.status === 'paused') hintEl.textContent = 'Campanha pausada pelo operador.';
         else if (camp.status === 'cancelled') hintEl.textContent = 'Campanha cancelada.';
         else hintEl.textContent = `Processando: ${camp.detailed_status_label}...`;
@@ -994,6 +1003,21 @@
         }
     }
 
+    async function loadSourceCapabilities() {
+        const notice = document.getElementById('source_capability_notice');
+        if (!notice) return;
+        try {
+            const res = await fetch('/api/smart-campaigns/capabilities');
+            const data = await res.json();
+            if (!data.success) return;
+            notice.textContent = data.google_places_configured
+                ? 'Fontes disponíveis: Google Places e OpenStreetMap.'
+                : 'Google Places não está configurado. A busca usará somente OpenStreetMap, com cobertura mais limitada de telefone, site e avaliações.';
+        } catch (error) {
+            notice.textContent = 'Não foi possível verificar as fontes de busca agora.';
+        }
+    }
+
     function startPolling() {
         stopPolling();
         state.pollingTimer = setInterval(fetchCampaignStatus, 3000);
@@ -1010,6 +1034,7 @@
     async function initPage() {
         await loadStates();
         await loadPopularNiches();
+        await loadSourceCapabilities();
 
         // Verifica se há alguma campanha ativa no servidor
         try {

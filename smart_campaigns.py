@@ -19,6 +19,7 @@ STATUS_MAP = {
     "pausada": "Pausada",
     "cancelada": "Cancelada",
     "falha": "Falha",
+    "interrompida": "Interrompida",
 }
 
 DEFAULT_AUTO_NICHES = [
@@ -28,6 +29,19 @@ DEFAULT_AUTO_NICHES = [
     "Energia Solar",
     "Arquitetura",
     "Móveis Planejados",
+]
+
+EXPLORATORY_LOCATION_SEEDS = [
+    ("SP", "São Paulo"), ("MG", "Belo Horizonte"), ("PR", "Curitiba"),
+    ("BA", "Salvador"), ("GO", "Goiânia"), ("PE", "Recife"),
+    ("SC", "Florianópolis"), ("CE", "Fortaleza"), ("RJ", "Rio de Janeiro"),
+    ("DF", "Brasília"), ("RS", "Porto Alegre"), ("PA", "Belém"),
+    ("AM", "Manaus"), ("ES", "Vitória"), ("MS", "Campo Grande"),
+    ("MT", "Cuiabá"), ("SP", "Campinas"), ("MG", "Uberlândia"),
+    ("PR", "Londrina"), ("SC", "Joinville"), ("BA", "Feira de Santana"),
+    ("GO", "Anápolis"), ("RS", "Caxias do Sul"), ("RJ", "Niterói"),
+    ("SP", "Ribeirão Preto"), ("PR", "Maringá"), ("SC", "Blumenau"),
+    ("MG", "Juiz de Fora"), ("SP", "São José dos Campos"), ("SP", "Sorocaba"),
 ]
 
 
@@ -155,27 +169,37 @@ def resolve_auto_locations(db_name, limit=30):
         except sqlite3.OperationalError:
             pass
 
+        evidence_selected = []
         if evidence or conversions:
             ranked = geographic_intelligence.rank_smart_locations(catalog, evidence, conversions, coverage, limit * 2)
             filtered = [item for item in ranked if item["id"] not in researched_ids]
             if len(filtered) >= limit:
                 return filtered[:limit], False
+            evidence_selected = filtered
 
-        # Fallback inteligente: capitais e cidades pólo estratégicas distribuídas por regiões
-        strategic_ufs = ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "DF", "BA", "PE", "CE"]
-        candidates = []
-        for mun in catalog["municipalities"]:
-            if mun["id"] in researched_ids:
-                continue
-            if mun["uf"] in strategic_ufs and mun.get("population", 0) >= 80000:
-                candidates.append(mun)
+        municipality_index = {
+            (item["uf"], geographic_intelligence.normalize(item["name"])): item
+            for item in catalog["municipalities"]
+            if item["id"] not in researched_ids
+        }
+        selected = list(evidence_selected)
+        selected_ids = {item["id"] for item in selected}
+        for uf, name in EXPLORATORY_LOCATION_SEEDS:
+            municipality = municipality_index.get((uf, geographic_intelligence.normalize(name)))
+            if municipality and municipality["id"] not in selected_ids:
+                selected.append(municipality)
+                selected_ids.add(municipality["id"])
+            if len(selected) >= limit:
+                break
 
-        # Ordena priorizando equilíbrio entre população e oportunidade comercial
-        candidates.sort(key=lambda m: m.get("population", 0), reverse=True)
-
-        selected = candidates[:limit] if candidates else catalog["municipalities"][:limit]
-        is_exploratory = not (evidence or conversions)
-        return selected, is_exploratory
+        if len(selected) < limit:
+            for municipality in catalog["municipalities"]:
+                if municipality["id"] in researched_ids or municipality["id"] in selected_ids:
+                    continue
+                selected.append(municipality)
+                if len(selected) >= limit:
+                    break
+        return selected, True
     finally:
         connection.close()
 
@@ -259,7 +283,7 @@ def create_smart_campaign(db_name, payload):
         if len(niches) > 2:
             niche_summary += f" (+{len(niches) - 2})"
         loc_summary = "Brasil Inteligente" if location_mode == "auto" else f"{len(locations)} praças"
-        name = f"Campanha Inteligente · {niche_summary} · {loc_summary}"
+        name = f"Busca · {niche_summary} · {loc_summary}"
 
     campaign_id = uuid.uuid4().hex
     queries_planned = max(3, len(niches) * 3)
@@ -409,6 +433,10 @@ def smart_campaign_detail(db_name, campaign_id):
             detailed = "cancelada"
         elif campaign["status"] == "completed":
             detailed = "concluida"
+        elif campaign["status"] == "failed":
+            detailed = "falha"
+        elif campaign["status"] == "interrupted":
+            detailed = "interrompida"
 
         campaign["detailed_status"] = detailed
         campaign["detailed_status_label"] = STATUS_MAP.get(detailed, detailed.title())
@@ -443,23 +471,15 @@ def list_smart_campaigns(db_name, limit=10):
 
 
 def get_latest_active_smart_campaign(db_name):
-    """Retorna a campanha inteligente ativa mais recente, ou a última criada se não houver ativa."""
+    """Retorna somente uma campanha que ainda pode ser acompanhada ou retomada."""
     connection = _connect(db_name)
     try:
-        # Busca ativa primeiro
         row = connection.execute(
             """SELECT campaign_id FROM geographic_campaigns
-               WHERE status IN ('running', 'pending', 'paused')
+               WHERE status IN ('running', 'pending', 'paused', 'interrupted')
+                 AND (status != 'interrupted' OR updated_at >= datetime('now', '-6 hours'))
                ORDER BY updated_at DESC LIMIT 1"""
         ).fetchone()
-
-        if not row:
-            # Fallback para a mais recente geral
-            row = connection.execute(
-                """SELECT campaign_id FROM geographic_campaigns
-                   ORDER BY created_at DESC LIMIT 1"""
-            ).fetchone()
-
         if not row:
             return None
         return smart_campaign_detail(db_name, row["campaign_id"])

@@ -1,10 +1,11 @@
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from app import app
+import app as application
 from geographic_campaigns import init_geographic_schema
 from smart_campaigns import (
     check_and_finalize_smart_goal,
@@ -52,6 +53,8 @@ class TestSmartCampaigns(unittest.TestCase):
         self.assertIn("id", locations[0])
         self.assertIn("name", locations[0])
         self.assertIn("uf", locations[0])
+        self.assertTrue(is_exploratory)
+        self.assertGreaterEqual(len({location["uf"] for location in locations}), 4)
 
     def test_create_smart_campaign_auto(self):
         payload = {
@@ -151,14 +154,26 @@ class TestSmartCampaigns(unittest.TestCase):
         self.assertIsNotNone(active)
         self.assertEqual(active["campaign_id"], c1["campaign_id"])
 
+        update_smart_campaign_status(self.db_name, c1["campaign_id"], status="cancelled", detailed_status="cancelada")
+        self.assertIsNone(get_latest_active_smart_campaign(self.db_name))
+
 
 class TestSmartCampaignsFlaskAPI(unittest.TestCase):
     def setUp(self):
-        app.config["TESTING"] = True
-        self.client = app.test_client()
+        self.original_db = application.DB_NAME
+        handle, self.test_db = tempfile.mkstemp(suffix=".db")
+        os.close(handle)
+        application.DB_NAME = self.test_db
+        application.init_db()
+        application.app.config["TESTING"] = True
+        self.client = application.app.test_client()
         with self.client.session_transaction() as session:
             session["authenticated"] = True
             session["user"] = "teste"
+
+    def tearDown(self):
+        application.DB_NAME = self.original_db
+        os.unlink(self.test_db)
 
     def test_api_geo_states(self):
         response = self.client.get("/api/smart-campaigns/geo/states")
@@ -184,7 +199,13 @@ class TestSmartCampaignsFlaskAPI(unittest.TestCase):
 
     @patch("app.start_geographic_campaign")
     def test_api_create_smart_campaign(self, mock_start):
-        mock_start.return_value = True
+        def mark_running(campaign_id):
+            update_smart_campaign_status(
+                application.DB_NAME, campaign_id, status="running", detailed_status="buscando_empresas"
+            )
+            return True
+
+        mock_start.side_effect = mark_running
         payload = {
             "location_mode": "auto",
             "niche_mode": "auto",

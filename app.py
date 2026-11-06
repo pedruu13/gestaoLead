@@ -27,9 +27,11 @@ from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 from conversion_intelligence import VALID_OUTCOMES, calculate_conversion_metrics, performance_adjustment
 from contact_quality import assess_phone, normalize_email, website_domain
 from discovery_engine import DiscoveryEngine, init_discovery_schema
-from geographic_campaigns import (campaign_detail, claim_batch, complete_location, create_campaign,
-                                  finalize_campaign_if_done, init_geographic_schema, list_campaigns,
-                                  list_location_sets, save_location_set, set_campaign_status)
+from discovery_sources import source_registry
+from geographic_campaigns import (campaign_detail, claim_batch, claim_campaign_worker, complete_location,
+                                  create_campaign, finalize_campaign_if_done, init_geographic_schema,
+                                  interrupt_stale_campaign, list_campaigns, list_location_sets,
+                                  save_location_set, set_campaign_status, touch_campaign_worker)
 from smart_campaigns import (check_and_finalize_smart_goal, create_smart_campaign,
                              get_latest_active_smart_campaign, init_smart_campaigns_schema,
                              list_smart_campaigns, resolve_auto_locations, resolve_auto_niches,
@@ -174,6 +176,7 @@ STATUS_FILE = "search_status.json"
 SEARCH_LOCK = threading.Lock()
 GEO_CAMPAIGN_LOCK = threading.Lock()
 ACTIVE_GEO_CAMPAIGNS = set()
+APP_INSTANCE_ID = uuid.uuid4().hex
 TARGET_RESEARCH_STATUS_FILE = "target_research_status.json"
 TARGET_RESEARCH_LOCK = threading.Lock()
 SITE_AUDIT_STATUS_FILE = "site_audit_status.json"
@@ -2484,7 +2487,7 @@ def load_conversion_rows():
         conn.close()
 
 
-def modular_discovery_worker(data, config, publish_global=True, cancelled_callback=None):
+def modular_discovery_worker(data, config, publish_global=True, cancelled_callback=None, progress_callback=None):
     job_id = data.get("discovery_job_id", "")
     search_run_id = data.get("search_run_id", "")
     engine = DiscoveryEngine(DB_NAME, config)
@@ -2493,17 +2496,19 @@ def modular_discovery_worker(data, config, publish_global=True, cancelled_callba
         "encontrados": 0, "novos_resultados": 0, "analisados": 0, "salvos": 0,
         "duplicados": 0, "com_site": 0, "site_sem_oportunidade": 0,
         "telefone_invalido": 0, "sem_whatsapp": 0, "sem_email": 0,
-        "nota_baixa": 0, "prioridade": 0, "oportunidade_secundaria": 0,
+        "nota_baixa": 0, "abaixo_score": 0, "prioridade": 0, "oportunidade_secundaria": 0,
         "exploracao": 0, "erros": 0, "fontes": {}, "cache_hits": 0,
         "consultas_planejadas": len(data.get("nichos_lista", [])) * len(data.get("bairros_lista", [])),
         "consultas_concluidas": 0, "tentativas_busca": 0,
     }
 
     def publish(message, running=True):
+        if progress_callback:
+            progress_callback()
         stats["tempo_segundos"] = round(time.monotonic() - started_at, 1)
         stats["ignorados"] = sum(stats[key] for key in (
             "duplicados", "com_site", "site_sem_oportunidade", "telefone_invalido",
-            "sem_whatsapp", "sem_email", "nota_baixa",
+            "sem_whatsapp", "sem_email", "nota_baixa", "abaixo_score",
         ))
         stats["taxa_adicao"] = round(stats["salvos"] * 100 / stats["novos_resultados"]) if stats["novos_resultados"] else 0
         if publish_global:
@@ -2608,6 +2613,12 @@ def modular_discovery_worker(data, config, publish_global=True, cancelled_callba
                     "Quantidade de Fontes": len(set(candidate.get("sources") or [])), "Mercado": region,
                 }
                 scoring = score_lead(scoring_input, site["present"], config.get("lead_score_weights"), adjustment)
+                if data.get("qualified_only") and int(scoring["score"]) < minimum_score:
+                    stats["abaixo_score"] += 1
+                    engine.update_candidate_validation(job_id, candidate, "score_filtered", {
+                        **validation, "score": scoring["score"], "minimum_score": minimum_score,
+                    })
+                    continue
                 lead_data = {
                     **scoring_input,
                     "WhatsApp Link": formatar_whatsapp(validation["phone"]["digits"], "") if validation["phone"]["whatsapp_candidate"] else "",
@@ -3130,7 +3141,7 @@ def _geographic_campaign_status(campaign_id):
         conn.close()
 
 
-def _process_geographic_location(campaign, location, config):
+def _process_geographic_location(campaign, location, config, worker_id):
     campaign_id = campaign["campaign_id"]
     if _geographic_campaign_status(campaign_id) == "cancelled":
         complete_location(DB_NAME, location["id"], error="Campanha cancelada antes do processamento.")
@@ -3142,6 +3153,9 @@ def _process_geographic_location(campaign, location, config):
         "nichos_lista": campaign["niches"], "bairros_lista": [label],
         "campaign_name": f"{campaign['name']} · {label}", "geo_campaign_id": campaign_id,
         "municipality_id": location["municipality_id"],
+        "min_potencial": campaign.get("min_qualification_score", 70),
+        "max_leads": min(100, max(5, int(campaign.get("target_qualified_leads") or 100))),
+        "qualified_only": True,
     })
     data["search_run_id"] = create_search_run(data)
     engine = DiscoveryEngine(DB_NAME, config)
@@ -3152,18 +3166,21 @@ def _process_geographic_location(campaign, location, config):
     stats = modular_discovery_worker(
         data, config, publish_global=False,
         cancelled_callback=lambda: _geographic_campaign_status(campaign_id) == "cancelled",
+        progress_callback=lambda: touch_campaign_worker(DB_NAME, campaign_id, worker_id),
     ) or {}
     complete_location(DB_NAME, location["id"], stats, stats.get("error", ""))
 
 
-def geographic_campaign_worker(campaign_id):
+def geographic_campaign_worker(campaign_id, worker_id):
     try:
         current = campaign_detail(DB_NAME, campaign_id)
-        if current["status"] in {"pending", "interrupted"}:
-            set_campaign_status(DB_NAME, campaign_id, "running")
-            update_smart_campaign_status(DB_NAME, campaign_id, status="running", detailed_status="buscando_empresas")
+        if current["status"] != "running":
+            return
+        update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="buscando_empresas")
+        touch_campaign_worker(DB_NAME, campaign_id, worker_id)
         config = load_config()
         while _geographic_campaign_status(campaign_id) == "running":
+            touch_campaign_worker(DB_NAME, campaign_id, worker_id)
             if check_and_finalize_smart_goal(DB_NAME, campaign_id):
                 break
             campaign = campaign_detail(DB_NAME, campaign_id)
@@ -3177,7 +3194,7 @@ def geographic_campaign_worker(campaign_id):
                 break
             update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="buscando_empresas")
             with ThreadPoolExecutor(max_workers=campaign["concurrency"]) as executor:
-                futures = {executor.submit(_process_geographic_location, campaign, location, config): location for location in batch}
+                futures = {executor.submit(_process_geographic_location, campaign, location, config, worker_id): location for location in batch}
                 for future in as_completed(futures):
                     try:
                         future.result()
@@ -3190,6 +3207,8 @@ def geographic_campaign_worker(campaign_id):
         current = campaign_detail(DB_NAME, campaign_id)
         if current.get("status") == "completed":
             update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="concluida")
+        elif current.get("status") == "failed":
+            update_smart_campaign_status(DB_NAME, campaign_id, detailed_status="falha")
     except Exception as error:
         print("[CAMPANHA] Erro no worker:", error)
         update_smart_campaign_status(DB_NAME, campaign_id, status="failed", detailed_status="falha", error=error)
@@ -3199,11 +3218,16 @@ def geographic_campaign_worker(campaign_id):
 
 
 def start_geographic_campaign(campaign_id):
+    worker_id = f"{APP_INSTANCE_ID}:{uuid.uuid4().hex}"
     with GEO_CAMPAIGN_LOCK:
         if campaign_id in ACTIVE_GEO_CAMPAIGNS:
             return False
         ACTIVE_GEO_CAMPAIGNS.add(campaign_id)
-    threading.Thread(target=geographic_campaign_worker, args=(campaign_id,), daemon=True).start()
+    if not claim_campaign_worker(DB_NAME, campaign_id, worker_id):
+        with GEO_CAMPAIGN_LOCK:
+            ACTIVE_GEO_CAMPAIGNS.discard(campaign_id)
+        return False
+    threading.Thread(target=geographic_campaign_worker, args=(campaign_id, worker_id), daemon=True).start()
     return True
 
 
@@ -3327,7 +3351,8 @@ def geographic_campaign_action(campaign_id, action):
     if action not in status_by_action:
         return jsonify({"success": False, "error": "Ação inválida."}), 400
     try:
-        set_campaign_status(DB_NAME, campaign_id, status_by_action[action])
+        next_status = "interrupted" if action == "resume" else status_by_action[action]
+        set_campaign_status(DB_NAME, campaign_id, next_status)
         if action == "resume":
             start_geographic_campaign(campaign_id)
         return jsonify({"success": True, "campaign": campaign_detail(DB_NAME, campaign_id)})
@@ -3349,7 +3374,12 @@ def smart_campaigns_api():
     try:
         campaign = create_smart_campaign(DB_NAME, payload)
         campaign_id = campaign["campaign_id"]
-        start_geographic_campaign(campaign_id)
+        if not start_geographic_campaign(campaign_id):
+            update_smart_campaign_status(
+                DB_NAME, campaign_id, status="failed", detailed_status="falha",
+                error="Não foi possível iniciar o processo da campanha.",
+            )
+            return jsonify({"success": False, "error": "Não foi possível iniciar o processo da campanha."}), 409
         return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)}), 201
     except ValueError as error:
         return jsonify({"success": False, "error": str(error)}), 400
@@ -3367,6 +3397,7 @@ def smart_campaigns_active():
 @app.route("/api/smart-campaigns/<campaign_id>")
 def smart_campaign_detail_api(campaign_id):
     try:
+        interrupt_stale_campaign(DB_NAME, campaign_id)
         return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)})
     except ValueError as error:
         return jsonify({"success": False, "error": str(error)}), 404
@@ -3382,8 +3413,9 @@ def smart_campaign_action_api(campaign_id, action):
         if action == "pause":
             update_smart_campaign_status(DB_NAME, campaign_id, status="paused", detailed_status="pausada")
         elif action == "resume":
-            update_smart_campaign_status(DB_NAME, campaign_id, status="running", detailed_status="buscando_empresas")
-            start_geographic_campaign(campaign_id)
+            update_smart_campaign_status(DB_NAME, campaign_id, status="interrupted", detailed_status="buscando_empresas", error="")
+            if not start_geographic_campaign(campaign_id):
+                raise ValueError("A campanha já está sendo processada ou não pode ser retomada.")
         elif action == "cancel":
             update_smart_campaign_status(DB_NAME, campaign_id, status="cancelled", detailed_status="cancelada")
 
@@ -3442,6 +3474,17 @@ def smart_campaigns_niches_popular():
         {"name": "Contabilidade", "category": "Finanças & B2B", "potential": "Médio-Alto"},
     ]
     return jsonify({"success": True, "niches": niches})
+
+
+@app.route("/api/smart-campaigns/capabilities")
+def smart_campaigns_capabilities():
+    configured_sources = [source.name for source in source_registry(load_config()) if source.configured()]
+    return jsonify({
+        "success": True,
+        "sources": configured_sources,
+        "google_places_configured": "google_places" in configured_sources,
+        "limited_coverage": "google_places" not in configured_sources,
+    })
 
 
 @app.route("/api/status")

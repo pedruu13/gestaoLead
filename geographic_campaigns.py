@@ -30,8 +30,13 @@ def init_geographic_schema(connection):
          UNIQUE(campaign_id, municipality_id))""")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_geo_campaign_status ON geographic_campaigns(status, updated_at DESC)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_geo_location_queue ON geographic_campaign_locations(campaign_id, status, id)")
-    connection.execute("UPDATE geographic_campaigns SET status = 'interrupted', updated_at = CURRENT_TIMESTAMP WHERE status = 'running'")
-    connection.execute("UPDATE geographic_campaign_locations SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE status = 'running'")
+    existing_columns = {row[1] for row in connection.execute("PRAGMA table_info(geographic_campaigns)").fetchall()}
+    for column, definition in {
+        "worker_id": "TEXT",
+        "worker_heartbeat_at": "TIMESTAMP",
+    }.items():
+        if column not in existing_columns:
+            connection.execute(f"ALTER TABLE geographic_campaigns ADD COLUMN {column} {definition}")
 
 
 def _connect(db_name):
@@ -128,6 +133,85 @@ def set_campaign_status(db_name, campaign_id, status):
         connection.close()
 
 
+def claim_campaign_worker(db_name, campaign_id, worker_id, stale_minutes=15):
+    connection = _connect(db_name)
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        campaign = connection.execute(
+            """SELECT status, worker_id, worker_heartbeat_at
+               FROM geographic_campaigns WHERE campaign_id = ?""",
+            (campaign_id,),
+        ).fetchone()
+        if not campaign or campaign["status"] not in {"pending", "interrupted", "running"}:
+            connection.rollback()
+            return False
+        if campaign["status"] == "running":
+            active = connection.execute(
+                """SELECT 1 WHERE COALESCE(?, '') != ''
+                   AND ? >= datetime('now', ?)""",
+                (campaign["worker_id"], campaign["worker_heartbeat_at"], f"-{int(stale_minutes)} minutes"),
+            ).fetchone()
+            if active:
+                connection.rollback()
+                return False
+        connection.execute(
+            """UPDATE geographic_campaign_locations
+               SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+               WHERE campaign_id = ? AND status = 'running'""",
+            (campaign_id,),
+        )
+        connection.execute(
+            """UPDATE geographic_campaigns
+               SET status = 'running', worker_id = ?, worker_heartbeat_at = CURRENT_TIMESTAMP,
+                   started_at = COALESCE(started_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP,
+                   finished_at = NULL, error = NULL
+               WHERE campaign_id = ?""",
+            (worker_id, campaign_id),
+        )
+        connection.commit()
+        return True
+    finally:
+        connection.close()
+
+
+def touch_campaign_worker(db_name, campaign_id, worker_id):
+    connection = _connect(db_name)
+    try:
+        connection.execute(
+            """UPDATE geographic_campaigns
+               SET worker_heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+               WHERE campaign_id = ? AND worker_id = ? AND status = 'running'""",
+            (campaign_id, worker_id),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def interrupt_stale_campaign(db_name, campaign_id, stale_minutes=15):
+    connection = _connect(db_name)
+    try:
+        cursor = connection.execute(
+            """UPDATE geographic_campaigns
+               SET status = 'interrupted', error = 'O processo de busca foi interrompido. Clique em continuar para retomar.',
+                   worker_id = NULL, updated_at = CURRENT_TIMESTAMP
+               WHERE campaign_id = ? AND status = 'running'
+                 AND COALESCE(worker_heartbeat_at, updated_at) < datetime('now', ?)""",
+            (campaign_id, f"-{int(stale_minutes)} minutes"),
+        )
+        if cursor.rowcount:
+            connection.execute(
+                """UPDATE geographic_campaign_locations
+                   SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+                   WHERE campaign_id = ? AND status = 'running'""",
+                (campaign_id,),
+            )
+        connection.commit()
+        return bool(cursor.rowcount)
+    finally:
+        connection.close()
+
+
 def claim_batch(db_name, campaign_id):
     connection = _connect(db_name)
     try:
@@ -163,6 +247,8 @@ def complete_location(db_name, location_id, stats=None, error=""):
             return
         if row["status"] == "cancelled":
             return
+        if not error and queries_completed <= 0 and not int(stats.get("encontrados") or 0):
+            error = "Nenhuma consulta real foi executada para esta localidade."
         status = "failed" if error else "completed"
         connection.execute("""UPDATE geographic_campaign_locations SET status = ?, queries_completed = ?,
             businesses_found = ?, qualified_leads = ?, last_search_run_id = ?, error = ?,
@@ -187,12 +273,18 @@ def finalize_campaign_if_done(db_name, campaign_id):
         aggregates = connection.execute("""SELECT
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END),
             SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END),
-            COALESCE(SUM(businesses_found), 0), COALESCE(SUM(qualified_leads), 0)
+            COALESCE(SUM(businesses_found), 0), COALESCE(SUM(qualified_leads), 0),
+            COALESCE(SUM(queries_completed), 0)
             FROM geographic_campaign_locations WHERE campaign_id = ?""", (campaign_id,)).fetchone()
-        connection.execute("""UPDATE geographic_campaigns SET status = 'completed', completed_municipalities = ?,
-            failed_municipalities = ?, businesses_found = ?, qualified_leads = ?,
+        completed, failed, businesses, qualified, queries = [int(value or 0) for value in aggregates]
+        successful = completed > 0 and queries > 0
+        status = "completed" if successful else "failed"
+        error = None if successful else "A campanha terminou sem executar consultas válidas. Verifique as fontes e tente novamente."
+        connection.execute("""UPDATE geographic_campaigns SET status = ?, completed_municipalities = ?,
+            failed_municipalities = ?, businesses_found = ?, qualified_leads = ?, error = ?,
+            worker_id = NULL, worker_heartbeat_at = CURRENT_TIMESTAMP,
             finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE campaign_id = ?""",
-            (*[int(value or 0) for value in aggregates], campaign_id))
+            (status, completed, failed, businesses, qualified, error, campaign_id))
         connection.commit()
         return True
     finally:

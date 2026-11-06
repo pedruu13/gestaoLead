@@ -116,13 +116,15 @@ class TargetIntelligenceTests(unittest.TestCase):
         client = application.app.test_client()
         self.authenticate(client)
         html = client.get("/").get_data(as_text=True)
-        self.assertIn("Nova Campanha Inteligente", html)
-        self.assertIn("INICIAR CAMPANHA INTELIGENTE", html)
+        self.assertIn("Buscar novos leads", html)
+        self.assertIn("Iniciar busca", html)
         self.assertIn("campaign_monitor", html)
         self.assertIn("monitor_progress_bar", html)
         self.assertIn("stat_qualificados", html)
         self.assertIn("stat_meta", html)
         self.assertIn("startSmartCampaign", html)
+        self.assertNotIn("Prospecção Autônoma B2B", html)
+        self.assertNotIn("QUALIFICAÇÃO REAL", html)
 
     def test_custom_niche_is_preserved_in_research_plan(self):
         plan = build_research_plan("br", [], pair_limit=4, focus_niches=["Lavanderia premium"])
