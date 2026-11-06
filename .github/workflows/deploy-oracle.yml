@@ -21,7 +21,9 @@ jobs:
     steps:
       - name: Informar configuração pendente
         if: ${{ env.ORACLE_HOST == '' || env.ORACLE_USER == '' || env.ORACLE_SSH_KEY == '' }}
-        run: echo "Deploy não executado. Configure ORACLE_HOST, ORACLE_USER e ORACLE_SSH_KEY nos secrets do repositório."
+        run: |
+          echo "::error::Deploy não executado. Configure ORACLE_HOST, ORACLE_USER e ORACLE_SSH_KEY nos secrets do repositório."
+          exit 1
 
       - name: Atualizar servidor Oracle
         if: ${{ env.ORACLE_HOST != '' && env.ORACLE_USER != '' && env.ORACLE_SSH_KEY != '' }}
