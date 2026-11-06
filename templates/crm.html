@@ -9,7 +9,7 @@
     <div class="crm-command-bar flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
         <div>
             <div class="flex items-center gap-2 mb-2">
-                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="w-2 h-2 rounded-full bg-[#60A5FA]"></span>
                 <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-300">Pipeline comercial</p>
             </div>
             <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">{% if crm_view == 'inbox' %}A abordar{% elif crm_view == 'contacted' %}Contatados{% else %}Descartados{% endif %}</h1>
@@ -17,8 +17,8 @@
             <button id="crm_filter_toggle" type="button" onclick="toggleCrmFilters()" class="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-[11px] font-semibold text-slate-300" aria-expanded="false" aria-controls="crm_filters_panel"><i class="fa-solid fa-sliders"></i>Filtros e ações</button>
             
             {% if crm_view == 'inbox' %}
-            <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-bold text-cyan-300">
-                <i class="fa-solid fa-radar text-cyan-400"></i>
+            <div class="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300">
+                <i class="fa-solid fa-radar text-[#60A5FA]"></i>
                 <span>{{ leads_com_site }} lead(s) com site e sem oportunidade objetiva</span>
             </div>
             <div class="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
@@ -36,15 +36,15 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs"></i>
                 </div>
-                <input type="text" id="filter_nome" data-clearable value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none placeholder:text-slate-600" placeholder="Buscar por empresa..." aria-label="Buscar empresa no CRM">
+                <input type="text" id="filter_nome" data-clearable value="{{ crm_filters.nome }}" oninput="queueCrmFilterUpdate()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 outline-none placeholder:text-slate-600" placeholder="Buscar por empresa..." aria-label="Buscar empresa no CRM">
             </div>
 
             <label class="w-full sm:w-32 text-[9px] font-black uppercase tracking-wide text-slate-500">Score mínimo
-                <input id="filter_min_score" type="number" min="0" max="100" value="{{ crm_filters.min_score or '' }}" onchange="applyCrmFilters()" class="mt-1 block w-full rounded-xl border border-[#1F2B44] bg-[#080B12] p-2.5 text-xs text-white outline-none" placeholder="0">
+                <input id="filter_min_score" type="number" min="0" max="100" value="{{ crm_filters.min_score or '' }}" onchange="applyCrmFilters()" class="mt-1 block w-full rounded-xl border border-[#2A2F38] bg-[#13161B] p-2.5 text-xs text-white outline-none" placeholder="0">
             </label>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_quality" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_quality" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Qualquer qualidade</option>
                     <option value="Confiável" {{ 'selected' if crm_filters.qualidade == 'Confiável' else '' }}>Dados confiáveis</option>
                     <option value="Incompleto" {{ 'selected' if crm_filters.qualidade == 'Incompleto' else '' }}>Dados incompletos</option>
@@ -53,14 +53,14 @@
             </div>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_validation" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_validation" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Qualquer validação</option>
                     {% for value in ['CONFIRMADO', 'PROVÁVEL', 'NÃO VERIFICADO'] %}<option value="{{ value }}" {{ 'selected' if crm_filters.validacao == value else '' }}>{{ value }}</option>{% endfor %}
                 </select>
             </div>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_source" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_source" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Todas as origens</option>
                     <option value="google_places" {{ 'selected' if crm_filters.origem == 'google_places' else '' }}>Google Places API</option>
                     <option value="openstreetmap" {{ 'selected' if crm_filters.origem == 'openstreetmap' else '' }}>OpenStreetMap</option>
@@ -69,7 +69,7 @@
             </div>
 
             <div class="relative w-full sm:w-52">
-                <select id="filter_site_opportunity" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_site_opportunity" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Todas as oportunidades digitais</option>
                     {% for value, label in [('Construção de site', 'Precisa de um site'), ('Site com oportunidade de melhoria', 'Site para melhorar'), ('Revisão manual', 'Revisar site'), ('Site encontrado — sem sinal claro', 'Sem sinal claro')] %}
                     <option value="{{ value }}" {{ 'selected' if crm_filters.site == value else '' }}>{{ label }}</option>
@@ -78,7 +78,7 @@
             </div>
 
             <div class="relative w-full sm:w-44">
-                <select id="filter_followup" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
+                <select id="filter_followup" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl block w-full p-2.5 outline-none font-semibold">
                     <option value="">Todos os follow-ups</option>
                     <option value="atrasado" {{ 'selected' if crm_filters.followup == 'atrasado' else '' }}>Atrasados</option>
                     <option value="hoje" {{ 'selected' if crm_filters.followup == 'hoje' else '' }}>Para hoje</option>
@@ -92,7 +92,7 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-bars-progress text-slate-500 text-xs"></i>
                 </div>
-                <select id="filter_status" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_status" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todas as etapas</option>
                     <option value="Novo" {{ 'selected' if crm_filters.status == 'Novo' else '' }}>A abordar</option>
                     <option value="Contatado" {{ 'selected' if crm_filters.status == 'Contatado' else '' }}>Contatado</option>
@@ -107,9 +107,9 @@
 
             <div class="relative w-full sm:w-48">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
-                    <i class="fa-solid fa-gem text-cyan-400 text-xs"></i>
+                    <i class="fa-solid fa-gem text-[#60A5FA] text-xs"></i>
                 </div>
-                <select id="filter_potencial" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_potencial" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todas as filas</option>
                     <option value="Prioridade" {{ 'selected' if crm_filters.potencial == 'Prioridade' else '' }}>Prioridade</option>
                     <option value="Oportunidade secundária" {{ 'selected' if crm_filters.potencial == 'Oportunidade secundária' else '' }}>Oportunidades secundárias</option>
@@ -125,7 +125,7 @@
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <i class="fa-solid fa-briefcase text-slate-500 text-xs"></i>
                 </div>
-                <select id="filter_nicho" onchange="applyCrmFilters()" class="bg-[#080B12] border border-[#1F2B44] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
+                <select id="filter_nicho" onchange="applyCrmFilters()" class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 block w-full pl-9 p-2.5 appearance-none cursor-pointer pr-8 outline-none transition-all font-semibold">
                     <option value="">Todos os Nichos</option>
                     {% for niche in available_niches %}<option value="{{ niche }}" {{ 'selected' if crm_filters.nicho|lower == niche|lower else '' }}>{{ niche }}</option>{% endfor %}
                 </select>
@@ -145,18 +145,18 @@
                 </button>
                 {% endif %}
                 {% if not is_descartados and leads_com_site %}
-                <button onclick="descartarLeadsComSite({{ leads_com_site }})" class="flex-1 sm:flex-none bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-black py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center shadow-sm">
-                    <i class="fa-solid fa-filter-circle-xmark mr-1.5 text-cyan-400"></i> Ocultar {{ leads_com_site }} sem oportunidade
+                <button onclick="descartarLeadsComSite({{ leads_com_site }})" class="flex-1 sm:flex-none bg-blue-500/10 hover:bg-cyan-500/20 text-blue-300 border border-cyan-500/30 text-xs font-black py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center shadow-sm">
+                    <i class="fa-solid fa-filter-circle-xmark mr-1.5 text-[#60A5FA]"></i> Ocultar {{ leads_com_site }} sem oportunidade
                 </button>
                 {% endif %}
-                <button id="btn_regen_copys" onclick="iniciarRegeneracaoCopys()" title="Regenerar todas as abordagens e variações para o modelo consultivo" class="flex-1 sm:flex-none bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center flex items-center justify-center">
-                    <i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys
+                <button id="btn_regen_copys" onclick="iniciarRegeneracaoCopys()" title="Regenerar todas as abordagens e variações para o modelo consultivo" class="flex-1 sm:flex-none bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center flex items-center justify-center">
+                    <i class="fa-solid fa-arrows-rotate mr-1.5 text-[#60A5FA]"></i> Regenerar Copys
                 </button>
                 <button onclick="limparCRM()" class="flex-1 sm:flex-none bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center">
                     <i class="fa-solid fa-trash-can mr-1.5 text-rose-400"></i> Limpar
                 </button>
 
-                <a href="/export/csv" class="flex-1 sm:flex-none bg-[#131A2B] hover:bg-[#1A2338] text-white border border-[#1F2B44] text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center flex items-center justify-center">
+                <a href="/export/csv" class="flex-1 sm:flex-none bg-[#181B20] hover:bg-[#20242B] text-white border border-[#2A2F38] text-xs font-bold py-2.5 px-3.5 rounded-xl transition-all whitespace-nowrap text-center flex items-center justify-center">
                     <i class="fa-solid fa-file-arrow-down mr-1.5 text-slate-400"></i> CSV
                 </a>
             </div>
@@ -166,7 +166,7 @@
     <!-- Cartões operacionais para celular -->
     <div class="grid gap-3 md:hidden" id="mobile-lead-list">
         {% for lead in leads %}
-        <article class="lead-item rounded-2xl border border-[#1E293B] bg-[#0E1422] p-4 shadow-xl" data-place-id="{{ lead.place_id }}"
+        <article class="lead-item rounded-2xl border border-[#2A2F38] bg-[#0E1422] p-4 shadow-xl" data-place-id="{{ lead.place_id }}"
                  data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}"
                  data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}"
                  data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}"
@@ -176,16 +176,16 @@
                     <h2 class="text-sm font-black leading-snug text-white">{{ lead.nome }}</h2>
                     <p class="mt-1 text-[11px] text-slate-500"><i class="fa-solid fa-location-dot mr-1"></i>{{ lead.bairro }}</p>
                 </div>
-                <span class="shrink-0 rounded-full px-2 py-1 text-[9px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}">{{ lead.potencial }}/100</span>
+                <span class="shrink-0 rounded-full px-2 py-1 text-[9px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-blue-500/10 text-blue-300{% else %}bg-slate-500/15 text-slate-400{% endif %}">{{ lead.potencial }}/100</span>
             </div>
             <div class="mt-3 flex flex-wrap gap-2 text-[10px]">
-                <span class="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 font-bold text-cyan-300">{{ lead.nicho }}</span>
-                <span class="rounded-lg border border-[#263550] bg-[#090D15] px-2 py-1 font-bold text-slate-300">{{ 'A abordar' if lead.status == 'Novo' else lead.status }}</span>
+                <span class="rounded-lg border border-blue-500/20 bg-blue-500/10 px-2 py-1 font-bold text-blue-300">{{ lead.nicho }}</span>
+                <span class="rounded-lg border border-[#2A2F38] bg-[#13161B] px-2 py-1 font-bold text-slate-300">{{ 'A abordar' if lead.status == 'Novo' else lead.status }}</span>
                 <span class="rounded-lg border border-violet-500/20 bg-violet-500/10 px-2 py-1 font-bold text-violet-300">{% if lead.site_opportunity_status == 'Construção de site' %}Precisa de site{% elif lead.site_opportunity_status == 'Site com oportunidade de melhoria' %}Melhorar site{% elif lead.site_opportunity_status == 'Revisão manual' %}Revisar site{% else %}Sem sinal claro{% endif %}</span>
                 <span class="rounded-lg border px-2 py-1 font-bold {% if lead.data_quality_status == 'Confiável' %}border-emerald-500/20 bg-emerald-500/10 text-emerald-300{% else %}border-amber-500/20 bg-amber-500/10 text-amber-300{% endif %}" title="{{ lead.data_quality_issues | join(', ') }}">Dados {{ lead.data_confidence }}%</span>
                 {% if lead.next_action_at %}<span class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 font-bold text-amber-300">Retorno {{ lead.next_action_at }}</span>{% endif %}
             </div>
-            <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="mt-3 w-full rounded-xl border border-[#1F2B44] bg-[#090D15] px-3 py-2 text-xs font-bold text-white">
+            <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="mt-3 w-full rounded-xl border border-[#2A2F38] bg-[#13161B] px-3 py-2 text-xs font-bold text-white">
                 <option value="Novo" {{ 'selected' if lead.status == 'Novo' else '' }}>A abordar</option>
                 <option value="Contatado" {{ 'selected' if lead.status == 'Contatado' else '' }}>Contatado</option>
                 <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
@@ -193,7 +193,7 @@
                 <option value="Não fechado" {{ 'selected' if lead.status == 'Não fechado' else '' }}>Não fechado</option>
                 <option value="Descartado" {{ 'selected' if lead.status == 'Descartado' else '' }}>Descartado</option>
             </select>
-            {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-cyan-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
+            {% if lead.next_action %}<p class="mt-3 rounded-xl border border-blue-500/15 bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-100"><strong class="text-blue-300">Próximo passo:</strong> {{ lead.next_action }}</p>{% endif %}
             <div class="mt-4 grid grid-cols-2 gap-2">
                 {% if lead.do_not_contact %}
                 <span class="col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i>Não contatar</span>
@@ -202,7 +202,7 @@
                 {% elif lead.email %}
                 <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-1.5"></i>Abordar</button>
                 {% endif %}
-                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="rounded-xl border border-[#263550] bg-[#111827] px-3 py-2.5 text-center text-xs font-black text-slate-200"><i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i>Detalhes</a>
+                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2.5 text-center text-xs font-black text-slate-200"><i class="fa-solid fa-chart-simple mr-1.5 text-[#60A5FA]"></i>Detalhes</a>
             </div>
         </article>
         {% endfor %}
@@ -213,7 +213,7 @@
         <div class="overflow-x-auto w-full">
             <table class="w-full text-left border-collapse min-w-[850px]">
                 <thead>
-                    <tr class="bg-[#090D15] text-[10px] uppercase tracking-wider text-slate-400 border-b border-[#1E293B]">
+                    <tr class="bg-[#13161B] text-[10px] uppercase tracking-wider text-slate-400 border-b border-[#2A2F38]">
                         <th class="px-6 py-4 font-extrabold">Lead / Empresa</th>
                         <th class="px-6 py-4 font-extrabold">Segmento</th>
                         <th class="px-6 py-4 font-extrabold text-center">Avaliação Google</th>
@@ -222,9 +222,9 @@
                         <th class="px-6 py-4 font-extrabold text-center">Ações</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-[#1A2338] text-slate-200">
+                <tbody class="divide-y divide-[#20242B] text-slate-200">
                     {% for lead in leads %}
-                    <tr class="lead-item hover:bg-[#121828] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}" data-site-opportunity="{{ lead.site_opportunity_status }}" data-quality="{{ lead.data_quality_status }}">
+                    <tr class="lead-item hover:bg-[#181B20] transition-colors group" data-place-id="{{ lead.place_id }}" data-name="{{ lead.nome | lower }}" data-niche="{{ lead.nicho | lower }}" data-status="{{ 'Contatado' if lead.status == 'Contato Feito' else lead.status }}" data-faixa-potential="{{ lead.faixa_potencial }}" data-followup="{{ lead.follow_up_state }}" data-site-opportunity="{{ lead.site_opportunity_status }}" data-quality="{{ lead.data_quality_status }}">
                         <td class="px-6 py-4">
                             <div class="lead-company">
                                 {{ company_avatar(lead.nome) }}
@@ -235,24 +235,24 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/10 text-cyan-300 border border-blue-500/20">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20">
                                 {{ lead.nicho }}
                             </span>
                             <div class="mt-2 text-[10px] font-bold text-violet-300">{% if lead.site_opportunity_status == 'Construção de site' %}Precisa de site{% elif lead.site_opportunity_status == 'Site com oportunidade de melhoria' %}Site para melhorar{% elif lead.site_opportunity_status == 'Revisão manual' %}Revisar site{% else %}Sem sinal claro{% endif %}</div>
                             <div class="mt-1 text-[10px] font-bold {% if lead.data_quality_status == 'Confiável' %}text-emerald-300{% else %}text-amber-300{% endif %}" title="{{ lead.data_quality_issues | join(', ') }}">Dados {{ lead.data_confidence }}% · {{ lead.data_quality_status }}</div>
                         </td>
                         <td class="px-6 py-4 text-center">
-                            <div class="inline-flex items-center px-2.5 py-1 rounded-lg font-bold text-xs bg-[#131A2B] border border-[#1F2B44] text-slate-200">
-                                {% if lead.nota and lead.nota not in ('0', '0.0', '0,0') %}<span class="mr-1.5">{{ lead.nota }}</span><i class="fa-solid fa-star text-[10px] text-cyan-400"></i>{% else %}<span class="text-slate-500">Não coletada</span>{% endif %}
+                            <div class="inline-flex items-center px-2.5 py-1 rounded-lg font-bold text-xs bg-[#181B20] border border-[#2A2F38] text-slate-200">
+                                {% if lead.nota and lead.nota not in ('0', '0.0', '0,0') %}<span class="mr-1.5">{{ lead.nota }}</span><i class="fa-solid fa-star text-[10px] text-[#60A5FA]"></i>{% else %}<span class="text-slate-500">Não coletada</span>{% endif %}
                             </div>
                             {% if lead.potencial is not none %}
-                            <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-cyan-500/10 text-cyan-300{% else %}bg-slate-500/15 text-slate-400{% endif %}" data-tooltip="{{ lead.motivo_potencial or 'Pontuação heurística de priorização; não é probabilidade de compra.' }}">
+                            <div class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black {% if lead.faixa_potencial == 'Prioridade' %}bg-emerald-500/15 text-emerald-300{% elif lead.faixa_potencial == 'Oportunidade secundária' %}bg-blue-500/10 text-blue-300{% else %}bg-slate-500/15 text-slate-400{% endif %}" data-tooltip="{{ lead.motivo_potencial or 'Pontuação heurística de priorização; não é probabilidade de compra.' }}">
                                 <i class="fa-solid fa-gem"></i> {{ lead.faixa_potencial }} · {{ lead.potencial }}/100
                             </div>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4">
-                            <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-xl border border-[#1F2B44] py-1.5 pl-3 pr-8 focus:border-blue-500 focus:outline-none text-white bg-[#090D15] cursor-pointer shadow-inner">
+                            <select onchange="updateStatus(event, '{{ lead.place_id }}', this.value)" class="text-xs font-bold rounded-xl border border-[#2A2F38] py-1.5 pl-3 pr-8 focus:border-blue-500 focus:outline-none text-white bg-[#13161B] cursor-pointer shadow-inner">
                                 <option value="Novo" {{ 'selected' if lead.status == 'Novo' else '' }}>A abordar</option>
                                 <option value="Contatado" {{ 'selected' if lead.status == 'Contatado' else '' }}>Contatado</option>
                                 <option value="Conversando" {{ 'selected' if lead.status == 'Conversando' else '' }}>Conversando</option>
@@ -262,7 +262,7 @@
                             </select>
                             {% if lead.next_action %}
                             <div class="mt-2 max-w-48 rounded-lg border border-blue-500/20 bg-blue-500/5 px-2.5 py-2 text-[10px] leading-relaxed text-blue-200" title="{{ lead.next_action }}">
-                                <i class="fa-solid fa-forward-step mr-1 text-cyan-400"></i>{{ lead.next_action | truncate(72) }}
+                                <i class="fa-solid fa-forward-step mr-1 text-[#60A5FA]"></i>{{ lead.next_action | truncate(72) }}
                                 {% if lead.next_action_at %}<span class="mt-1 block text-[9px] text-slate-500">{{ lead.next_action_at }}</span>{% endif %}
                             </div>
                             {% endif %}
@@ -275,14 +275,14 @@
                                 <i class="fa-brands fa-whatsapp text-sm mr-1.5"></i> Abordar
                             </button>
                             {% elif lead.email %}
-                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="bg-blue-500/10 hover:bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
+                            <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center w-max transition-colors">
                                 <i class="fa-solid fa-envelope text-xs mr-1.5"></i> E-mail
                             </button>
                             {% else %}
                             <span class="text-slate-500 text-xs italic">Sem contato</span>
                             {% endif %}
-                            <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="mt-2 flex w-max items-center rounded-xl border border-[#1F2B44] bg-[#0B1120] px-3 py-1.5 text-xs font-black text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-white">
-                                <i class="fa-solid fa-chart-simple mr-1.5 text-cyan-400"></i> Inteligência
+                            <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="mt-2 flex w-max items-center rounded-xl border border-[#2A2F38] bg-[#0B1120] px-3 py-1.5 text-xs font-black text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-white">
+                                <i class="fa-solid fa-chart-simple mr-1.5 text-[#60A5FA]"></i> Inteligência
                             </a>
                             <button type="button" onclick="gerarPreviaRapida({{ lead.place_id | tojson }}, this)" class="mt-2 flex w-max items-center rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-black text-violet-300 hover:bg-violet-500/20">
                                 <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> Prévia automática
@@ -298,15 +298,15 @@
                                     data-analise="{{ lead.analise_ia }}"
                                     data-estrategia="{{ lead.estrategia_ia }}"
                                     data-dossie="/dossie/{{ lead.place_id }}"
-                                    class="bg-[#131A2B] hover:bg-[#1A2338] text-slate-200 hover:text-white border border-[#1F2B44] font-bold py-1.5 px-3 rounded-xl text-xs transition-all flex items-center gap-1.5 mx-auto">
-                                <i class="fa-solid fa-file-invoice text-cyan-400 text-xs"></i>
+                                    class="bg-[#181B20] hover:bg-[#20242B] text-slate-200 hover:text-white border border-[#2A2F38] font-bold py-1.5 px-3 rounded-xl text-xs transition-all flex items-center gap-1.5 mx-auto">
+                                <i class="fa-solid fa-file-invoice text-[#60A5FA] text-xs"></i>
                                 <span>Dossiê</span>
                             </button>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-slate-400 bg-[#090D15]">
+                        <td colspan="6" class="px-6 py-10 text-center text-slate-400 bg-[#13161B]">
                             <div class="ui-empty-state max-w-lg mx-auto">
                             <div class="ui-empty-state__icon">
                                 <i class="fa-solid fa-inbox text-2xl"></i>
@@ -326,11 +326,11 @@
         </div>
     </div>
     {% if total_pages > 1 %}
-    <nav class="flex items-center justify-between rounded-2xl border border-[#1E293B] bg-[#0E1422] p-3" aria-label="Paginação do CRM">
+    <nav class="flex items-center justify-between rounded-2xl border border-[#2A2F38] bg-[#0E1422] p-3" aria-label="Paginação do CRM">
         {% set page_endpoint = 'crm' if crm_view == 'inbox' else 'crm_contatados' if crm_view == 'contacted' else 'crm_descartados' %}
-        <a href="{{ url_for(page_endpoint, page=page-1, **active_filters) if page > 1 else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
+        <a href="{{ url_for(page_endpoint, page=page-1, **active_filters) if page > 1 else '#' }}" class="rounded-xl border border-[#2A2F38] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page <= 1 else 'text-white hover:border-cyan-500/50' }}"><i class="fa-solid fa-arrow-left mr-2"></i>Anterior</a>
         <span class="text-xs font-bold text-slate-400">Página <strong class="text-white">{{ page }}</strong> de {{ total_pages }}</span>
-        <a href="{{ url_for(page_endpoint, page=page+1, **active_filters) if page < total_pages else '#' }}" class="rounded-xl border border-[#263550] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
+        <a href="{{ url_for(page_endpoint, page=page+1, **active_filters) if page < total_pages else '#' }}" class="rounded-xl border border-[#2A2F38] px-4 py-2.5 text-xs font-black {{ 'pointer-events-none opacity-40' if page >= total_pages else 'text-white hover:border-cyan-500/50' }}">Próxima<i class="fa-solid fa-arrow-right ml-2"></i></a>
     </nav>
     {% endif %}
 </div>
@@ -338,15 +338,15 @@
 <!-- Central de Abordagem Executiva (Drawer Escuro) -->
 <div id="central_contato" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
     <button type="button" aria-label="Fechar central de abordagem" onclick="fecharCentralContato()" class="absolute inset-0 bg-black/75 backdrop-blur-sm"></button>
-    <section class="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col bg-[#0A0E18] border-l border-[#1E293B] shadow-2xl">
-        <header class="border-b border-[#1E293B] px-6 py-6 md:px-8 bg-[#0D1322]">
+    <section class="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col bg-[#0A0E18] border-l border-[#2A2F38] shadow-2xl">
+        <header class="border-b border-[#2A2F38] px-6 py-6 md:px-8 bg-[#0D1322]">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Terminal de Abordagem</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-[#60A5FA]">Terminal de Abordagem</span>
                     <h3 id="central_nome" class="mt-1 text-2xl font-black text-white tracking-tight"></h3>
                     <p id="central_canal" class="mt-1 text-xs text-slate-400 font-medium"></p>
                 </div>
-                <button type="button" onclick="fecharCentralContato()" class="grid h-9 w-9 place-items-center rounded-xl border border-[#1E293B] bg-[#121828] text-slate-400 hover:text-white hover:bg-[#1A2338] transition-colors">
+                <button type="button" onclick="fecharCentralContato()" class="grid h-9 w-9 place-items-center rounded-xl border border-[#2A2F38] bg-[#121828] text-slate-400 hover:text-white hover:bg-[#20242B] transition-colors">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -354,28 +354,28 @@
         
         <div class="flex-1 overflow-y-auto px-6 py-7 md:px-8 space-y-5">
             <!-- Box da Mensagem Pronta -->
-            <div class="rounded-2xl border border-[#1E293B] bg-[#0E1524] p-5 shadow-lg">
+            <div class="rounded-2xl border border-[#2A2F38] bg-[#0E1524] p-5 shadow-lg">
                 <div class="mb-3 flex items-center justify-between">
-                    <span class="text-xs font-black uppercase tracking-[0.14em] text-cyan-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-bolt-lightning text-cyan-400 text-xs"></i> Pitch Comercial SDR
+                    <span class="text-xs font-black uppercase tracking-[0.14em] text-[#60A5FA] flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt-lightning text-[#60A5FA] text-xs"></i> Pitch Comercial SDR
                     </span>
-                    <button type="button" onclick="copiarCentralContato()" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-500/10 text-cyan-300 border border-blue-500/25 text-xs font-bold hover:bg-blue-500/20 transition-colors">
+                    <button type="button" onclick="copiarCentralContato()" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/25 text-xs font-bold hover:bg-blue-500/20 transition-colors">
                         <i class="fa-regular fa-copy"></i> Copiar
                     </button>
                 </div>
                 <div class="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3" id="pitch_variations">
-                    <button type="button" data-style="consultiva" onclick="selecionarVariacaoPitch('consultiva')" class="pitch-style rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-2 py-2 text-[10px] font-black text-cyan-300">Consultiva</button>
-                    <button type="button" data-style="direta" onclick="selecionarVariacaoPitch('direta')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Direta</button>
-                    <button type="button" data-style="personalizada" onclick="selecionarVariacaoPitch('personalizada')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Personalizada</button>
-                    <button type="button" data-style="recepcao" onclick="selecionarVariacaoPitch('recepcao')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Recepção</button>
-                    <button type="button" data-style="email" onclick="selecionarVariacaoPitch('email')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">E-mail</button>
-                    <button type="button" data-style="previa_visual" onclick="selecionarVariacaoPitch('previa_visual')" class="pitch-style rounded-lg border border-[#1F2B44] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Prévia visual</button>
+                    <button type="button" data-style="consultiva" onclick="selecionarVariacaoPitch('consultiva')" class="pitch-style rounded-lg border border-cyan-400/40 bg-blue-500/10 px-2 py-2 text-[10px] font-black text-blue-300">Consultiva</button>
+                    <button type="button" data-style="direta" onclick="selecionarVariacaoPitch('direta')" class="pitch-style rounded-lg border border-[#2A2F38] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Direta</button>
+                    <button type="button" data-style="personalizada" onclick="selecionarVariacaoPitch('personalizada')" class="pitch-style rounded-lg border border-[#2A2F38] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Personalizada</button>
+                    <button type="button" data-style="recepcao" onclick="selecionarVariacaoPitch('recepcao')" class="pitch-style rounded-lg border border-[#2A2F38] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Recepção</button>
+                    <button type="button" data-style="email" onclick="selecionarVariacaoPitch('email')" class="pitch-style rounded-lg border border-[#2A2F38] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">E-mail</button>
+                    <button type="button" data-style="previa_visual" onclick="selecionarVariacaoPitch('previa_visual')" class="pitch-style rounded-lg border border-[#2A2F38] bg-[#111728] px-2 py-2 text-[10px] font-black text-slate-300">Prévia visual</button>
                 </div>
-                <textarea id="central_copy" oninput="atualizarLinkContato()" class="min-h-56 w-full resize-none bg-[#080B12] border border-[#1F2B44] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
+                <textarea id="central_copy" oninput="atualizarLinkContato()" class="min-h-56 w-full resize-none bg-[#13161B] border border-[#2A2F38] rounded-xl p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-blue-500 font-medium"></textarea>
             </div>
             
             <div class="rounded-2xl bg-blue-500/10 border border-blue-500/20 p-4 text-xs leading-relaxed text-blue-200 flex items-start gap-3">
-                <i class="fa-solid fa-circle-info text-cyan-400 text-sm mt-0.5 shrink-0"></i>
+                <i class="fa-solid fa-circle-info text-[#60A5FA] text-sm mt-0.5 shrink-0"></i>
                 <div>
                     <strong class="font-bold text-white block mb-0.5">Fluxo de Alta Conversão</strong>
                     <span>Escolha a abordagem e abra a mensagem pronta. Quando você voltar do WhatsApp, a plataforma avança automaticamente para o próximo lead.</span>
@@ -383,7 +383,7 @@
             </div>
         </div>
         
-        <footer class="border-t border-[#1E293B] px-6 py-5 md:px-8 bg-[#0D1322]">
+        <footer class="border-t border-[#2A2F38] px-6 py-5 md:px-8 bg-[#0D1322]">
             <div class="grid gap-3 sm:grid-cols-2">
                 <button id="central_whatsapp_cloud" type="button" onclick="enviarWhatsAppDireto()" class="hidden items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-emerald-500/20 transition-all">
                     <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Enviar direto pela API
@@ -391,24 +391,24 @@
                 <a id="central_whatsapp" href="#" target="_blank" rel="noopener noreferrer" onclick="prepararRetornoWhatsApp()" class="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black py-3.5 px-4 text-xs shadow-lg shadow-blue-500/20 transition-all">
                     <i class="fa-brands fa-whatsapp mr-2 text-base"></i> Abrir mensagem pronta
                 </a>
-                <a id="central_email" href="#" onclick="registrarAbordagem('E-mail')" class="hidden items-center justify-center rounded-xl border border-[#1F2B44] bg-[#121828] text-slate-200 hover:text-white hover:bg-[#1A2338] font-bold py-3.5 px-4 text-xs transition-colors">
+                <a id="central_email" href="#" onclick="registrarAbordagem('E-mail')" class="hidden items-center justify-center rounded-xl border border-[#2A2F38] bg-[#121828] text-slate-200 hover:text-white hover:bg-[#20242B] font-bold py-3.5 px-4 text-xs transition-colors">
                     <i class="fa-solid fa-envelope mr-2"></i> Enviar E-mail
                 </a>
             </div>
-            <button type="button" onclick="registrarEAvancar()" class="mt-3 w-full rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-forward-step mr-2 text-cyan-400"></i>Marcar abordado e abrir o próximo</button>
+            <button type="button" onclick="registrarEAvancar()" class="mt-3 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-forward-step mr-2 text-[#60A5FA]"></i>Marcar abordado e abrir o próximo</button>
         </footer>
     </section>
 </div>
 
 <!-- Modal de Detalhes Executivo -->
 <div id="modal_detalhes" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-md p-4">
-    <div class="bg-[#0E1524] border border-[#1E293B] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all text-white">
-        <div class="p-6 border-b border-[#1E293B] flex justify-between items-center bg-[#0A0E18]">
+    <div class="bg-[#0E1524] border border-[#2A2F38] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all text-white">
+        <div class="p-6 border-b border-[#2A2F38] flex justify-between items-center bg-[#0A0E18]">
             <div>
-                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Dossiê de Inteligência</span>
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-[#60A5FA]">Dossiê de Inteligência</span>
                 <h3 class="text-xl font-black text-white mt-0.5" id="modal_nome">Nome da Empresa</h3>
             </div>
-            <button onclick="fecharDetalhes()" class="w-8 h-8 rounded-xl bg-[#131A2B] border border-[#1F2B44] flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+            <button onclick="fecharDetalhes()" class="w-8 h-8 rounded-xl bg-[#181B20] border border-[#2A2F38] flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -418,8 +418,8 @@
             <div>
                 <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Presença Digital Mapeada</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 bg-[#080B12] border border-[#1F2B44] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group">
-                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-cyan-400 flex items-center justify-center mr-3 shrink-0">
+                    <a id="modal_maps" href="#" target="_blank" class="flex items-center p-3 bg-[#13161B] border border-[#2A2F38] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group">
+                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-[#60A5FA] flex items-center justify-center mr-3 shrink-0">
                             <i class="fa-solid fa-map-location-dot"></i>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -428,8 +428,8 @@
                         </div>
                     </a>
 
-                    <a id="modal_site" href="#" target="_blank" class="flex items-center p-3 bg-[#080B12] border border-[#1F2B44] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group hidden">
-                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-cyan-400 flex items-center justify-center mr-3 shrink-0">
+                    <a id="modal_site" href="#" target="_blank" class="flex items-center p-3 bg-[#13161B] border border-[#2A2F38] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group hidden">
+                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-[#60A5FA] flex items-center justify-center mr-3 shrink-0">
                             <i class="fa-solid fa-globe"></i>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -438,8 +438,8 @@
                         </div>
                     </a>
                     
-                    <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 bg-[#080B12] border border-[#1F2B44] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group hidden">
-                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-cyan-400 flex items-center justify-center mr-3 shrink-0">
+                    <a id="modal_insta" href="#" target="_blank" class="flex items-center p-3 bg-[#13161B] border border-[#2A2F38] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group hidden">
+                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-[#60A5FA] flex items-center justify-center mr-3 shrink-0">
                             <i class="fa-brands fa-instagram"></i>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -448,8 +448,8 @@
                         </div>
                     </a>
 
-                    <a id="modal_dossie" href="#" target="_blank" class="flex items-center p-3 bg-[#080B12] border border-[#1F2B44] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group">
-                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-cyan-400 flex items-center justify-center mr-3 shrink-0">
+                    <a id="modal_dossie" href="#" target="_blank" class="flex items-center p-3 bg-[#13161B] border border-[#2A2F38] rounded-xl hover:border-cyan-500/40 transition-all text-slate-200 group">
+                        <div class="w-8 h-8 rounded-lg bg-[#121828] text-[#60A5FA] flex items-center justify-center mr-3 shrink-0">
                             <i class="fa-solid fa-file-contract"></i>
                         </div>
                         <div class="flex-1 min-w-0">
@@ -461,25 +461,25 @@
             </div>
 
             <!-- Pitch & Diagnóstico -->
-            <div class="bg-[#080B12] p-5 rounded-xl border border-[#1F2B44] space-y-4">
+            <div class="bg-[#13161B] p-5 rounded-xl border border-[#2A2F38] space-y-4">
                 <div class="flex items-center justify-between">
                     <h4 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-                        <i class="fa-solid fa-paper-plane text-cyan-400"></i> Abordagem Personalizada
+                        <i class="fa-solid fa-paper-plane text-[#60A5FA]"></i> Abordagem Personalizada
                     </h4>
                     <button onclick="copiarPrompt()" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-black transition-all shadow-md flex items-center gap-1.5">
                         <i class="fa-solid fa-copy"></i> Copiar
                     </button>
                 </div>
                 
-                <textarea id="modal_prompt" readonly class="w-full bg-[#0A0E18] border border-[#1F2B44] rounded-xl p-4 text-xs text-slate-200 h-32 focus:outline-none focus:border-blue-500 shadow-inner leading-relaxed"></textarea>
+                <textarea id="modal_prompt" readonly class="w-full bg-[#0A0E18] border border-[#2A2F38] rounded-xl p-4 text-xs text-slate-200 h-32 focus:outline-none focus:border-blue-500 shadow-inner leading-relaxed"></textarea>
 
-                <div id="box_estrategia" class="bg-[#0A0E18] border border-[#1F2B44] rounded-xl p-4 text-xs space-y-3">
+                <div id="box_estrategia" class="bg-[#0A0E18] border border-[#2A2F38] rounded-xl p-4 text-xs space-y-3">
                     <div>
-                        <span class="font-bold text-cyan-300 block mb-0.5">Ângulo Comercial & Estratégia:</span>
+                        <span class="font-bold text-blue-300 block mb-0.5">Ângulo Comercial & Estratégia:</span>
                         <p id="modal_estrategia" class="text-slate-300 leading-relaxed"></p>
                     </div>
                     <div id="wrap_analise">
-                        <span class="font-bold text-cyan-300 block mb-0.5">Diagnóstico Técnico:</span>
+                        <span class="font-bold text-blue-300 block mb-0.5">Diagnóstico Técnico:</span>
                         <p id="modal_analise" class="text-slate-300 leading-relaxed whitespace-pre-line"></p>
                     </div>
                 </div>
@@ -783,9 +783,9 @@
         document.querySelectorAll('.pitch-style').forEach(button => {
             const active = button.dataset.style === style;
             button.classList.toggle('border-cyan-400/40', active);
-            button.classList.toggle('bg-cyan-500/10', active);
-            button.classList.toggle('text-cyan-300', active);
-            button.classList.toggle('border-[#1F2B44]', !active);
+            button.classList.toggle('bg-blue-500/10', active);
+            button.classList.toggle('text-blue-300', active);
+            button.classList.toggle('border-[#2A2F38]', !active);
             button.classList.toggle('bg-[#111728]', !active);
             button.classList.toggle('text-slate-300', !active);
         });
@@ -1015,7 +1015,7 @@
         if (btn) {
             btn.disabled = true;
             btn.classList.add('opacity-50');
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-cyan-400"></i> Atualizando...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-[#60A5FA]"></i> Atualizando...';
         }
 
         try {
@@ -1026,7 +1026,7 @@
                 if (btn) {
                     btn.disabled = false;
                     btn.classList.remove('opacity-50');
-                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+                    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-[#60A5FA]"></i> Regenerar Copys';
                 }
                 return;
             }
@@ -1037,7 +1037,7 @@
             if (btn) {
                 btn.disabled = false;
                 btn.classList.remove('opacity-50');
-                btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+                btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-[#60A5FA]"></i> Regenerar Copys';
             }
         }
     }
@@ -1050,7 +1050,7 @@
                 const res = await fetch('/api/status_regenerar_copys');
                 const data = await res.json();
                 if (data.rodando) {
-                    if (btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-cyan-400"></i> ${data.processados}/${data.total}`;
+                    if (btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5 text-[#60A5FA]"></i> ${data.processados}/${data.total}`;
                 } else if (data.concluido) {
                     clearInterval(regenInterval);
                     showAppToast(data.mensagem || 'Regeneração concluída.', data.falhas ? 'error' : 'success');
@@ -1060,7 +1060,7 @@
                     if (btn) {
                         btn.disabled = false;
                         btn.classList.remove('opacity-50');
-                        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i> Regenerar Copys';
+                        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1.5 text-[#60A5FA]"></i> Regenerar Copys';
                     }
                 }
             } catch (err) {

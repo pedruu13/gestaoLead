@@ -455,6 +455,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
         pitches = {
             "consultiva": f"Hello! {introduction} I could not find a website linked to the Google profile. My proposal is to build a clear website that explains the service and directs visitors to the right contact channel. May I send a short project outline?",
             "direta": f"Hello! {introduction} I could not find a website linked to the business profile. I would like to present a website proposal focused on trust, clear information and easier contact. Who is the best person to review it?",
+            "curiosidade": f"Hello! {introduction} I noticed there is no website linked to the Google profile. My proposal is to build a clear website to {context['benefit']}. Would you like to see a quick 2-minute overview?",
             "personalizada": f"Hello! {introduction} A website linked to the Google profile could help visitors understand the service before contacting the team. My proposal is to build that journey clearly. Would a brief conversation about the project be useful?",
             "recepcao": f"Hello! {introduction} I could not find a website linked to the Google profile and have a website proposal for the business. This may be a reception or booking number; could you forward it to the person responsible for the website or share the best contact?",
             "email": f"Subject: Website proposal\n\nHello, {agency_introduction} I could not find a website linked to the Google profile. Our proposal is to build a professional website that explains the service and guides visitors to the right contact channel. Reply to this email and I will send a short project outline.",
@@ -467,9 +468,11 @@ def generate_fallback_pitches(analysis, is_intl=False):
     agency_introduction = _seller_introduction(analysis, plural=True)
     observation = _short_site_observation(context)
     benefit = context["benefit"]
+    location_tag = _location_phrase(context.get("municipality"))
     pitches = {
         "consultiva": f"Olá! {introduction} {observation} Minha proposta é {plan['offer_action']} para {benefit}. Posso enviar um resumo objetivo do projeto?",
         "direta": f"Olá! {introduction} {observation} Quero apresentar uma proposta de site para {benefit}. Com quem posso falar sobre esse projeto?",
+        "curiosidade": f"Olá! {introduction} {observation} Notei que vocês estão sem uma página própria vinculada. Minha proposta é {plan['offer_action']} para {benefit}. Teria interesse em ver um modelo curto de 2 minutos?",
         "personalizada": f"Olá! {introduction} {observation} Para {plan['category_with_article']}, um site pode {benefit} antes do primeiro contato. Minha proposta é desenvolver esse projeto com uma navegação simples no celular. Podemos conversar por alguns minutos?",
         "recepcao": f"Olá! {introduction} {observation} Tenho uma proposta de site para {plan['proposal_target']}, com foco em {benefit}. Este número pode ser da recepção; você poderia encaminhar à pessoa responsável pelo site ou informar o melhor contato?",
         "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá! {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {benefit}, com uma experiência clara no celular. Se houver interesse, responda este e-mail e envio um resumo objetivo do projeto.",
@@ -500,8 +503,9 @@ def review_pitch(text, analysis, mode):
     if not value:
         return {"approved": False, "score": 0, "issues": ["mensagem ausente"]}
     length_limits = {
-        "consultiva": (28, 65),
-        "direta": (25, 60),
+        "consultiva": (28, 110),
+        "direta": (25, 75),
+        "curiosidade": (20, 65),
         "personalizada": (30, 70),
         "recepcao": (28, 70),
         "previa_visual": (20, 60),
@@ -573,6 +577,8 @@ def review_pitch(text, analysis, mode):
 
 def evaluate_pitches(pitches, analysis, require_preview=False):
     required = ["consultiva", "direta", "personalizada", "recepcao", "email"]
+    if "curiosidade" in pitches:
+        required.append("curiosidade")
     if require_preview:
         required.append("previa_visual")
     reasons = {}

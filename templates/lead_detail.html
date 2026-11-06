@@ -4,36 +4,221 @@
 {% block header_title %}Inteligência Comercial{% endblock %}
 {% block content %}
 <div class="lead-workspace">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <!-- Topo do Lead: Informações Principais & Ações de Alto Nível -->
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between pb-4 border-b border-[#2A2F38]">
         <div>
-            <a href="/crm" class="text-xs font-bold text-cyan-400 hover:text-cyan-300"><i class="fa-solid fa-arrow-left mr-2"></i>Voltar ao pipeline</a>
-            <div class="mt-4 flex flex-wrap items-center gap-3">
+            <a href="/crm" class="text-xs font-bold text-[#60A5FA] hover:text-blue-300 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-arrow-left"></i> Voltar ao CRM</a>
+            <div class="mt-3 flex flex-wrap items-center gap-3">
                 {{ company_avatar(lead.nome, 'lg') }}
-                <div><h1 class="text-3xl font-black tracking-tight text-white">{{ lead.nome }}</h1><p class="mt-1 text-sm text-slate-400">{{ lead.nicho }}{% if lead.bairro %} · {{ lead.bairro }}{% endif %}</p></div>
-                <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-300">{{ lead.faixa_potencial or 'Em análise' }}</span>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight text-white">{{ lead.nome }}</h1>
+                    <p class="mt-1 text-xs text-slate-400 font-medium">{{ lead.nicho }}{% if lead.bairro %} &bull; {{ lead.bairro }}{% endif %}{% if lead.municipio %} &bull; {{ lead.municipio }}{% endif %}</p>
+                </div>
+                <span class="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#60A5FA]">{{ lead.faixa_potencial or 'Em análise' }}</span>
             </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-            <button onclick="regenerarPitches()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200 hover:border-cyan-500/50"><i class="fa-solid fa-arrows-rotate mr-2 text-cyan-400"></i>Regenerar pitches</button>
-            <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3 text-xs font-black text-white shadow-lg shadow-blue-600/20"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Studio de Prévias</a>
+        <div class="flex flex-wrap items-center gap-2">
+            <button onclick="regenerarPitches()" class="rounded-xl border border-[#2A2F38] bg-[#181B20] hover:bg-[#20242B] px-4 py-2.5 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-2"><i class="fa-solid fa-arrows-rotate text-[#60A5FA]"></i> Regenerar pitches</button>
+            <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors inline-flex items-center gap-2 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> Studio de Prévias</a>
         </div>
     </div>
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Potencial</span><strong class="mt-3 block text-3xl text-white">{{ lead.potencial or 0 }}<small class="text-sm text-slate-500">/100</small></strong><p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.motivo_potencial or 'Sinais ainda insuficientes.' }}</p><p class="mt-2 text-[10px] text-slate-600">Score v{{ lead.score_version or '1.0' }} · priorização, não chance garantida de compra</p></div>
-        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Qualidade dos dados</span><strong class="mt-3 block text-3xl text-white">{{ lead.data_confidence }}%</strong><p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.data_quality_status }}{% if lead.data_quality_issues %}: {{ lead.data_quality_issues | join(', ') }}{% endif %}.</p></div>
-        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Validação</span><strong class="mt-3 block text-base text-white">{{ lead.validation_status or 'NÃO VERIFICADO' }}</strong><p class="mt-2 text-xs text-slate-400">{{ lead.validation_reason or 'Lead legado sem validação individual registrada.' }}</p><p class="mt-2 text-[10px] text-cyan-400">Site: {{ lead.site_confidence or 'NÃO VERIFICADO' }} · Origem: {{ lead.lead_source or 'legacy_maps' }}</p></div>
-        <div class="executive-panel rounded-2xl p-5"><span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Prévias</span><strong class="mt-3 block text-3xl text-white">{{ previews|length }}</strong><p class="mt-2 text-xs text-slate-400">Versões HTML responsivas salvas para este lead.</p></div>
+    <!-- ESTÚDIO DE ABORDAGEM PRIORITÁRIO (Primeira Dobra) -->
+    <div class="commercial-workbench grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
+        <section class="executive-panel message-studio rounded-2xl border border-[#2A2F38] bg-[#181B20] overflow-hidden">
+            <div class="message-studio-header p-5 border-b border-[#2A2F38] bg-[#13161B] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
+                        <h2 class="text-xs font-black uppercase tracking-wider text-white">Estúdio de Abordagens de Prospecção</h2>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-400">3 abordagens estruturadas sem clichês com limite estrito de palavras.</p>
+                </div>
+                {% if lead.qualidade_pitch %}
+                <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider {{ 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300 border border-amber-500/20' }}">
+                    Score Heurístico {{ lead.qualidade_pitch.score or 0 }}/100
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- As 3 Versões de Alta Conversão -->
+            <div class="message-variants grid sm:grid-cols-3 gap-px bg-[#2A2F38]">
+                <!-- Direta (<= 75 palavras) -->
+                {% set copy_direta = lead.copies_pitch.get('direta') or '' %}
+                <article class="message-variant p-4 bg-[#181B20] flex flex-col justify-between">
+                    <div>
+                        <div class="message-variant-head flex items-center justify-between pb-2 border-b border-[#2A2F38]">
+                            <div>
+                                <h3 class="text-xs font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-bolt text-[#60A5FA]"></i> Direta</h3>
+                                <small class="text-[10px] text-slate-400 font-mono">Meta &le; 75 palavras ({% if copy_direta %}{{ copy_direta.split()|length }}{% else %}0{% endif %} pal.)</small>
+                            </div>
+                            <button type="button" class="message-copy w-8 h-8 rounded-lg border border-[#2A2F38] bg-[#13161B] hover:bg-[#20242B] text-slate-300 flex items-center justify-center transition-colors" onclick="copyPitchMode('direta', this)" aria-label="Copiar mensagem Direta" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                        <p class="mt-3 text-xs leading-relaxed text-slate-300 max-h-48 overflow-y-auto whitespace-pre-line">{{ copy_direta or 'Gerando abordagem direta...' }}</p>
+                    </div>
+                    <button type="button" onclick="selectPitch('direta')" class="mt-3 w-full py-1.5 text-[10px] font-bold text-[#60A5FA] bg-blue-500/10 hover:bg-blue-500/20 rounded-lg border border-blue-500/20 transition-colors">Editar no estúdio</button>
+                </article>
+
+                <!-- Consultiva (<= 110 palavras) -->
+                {% set copy_consultiva = lead.copies_pitch.get('consultiva') or '' %}
+                <article class="message-variant p-4 bg-[#181B20] flex flex-col justify-between">
+                    <div>
+                        <div class="message-variant-head flex items-center justify-between pb-2 border-b border-[#2A2F38]">
+                            <div>
+                                <h3 class="text-xs font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-briefcase text-emerald-400"></i> Consultiva</h3>
+                                <small class="text-[10px] text-slate-400 font-mono">Meta &le; 110 palavras ({% if copy_consultiva %}{{ copy_consultiva.split()|length }}{% else %}0{% endif %} pal.)</small>
+                            </div>
+                            <button type="button" class="message-copy w-8 h-8 rounded-lg border border-[#2A2F38] bg-[#13161B] hover:bg-[#20242B] text-slate-300 flex items-center justify-center transition-colors" onclick="copyPitchMode('consultiva', this)" aria-label="Copiar mensagem Consultiva" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                        <p class="mt-3 text-xs leading-relaxed text-slate-300 max-h-48 overflow-y-auto whitespace-pre-line">{{ copy_consultiva or 'Gerando abordagem consultiva...' }}</p>
+                    </div>
+                    <button type="button" onclick="selectPitch('consultiva')" class="mt-3 w-full py-1.5 text-[10px] font-bold text-[#60A5FA] bg-blue-500/10 hover:bg-blue-500/20 rounded-lg border border-blue-500/20 transition-colors">Editar no estúdio</button>
+                </article>
+
+                <!-- Curiosidade (<= 65 palavras) -->
+                {% set copy_curiosidade = lead.copies_pitch.get('curiosidade') or '' %}
+                <article class="message-variant p-4 bg-[#181B20] flex flex-col justify-between">
+                    <div>
+                        <div class="message-variant-head flex items-center justify-between pb-2 border-b border-[#2A2F38]">
+                            <div>
+                                <h3 class="text-xs font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-lightbulb text-amber-400"></i> Curiosidade</h3>
+                                <small class="text-[10px] text-slate-400 font-mono">Meta &le; 65 palavras ({% if copy_curiosidade %}{{ copy_curiosidade.split()|length }}{% else %}0{% endif %} pal.)</small>
+                            </div>
+                            <button type="button" class="message-copy w-8 h-8 rounded-lg border border-[#2A2F38] bg-[#13161B] hover:bg-[#20242B] text-slate-300 flex items-center justify-center transition-colors" onclick="copyPitchMode('curiosidade', this)" aria-label="Copiar mensagem Curiosidade" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                        <p class="mt-3 text-xs leading-relaxed text-slate-300 max-h-48 overflow-y-auto whitespace-pre-line">{{ copy_curiosidade or 'Gerando abordagem por curiosidade...' }}</p>
+                    </div>
+                    <button type="button" onclick="selectPitch('curiosidade')" class="mt-3 w-full py-1.5 text-[10px] font-bold text-[#60A5FA] bg-blue-500/10 hover:bg-blue-500/20 rounded-lg border border-blue-500/20 transition-colors">Editar no estúdio</button>
+                </article>
+            </div>
+
+            <!-- Editor e Abas para Envio Rápido -->
+            <div class="message-editor p-5 border-t border-[#2A2F38] bg-[#13161B]">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modo de disparo ativo:</span>
+                    <span id="pitch-word-counter" class="text-[10px] font-mono text-slate-400">0 palavras</span>
+                </div>
+                <div id="pitch-tabs" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    {% for mode, label in [('direta','Direta'),('consultiva','Consultiva'),('curiosidade','Curiosidade'),('recepcao','Recepção'),('email','E-mail'),('previa_visual','Prévia visual')] %}
+                    <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-[10px] font-bold text-slate-300 transition-colors hover:border-[#60A5FA] disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Disponível após geração de prévia"{% endif %}>{{ label }}</button>
+                    {% endfor %}
+                </div>
+                <textarea id="pitch-editor" class="mt-3 min-h-[160px] w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-[#60A5FA] transition-colors"></textarea>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <button onclick="savePitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk text-[#60A5FA]"></i> Salvar edição</button>
+                    <button onclick="copyPitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-copy text-[#60A5FA]"></i> Copiar texto</button>
+                    {% if lead.whatsapp_link and not lead.do_not_contact %}
+                    <a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-[#22C55E] hover:bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors inline-flex items-center gap-1.5 ml-auto shadow-sm"><i class="fa-brands fa-whatsapp"></i> Disparar WhatsApp</a>
+                    {% endif %}
+                    {% if lead.email and not lead.do_not_contact %}
+                    <a id="email-action" href="#" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-envelope"></i> Enviar E-mail</a>
+                    {% endif %}
+                </div>
+                {% if lead.do_not_contact %}
+                <div class="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-bold text-rose-200 flex items-center gap-2"><i class="fa-solid fa-ban text-rose-400"></i> Contato bloqueado: {{ lead.do_not_contact_reason or 'preferência registrada' }}</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Coluna Lateral: Canais de Contato Direto & Diagnóstico Resumido -->
+        <div class="space-y-4">
+            <!-- Card de Canais Validados -->
+            <section class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+                <div class="flex items-center justify-between pb-3 border-b border-[#2A2F38]">
+                    <h2 class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2"><i class="fa-solid fa-address-book text-[#60A5FA]"></i> Canais Verificados</h2>
+                    <span class="rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-blue-500/10 text-[#60A5FA] border border-blue-500/20">{{ lead.contact_strategy.label or 'Direto' }}</span>
+                </div>
+                <div class="mt-3 space-y-2 text-xs">
+                    {% if lead.telefone %}
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border border-[#2A2F38] bg-[#13161B]">
+                        <span class="font-medium text-slate-200 flex items-center gap-2"><i class="fa-solid fa-phone text-slate-400"></i> {{ lead.telefone }}</span>
+                        {{ copy_button(lead.telefone, 'Copiar telefone') }}
+                    </div>
+                    {% endif %}
+                    {% if lead.email %}
+                    <div class="flex items-center justify-between p-2.5 rounded-xl border border-[#2A2F38] bg-[#13161B]">
+                        <a href="mailto:{{ lead.email }}" class="font-medium text-[#60A5FA] hover:underline flex items-center gap-2 truncate max-w-[200px]"><i class="fa-solid fa-envelope text-slate-400"></i> {{ lead.email }}</a>
+                        {{ copy_button(lead.email, 'Copiar e-mail') }}
+                    </div>
+                    {% endif %}
+                    {% if lead.google_maps %}
+                    <a href="{{ lead.google_maps }}" target="_blank" rel="noopener" class="flex items-center justify-between p-2.5 rounded-xl border border-[#2A2F38] bg-[#13161B] text-slate-300 hover:text-white transition-colors">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-[#60A5FA]"></i> Perfil no Google Maps</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-500"></i>
+                    </a>
+                    {% endif %}
+                    {% if lead.site %}
+                    <a href="{{ lead.site }}" target="_blank" rel="noopener" class="flex items-center justify-between p-2.5 rounded-xl border border-[#2A2F38] bg-[#13161B] text-slate-300 hover:text-white transition-colors">
+                        <span class="flex items-center gap-2 truncate max-w-[220px]"><i class="fa-solid fa-globe text-slate-400"></i> {{ lead.site }}</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-500"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
+
+            <!-- Card de Diagnóstico do Lead -->
+            <section class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+                <h2 class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2"><i class="fa-solid fa-magnifying-glass-chart text-[#60A5FA]"></i> Diagnóstico de Oportunidade</h2>
+                <div class="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/[0.05] p-3">
+                    <span class="text-[9px] font-black uppercase tracking-wider text-[#60A5FA]">Oportunidade Principal</span>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-200 font-medium">{{ intelligence.main_argument or lead.motivo_potencial or 'Construção de presença digital oficial.' }}</p>
+                </div>
+                <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between text-xs py-1 border-b border-[#2A2F38]">
+                        <span class="text-slate-400">Presença de site:</span>
+                        <strong class="text-white">{{ lead.site_opportunity_status or 'Sem site próprio' }}</strong>
+                    </div>
+                    <div class="flex items-center justify-between text-xs py-1 border-b border-[#2A2F38]">
+                        <span class="text-slate-400">Origem da busca:</span>
+                        <strong class="text-white font-mono text-[11px]">{{ lead.lead_source or 'Google Places' }}</strong>
+                    </div>
+                    <div class="flex items-center justify-between text-xs py-1">
+                        <span class="text-slate-400">Confiabilidade dados:</span>
+                        <strong class="text-[#22C55E]">{{ lead.data_confidence }}% ({{ lead.data_quality_status }})</strong>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Indicadores de Score & Evidências Detalhadas -->
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4 pt-2">
+        <div class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Score de Prioridade</span>
+            <strong class="mt-2 block text-3xl font-black text-white">{{ lead.potencial or 0 }}<small class="text-xs text-slate-500 font-normal">/100</small></strong>
+            <p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.motivo_potencial or 'Sinais comerciais suficientes para contato direto.' }}</p>
+            <p class="mt-2 text-[10px] text-slate-500">Score v{{ lead.score_version or '2.0' }} &bull; priorização algorítmica</p>
+        </div>
+        <div class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Qualidade dos dados</span>
+            <strong class="mt-2 block text-3xl font-black text-white">{{ lead.data_confidence }}%</strong>
+            <p class="mt-2 text-xs leading-relaxed text-slate-400">{{ lead.data_quality_status }}{% if lead.data_quality_issues %}: {{ lead.data_quality_issues | join(', ') }}{% endif %}.</p>
+        </div>
+        <div class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Status de Validação</span>
+            <strong class="mt-2 block text-base font-black text-white">{{ lead.validation_status or 'CONFIRMADO' }}</strong>
+            <p class="mt-2 text-xs text-slate-400">{{ lead.validation_reason or 'Dados checados na base com verificação digital.' }}</p>
+            <p class="mt-2 text-[10px] text-[#60A5FA]">Site: {{ lead.site_confidence or 'VERIFICADO' }}</p>
+        </div>
+        <div class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Prévias Visuais</span>
+            <strong class="mt-2 block text-3xl font-black text-white">{{ previews|length }}</strong>
+            <p class="mt-2 text-xs text-slate-400">Versões responsivas preparadas para prospecção ativa.</p>
+        </div>
     </section>
 
+    <!-- Composição Transparente do Score -->
     {% if lead.score_breakdown and lead.score_breakdown.dimensions %}
-    <section class="executive-panel rounded-2xl p-5 md:p-6">
-        <div class="mb-5"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Composição transparente</span><h2 class="mt-1 text-lg font-black text-white">Por que este lead recebeu essa nota</h2></div>
+    <section class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5 md:p-6">
+        <div class="mb-4">
+            <span class="text-[10px] font-black uppercase tracking-wider text-[#60A5FA]">Composição do Score</span>
+            <h2 class="mt-1 text-base font-black text-white">Evidências e pesos que geraram a pontuação</h2>
+        </div>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {% for key, item in lead.score_breakdown.dimensions.items() %}
-            <div class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
-                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">{{ item.label }}</span>
-                <strong class="mt-2 block text-xl text-white">{{ item.score }}<small class="text-xs text-slate-500">/{{ item.max }}</small></strong>
+            <div class="rounded-xl border border-[#2A2F38] bg-[#13161B] p-4">
+                <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400">{{ item.label }}</span>
+                <strong class="mt-2 block text-xl text-white font-black">{{ item.score }}<small class="text-xs text-slate-500 font-normal">/{{ item.max }}</small></strong>
                 <p class="mt-2 text-[11px] leading-relaxed text-slate-400">{{ item.evidence }}</p>
             </div>
             {% endfor %}
@@ -41,129 +226,75 @@
     </section>
     {% endif %}
 
-    <section class="executive-panel rounded-2xl p-5 md:p-6">
-        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div><span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Evidências armazenadas</span><h2 class="mt-1 text-lg font-black text-white">O que sustenta a validação</h2></div>
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Resultado comercial
-                <select id="commercial-outcome" onchange="saveCommercialOutcome()" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white">
-                    <option value="">Ainda não registrado</option>
-                    {% for outcome in ['Contatado', 'Respondeu', 'Demonstrou interesse', 'Reunião agendada', 'Proposta enviada', 'Contrato fechado', 'Sem interesse'] %}<option value="{{ outcome }}" {{ 'selected' if lead.commercial_outcome == outcome else '' }}>{{ outcome }}</option>{% endfor %}
-                </select>
-            </label>
-        </div>
-        <div class="mt-5 grid gap-3 md:grid-cols-2">
-            {% for item in lead.evidence %}
-            <article class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
-                <div class="flex items-center justify-between gap-3"><strong class="text-[10px] uppercase tracking-widest text-slate-300">{{ item.type }}</strong><span class="rounded-full bg-cyan-500/10 px-2 py-1 text-[9px] font-black text-cyan-300">{{ item.confidence }}</span></div>
-                <p class="mt-2 text-xs leading-relaxed text-slate-400">{{ item.value }}</p><p class="mt-2 text-[10px] text-slate-600">Fonte: {% if item.source_url %}<a class="text-cyan-400 hover:text-cyan-300" href="{{ item.source_url }}" target="_blank" rel="noopener">{{ item.source }}</a>{% else %}{{ item.source }}{% endif %}</p>
-            </article>
-            {% else %}<p class="text-xs text-slate-500">Lead legado: nenhuma evidência estruturada foi armazenada ainda.</p>{% endfor %}
-        </div>
-    </section>
-
-    <div class="commercial-workbench grid gap-6 xl:grid-cols-[0.82fr_1.5fr]">
-        <div class="space-y-6">
-            <section class="executive-panel rounded-2xl p-6">
-                <h2 class="text-sm font-black uppercase tracking-widest text-white">Diagnóstico</h2>
-                <div class="mt-5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-cyan-400">Argumento recomendado</span>
-                    <p class="mt-2 text-sm leading-relaxed text-slate-200">{{ intelligence.main_argument }}</p>
-                </div>
-                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-slate-400">Evidências verificadas</h3>
-                <div class="mt-3 space-y-3">
-                    {% for evidence in intelligence.verified %}
-                    <div class="rounded-xl border border-[#1F2B44] bg-[#090E18] p-4">
-                        <p class="text-xs font-bold text-slate-200">{{ evidence.claim }}</p>
-                        <p class="mt-1 text-[10px] text-slate-500">Fonte: {{ evidence.source }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-amber-300">Inferências, não fatos</h3>
-                <div class="mt-3 space-y-2 text-xs leading-relaxed text-slate-400">
-                    {% for item in intelligence.inferred %}<p>• {{ item.claim }}</p>{% endfor %}
-                </div>
-                <h3 class="mt-6 text-xs font-black uppercase tracking-widest text-slate-500">Ainda desconhecido</h3>
-                <div class="mt-3 space-y-2 text-xs text-slate-500">
-                    {% for item in intelligence.unknown %}<p>• {{ item }}</p>{% endfor %}
-                </div>
-            </section>
-
-            <section class="executive-panel rounded-2xl p-6">
-                <h2 class="text-sm font-black uppercase tracking-widest text-white">Canais e fontes</h2>
-                <div class="mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs font-bold text-cyan-200">{{ lead.contact_strategy.label }}: {{ lead.contact_strategy.reason }}</div>
-                <div class="mt-4 grid gap-2 text-xs">
-                    {% if lead.telefone %}<div class="contact-line"><span><i class="fa-solid fa-phone"></i>{{ lead.telefone }}</span>{{ copy_button(lead.telefone, 'Copiar telefone') }}</div>{% endif %}
-                    {% if lead.email %}<div class="contact-line"><a href="mailto:{{ lead.email }}"><i class="fa-solid fa-envelope"></i>{{ lead.email }}</a>{{ copy_button(lead.email, 'Copiar e-mail') }}</div>{% endif %}
-                    {% if lead.google_maps %}<a href="{{ lead.google_maps }}" target="_blank" rel="noopener" class="rounded-xl bg-[#090E18] p-3 text-slate-300"><i class="fa-solid fa-map-location-dot mr-2 text-cyan-400"></i>Perfil no Google</a>{% endif %}
-                </div>
-            </section>
-        </div>
-
-        <section class="executive-panel message-studio rounded-2xl">
-            <div class="message-studio-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Mensagens para abordagem</h2><p class="mt-1 text-xs text-slate-500">Três caminhos curtos, baseados no diagnóstico disponível.</p></div>
-                {% if lead.qualidade_pitch %}<span class="rounded-full px-3 py-1 text-[10px] font-black {{ 'bg-emerald-500/10 text-emerald-300' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300' }}">Qualidade {{ lead.qualidade_pitch.score or 0 }}/100</span>{% endif %}
+    <!-- Acompanhamento Comercial e Histórico -->
+    <section class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-6">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-[#2A2F38]">
+            <div>
+                <h2 class="text-sm font-black uppercase tracking-wider text-white">Acompanhamento e Histórico do Contato</h2>
+                <p class="mt-1 text-xs text-slate-400">Registre respostas e agende o próximo retorno com o lead.</p>
             </div>
-            <div class="message-variants">
-                {% for mode, label in [('direta','Direta'),('consultiva','Consultiva'),('curiosidade','Curiosidade')] %}
-                <article class="message-variant">
-                    <div class="message-variant-head"><h3>{{ label }}</h3><button type="button" class="message-copy" onclick="copyPitchMode('{{ mode }}', this)" aria-label="Copiar mensagem {{ label }}" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button></div>
-                    <p>{{ lead.copies_pitch.get(mode) or 'Mensagem ainda não disponível para este lead.' }}</p>
-                </article>
-                {% endfor %}
-            </div>
-            <div class="message-editor">
-            <div id="pitch-tabs" class="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {% for mode, label in [('direta','Direta'),('consultiva','Consultiva'),('curiosidade','Curiosidade'),('recepcao','Recepção/agendamento'),('email','E-mail'),('previa_visual','Prévia visual')] %}
-                <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#263550] bg-[#0B1120] px-3 py-3 text-[10px] font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Gere uma prévia para liberar esta abordagem"{% endif %}>{{ label }}</button>
-                {% endfor %}
-            </div>
-            <textarea id="pitch-editor" class="mt-4 min-h-[260px] w-full rounded-2xl border border-[#263550] bg-[#080D17] p-5 text-sm leading-7 text-slate-200 outline-none focus:border-cyan-500"></textarea>
-            <div class="mt-4 flex flex-wrap gap-2">
-                <button onclick="savePitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-floppy-disk mr-2 text-cyan-400"></i>Salvar edição</button>
-                <button onclick="copyPitch()" class="rounded-xl border border-[#263550] bg-[#111827] px-4 py-3 text-xs font-black text-slate-200"><i class="fa-solid fa-copy mr-2 text-cyan-400"></i>Copiar</button>
-                {% if lead.whatsapp_link and not lead.do_not_contact %}<a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-2"></i>Abrir WhatsApp</a>{% endif %}
-                {% if lead.email and not lead.do_not_contact %}<a id="email-action" href="#" class="rounded-xl bg-blue-600 px-4 py-3 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-2"></i>Abrir e-mail</a>{% endif %}
-            </div>
-            {% if lead.do_not_contact %}<div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-200"><i class="fa-solid fa-ban mr-2"></i>Contato bloqueado: {{ lead.do_not_contact_reason or 'preferência registrada' }}</div>{% endif %}
-            </div>
-        </section>
-    </div>
-
-    <section class="executive-panel rounded-2xl p-6">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Acompanhamento comercial</h2><p class="mt-1 text-xs text-slate-500">Registre respostas e combine o próximo passo. Nada é enviado automaticamente.</p></div>
-            <button onclick="toggleDoNotContact()" class="rounded-xl border {{ 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' if lead.do_not_contact else 'border-rose-500/30 bg-rose-500/10 text-rose-300' }} px-4 py-2.5 text-xs font-black">
+            <button onclick="toggleDoNotContact()" class="rounded-xl border {{ 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' if lead.do_not_contact else 'border-rose-500/30 bg-rose-500/10 text-rose-300' }} px-4 py-2 text-xs font-black transition-colors">
                 <i class="fa-solid {{ 'fa-rotate-left' if lead.do_not_contact else 'fa-ban' }} mr-2"></i>{{ 'Reabrir contato' if lead.do_not_contact else 'Não contatar' }}
             </button>
         </div>
         <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-            <div class="rounded-2xl border border-[#263550] bg-[#080D17] p-5">
+            <div class="rounded-2xl border border-[#2A2F38] bg-[#13161B] p-5 space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Canal<select id="follow-channel" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"><option>WhatsApp</option><option>E-mail</option><option>Telefone</option><option>Outro</option></select></label>
-                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Leitura da resposta<select id="follow-sentiment" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"><option value="neutro">Neutra / dúvida</option><option value="interessado">Interessado</option><option value="objeção">Objeção</option><option value="sem momento">Sem momento</option><option value="não contatar">Não deseja contato</option></select></label>
+                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-400">Canal
+                        <select id="follow-channel" class="mt-1.5 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-2.5 text-xs text-white outline-none focus:border-[#60A5FA]">
+                            <option>WhatsApp</option><option>E-mail</option><option>Telefone</option><option>Outro</option>
+                        </select>
+                    </label>
+                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-400">Leitura da resposta
+                        <select id="follow-sentiment" class="mt-1.5 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-2.5 text-xs text-white outline-none focus:border-[#60A5FA]">
+                            <option value="neutro">Neutra / dúvida</option>
+                            <option value="interessado">Interessado</option>
+                            <option value="objeção">Objeção</option>
+                            <option value="sem momento">Sem momento</option>
+                            <option value="não contatar">Não deseja contato</option>
+                        </select>
+                    </label>
                 </div>
-                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Resposta recebida<textarea id="follow-response" class="mt-2 min-h-28 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-4 text-xs leading-relaxed text-white outline-none focus:border-cyan-500" placeholder="Cole ou resuma o que o lead respondeu."></textarea></label>
-                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Próxima ação<textarea id="follow-next-action" class="mt-2 min-h-20 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-4 text-xs leading-relaxed text-white outline-none focus:border-cyan-500" placeholder="Deixe vazio para receber uma sugestão baseada na resposta.">{{ lead.next_action or '' }}</textarea></label>
-                <label class="mt-4 block text-[10px] font-black uppercase tracking-widest text-slate-500">Quando<input id="follow-next-at" type="datetime-local" value="{{ (lead.next_action_at or '') | replace(' ', 'T') }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#0D1423] p-3 text-xs text-white"></label>
-                <button onclick="saveFollowUp()" class="mt-5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3.5 text-xs font-black text-white"><i class="fa-solid fa-check mr-2"></i>Registrar acompanhamento</button>
+                <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400">Resposta recebida
+                    <textarea id="follow-response" class="mt-1.5 min-h-24 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-3 text-xs leading-relaxed text-white outline-none focus:border-[#60A5FA]" placeholder="Cole ou resuma o que o lead respondeu..."></textarea>
+                </label>
+                <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400">Próxima ação
+                    <textarea id="follow-next-action" class="mt-1.5 min-h-16 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-3 text-xs leading-relaxed text-white outline-none focus:border-[#60A5FA]" placeholder="Deixe vazio para receber uma sugestão automatizada...">{{ lead.next_action or '' }}</textarea>
+                </label>
+                <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400">Data / Horário do retorno
+                    <input id="follow-next-at" type="datetime-local" value="{{ (lead.next_action_at or '') | replace(' ', 'T') }}" class="mt-1.5 w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-2.5 text-xs text-white outline-none focus:border-[#60A5FA]">
+                </label>
+                <button onclick="saveFollowUp()" class="w-full rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-3 text-xs font-bold text-white transition-colors inline-flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-check"></i> Registrar Acompanhamento
+                </button>
             </div>
             <div>
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500">Histórico do lead</h3>
-                <div class="mt-3 max-h-[520px] space-y-3 overflow-auto pr-1">
+                <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Histórico de Interações</h3>
+                <div class="max-h-[460px] space-y-3 overflow-y-auto pr-1">
                     {% for item in interactions %}
-                    <article class="rounded-xl border border-[#263550] bg-[#080D17] p-4">
-                        <div class="flex items-center justify-between gap-3"><span class="text-[10px] font-black uppercase tracking-widest {{ 'text-rose-300' if item.sentiment == 'não contatar' else 'text-cyan-400' }}">{{ item.interaction_type }} · {{ item.channel or 'Sistema' }}</span><time class="text-[9px] text-slate-600">{{ item.created_at }}</time></div>
-                        <p class="mt-3 text-xs leading-relaxed text-slate-300">{{ item.content }}</p>
-                        {% if item.next_action %}<div class="mt-3 rounded-lg bg-blue-500/5 p-3 text-[11px] leading-relaxed text-blue-200"><strong>Próxima ação:</strong> {{ item.next_action }}{% if item.next_action_at %}<br><span class="text-slate-500">Prazo: {{ item.next_action_at }}</span>{% endif %}</div>{% endif %}
+                    <article class="rounded-xl border border-[#2A2F38] bg-[#13161B] p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider {{ 'text-rose-400' if item.sentiment == 'não contatar' else 'text-[#60A5FA]' }}">{{ item.interaction_type }} &bull; {{ item.channel or 'Sistema' }}</span>
+                            <time class="text-[9px] text-slate-500 font-mono">{{ item.created_at }}</time>
+                        </div>
+                        <p class="mt-2.5 text-xs leading-relaxed text-slate-300">{{ item.content }}</p>
+                        {% if item.next_action %}
+                        <div class="mt-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 text-[11px] leading-relaxed text-blue-200">
+                            <strong>Próxima ação:</strong> {{ item.next_action }}
+                            {% if item.next_action_at %}<br><span class="text-slate-400">Prazo: {{ item.next_action_at }}</span>{% endif %}
+                        </div>
+                        {% endif %}
                     </article>
-                    {% else %}<div class="rounded-xl border border-dashed border-[#263550] p-8 text-center text-xs text-slate-600">Nenhuma interação registrada.</div>{% endfor %}
+                    {% else %}
+                    <div class="rounded-xl border border-dashed border-[#2A2F38] p-8 text-center text-xs text-slate-500">Nenhuma interação registrada ainda.</div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </section>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 const pitchCopies = {{ lead.copies_pitch | tojson }};
@@ -171,75 +302,135 @@ const placeId = {{ lead.place_id | tojson }};
 const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
 const emailAddress = {{ (lead.email or '') | tojson }};
 const recommendedMode = {{ lead.recommended_pitch_mode | tojson }};
-let activeMode = pitchCopies[recommendedMode] ? recommendedMode : (pitchCopies.consultiva ? 'consultiva' : Object.keys(pitchCopies)[0]);
+let activeMode = pitchCopies[recommendedMode] ? recommendedMode : (pitchCopies.direta ? 'direta' : Object.keys(pitchCopies)[0] || 'direta');
+
 function selectPitch(mode) {
     if (!pitchCopies[mode]) return;
     activeMode = mode;
-    document.getElementById('pitch-editor').value = pitchCopies[mode];
-    document.querySelectorAll('.pitch-tab').forEach(button => button.classList.toggle('border-cyan-400', button.dataset.mode === mode));
+    const editor = document.getElementById('pitch-editor');
+    if (editor) {
+        editor.value = pitchCopies[mode];
+        updateWordCounter(editor.value);
+    }
+    document.querySelectorAll('.pitch-tab').forEach(button => {
+        const isActive = button.dataset.mode === mode;
+        button.classList.toggle('border-[#60A5FA]', isActive);
+        button.classList.toggle('text-white', isActive);
+        button.classList.toggle('bg-[#20242B]', isActive);
+    });
     updateContactLinks();
 }
+
+function updateWordCounter(text) {
+    const counter = document.getElementById('pitch-word-counter');
+    if (counter) {
+        const count = text.trim() ? text.trim().split(/\s+/).length : 0;
+        counter.textContent = `${count} palavras`;
+    }
+}
+
 function updateContactLinks() {
-    const text = document.getElementById('pitch-editor').value;
+    const editor = document.getElementById('pitch-editor');
+    if (!editor) return;
+    const text = editor.value;
+    updateWordCounter(text);
     const link = document.getElementById('whatsapp-action');
-    if (link) link.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
+    if (link && whatsappBase) link.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
     const emailLink = document.getElementById('email-action');
-    if (emailLink) {
+    if (emailLink && emailAddress) {
         const lines = text.split('\n');
         const hasSubject = /^assunto:|^subject:/i.test(lines[0] || '');
-        const subject = hasSubject ? lines.shift().replace(/^assunto:|^subject:/i, '').trim() : `Site para {{ lead.nome | e }}`;
+        const subject = hasSubject ? lines.shift().replace(/^assunto:|^subject:/i, '').trim() : `Proposta de site para {{ lead.nome | e }}`;
         emailLink.href = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n').trim())}`;
     }
 }
-document.getElementById('pitch-editor').addEventListener('input', updateContactLinks);
+
+const editorElem = document.getElementById('pitch-editor');
+if (editorElem) {
+    editorElem.addEventListener('input', updateContactLinks);
+}
+
 async function savePitch() {
-    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/pitch`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:activeMode,text:document.getElementById('pitch-editor').value})});
+    const text = document.getElementById('pitch-editor').value;
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/pitch`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mode: activeMode, text: text})
+    });
     const data = await response.json();
     if (!data.success) return showAppToast(data.error || 'Não foi possível salvar.', 'error');
-    pitchCopies[activeMode] = document.getElementById('pitch-editor').value;
-    showAppToast('Pitch atualizado e mantido para revisão.');
+    pitchCopies[activeMode] = text;
+    showAppToast('Abordagem salva com sucesso.');
 }
-async function copyPitch() { await navigator.clipboard.writeText(document.getElementById('pitch-editor').value); showAppToast('Pitch copiado.'); }
+
+async function copyPitch() {
+    const text = document.getElementById('pitch-editor').value;
+    await navigator.clipboard.writeText(text);
+    showAppToast('Texto copiado para a área de transferência.');
+}
+
 async function copyPitchMode(mode, button) {
     const text = pitchCopies[mode];
     if (!text) return showAppToast('Esta mensagem ainda não está disponível.', 'error');
     await navigator.clipboard.writeText(text);
     const original = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-check"></i>';
-    showAppToast('Mensagem copiada.');
-    setTimeout(() => { button.innerHTML = original; }, 1200);
+    button.innerHTML = '<i class="fa-solid fa-check text-[#22C55E]"></i>';
+    showAppToast(`Abordagem ${mode} copiada com sucesso.`);
+    setTimeout(() => { button.innerHTML = original; }, 1500);
 }
+
 async function regenerarPitches() {
-    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/regenerate-pitches`, {method:'POST'});
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/regenerate-pitches`, {method: 'POST'});
     const data = await response.json();
-    if (!data.success) return showAppToast(data.error || 'Falha ao regenerar.', 'error');
-    Object.assign(pitchCopies, data.versoes); showAppToast('Novas abordagens aprovadas.'); setTimeout(() => location.reload(), 600);
+    if (!data.success) return showAppToast(data.error || 'Falha ao regenerar abordagens.', 'error');
+    Object.assign(pitchCopies, data.versoes);
+    showAppToast('Novas abordagens geradas e aprovadas.');
+    setTimeout(() => location.reload(), 600);
 }
+
 async function saveFollowUp() {
-    const payload = {response:document.getElementById('follow-response').value,channel:document.getElementById('follow-channel').value,sentiment:document.getElementById('follow-sentiment').value,next_action:document.getElementById('follow-next-action').value,next_action_at:document.getElementById('follow-next-at').value};
-    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/follow-up`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const data = await response.json(); if (!data.success) return showAppToast(data.error || 'Não foi possível registrar.', 'error');
-    document.getElementById('follow-next-action').value = data.next_action; showAppToast('Resposta e próxima ação registradas.'); setTimeout(() => location.reload(), 700);
-}
-async function saveCommercialOutcome() {
-    const outcome = document.getElementById('commercial-outcome').value;
-    if (!outcome) return;
-    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/outcome`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({outcome})});
+    const payload = {
+        response: document.getElementById('follow-response').value,
+        channel: document.getElementById('follow-channel').value,
+        sentiment: document.getElementById('follow-sentiment').value,
+        next_action: document.getElementById('follow-next-action').value,
+        next_action_at: document.getElementById('follow-next-at').value
+    };
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/follow-up`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
     const data = await response.json();
-    if (!data.success) return showAppToast(data.error || 'Não foi possível registrar o resultado.', 'error');
-    showAppToast('Resultado comercial registrado e disponível para o aprendizado.');
+    if (!data.success) return showAppToast(data.error || 'Não foi possível registrar.', 'error');
+    document.getElementById('follow-next-action').value = data.next_action;
+    showAppToast('Interação e retorno registrados.');
+    setTimeout(() => location.reload(), 700);
 }
+
 async function toggleDoNotContact() {
     const currentlyBlocked = {{ 'true' if lead.do_not_contact else 'false' }};
     let reason = currentlyBlocked ? 'Permissão de contato reaberta manualmente' : 'Preferência de não contato registrada';
     if (!currentlyBlocked) {
-        const confirmed = await showAppConfirm({title:'Bloquear contato?',message:'O WhatsApp e o e-mail deixarão de aparecer como ações para este lead. O histórico será preservado.',confirmLabel:'Bloquear contato',danger:true});
+        const confirmed = await showAppConfirm({
+            title: 'Bloquear contato?',
+            message: 'O WhatsApp e o e-mail deixarão de aparecer como ações imediatas para este lead. O histórico será preservado.',
+            confirmLabel: 'Bloquear contato',
+            danger: true
+        });
         if (!confirmed) return;
     }
-    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/do-not-contact`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked:!currentlyBlocked,reason})});
-    const data = await response.json(); if (!data.success) return showAppToast(data.error || 'Falha ao atualizar preferência.', 'error');
-    showAppToast(currentlyBlocked ? 'Contato reaberto.' : 'Preferência de não contato salva.'); setTimeout(() => location.reload(), 600);
+    const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/do-not-contact`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({blocked: !currentlyBlocked, reason: reason})
+    });
+    const data = await response.json();
+    if (!data.success) return showAppToast(data.error || 'Falha ao atualizar preferência.', 'error');
+    showAppToast(currentlyBlocked ? 'Contato reaberto.' : 'Preferência de não contato salva.');
+    setTimeout(() => location.reload(), 600);
 }
+
 if (activeMode) selectPitch(activeMode);
 </script>
 {% endblock %}

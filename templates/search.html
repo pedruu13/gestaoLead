@@ -5,10 +5,10 @@
 {% block content %}
 <div class="campaign-page max-w-5xl mx-auto pb-16 space-y-6">
     <section class="campaign-hero rounded-2xl border p-6 md:p-8">
-        <p class="campaign-kicker">Prospecção</p>
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">Buscar novos leads</h1>
+        <p class="campaign-kicker">Automação Comercial</p>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">Nova Campanha Inteligente</h1><span class="sr-only">Buscar novos leads</span>
         <p class="text-slate-400 mt-2 max-w-2xl text-sm leading-relaxed">
-            Defina a região, o segmento e a quantidade desejada. A campanha registra cada consulta e mostra com clareza o que foi encontrado.
+            Encontre empresas com potencial de contratar seus serviços, sem precisar escolher cidades ou nichos manualmente.
         </p>
     </section>
 
@@ -47,7 +47,7 @@
         </div>
 
         <!-- Barra de Progresso com Meta de Leads Qualificados -->
-        <div class="rounded-2xl bg-[#0E1422] border border-[#1F2B44] p-5 space-y-3">
+        <div class="rounded-2xl bg-[#13161B] border border-[#2A2F38] p-5 space-y-3">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Progresso da Meta</span>
@@ -55,7 +55,7 @@
                         0 de 100 leads qualificados (0%)
                     </strong>
                 </div>
-                <span id="monitor_goal_tag" class="text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-1.5 self-start sm:self-auto">
+                <span id="monitor_goal_tag" class="text-xs font-bold text-blue-300 bg-cyan-500/10 border border-blue-500/20 rounded-lg px-3 py-1.5 self-start sm:self-auto">
                     Meta: 100 leads qualificados
                 </span>
             </div>
@@ -63,15 +63,15 @@
                 <div id="monitor_progress_bar" class="campaign-progress h-full rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
             <p id="monitor_status_hint" class="text-[11px] text-slate-400 flex items-center gap-2">
-                <i class="fa-solid fa-circle-notch fa-spin text-cyan-400 text-xs"></i>
+                <i class="fa-solid fa-circle-notch fa-spin text-[#60A5FA] text-xs"></i>
                 <span id="monitor_status_text">Iniciando motor de busca e validação...</span>
             </p>
         </div>
 
         <!-- Grid de Indicadores Detalhados -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="hidden rounded-xl bg-[#0E1422] border border-[#242a35] p-3.5 text-center">
-                <span class="block text-[10px] uppercase tracking-wider text-cyan-300 font-extrabold">Meta Leads</span>
+            <div class="hidden rounded-xl bg-[#13161B] border border-[#242a35] p-3.5 text-center">
+                <span class="block text-[10px] uppercase tracking-wider text-blue-300 font-extrabold">Meta Leads</span>
                 <strong id="stat_meta" class="text-xl font-black text-white mt-0.5 block">100</strong>
             </div>
             <div class="metric-card rounded-xl border p-3.5">
@@ -82,15 +82,15 @@
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Encontradas</span>
                 <strong id="stat_encontradas" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#13161B] border border-[#2A2F38] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Analisadas</span>
                 <strong id="stat_analisadas" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
-            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#13161B] border border-[#2A2F38] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Descartadas</span>
                 <strong id="stat_descartadas" class="text-xl font-black text-rose-300 mt-0.5 block">0</strong>
             </div>
-            <div class="hidden rounded-xl bg-[#0E1422] border border-[#1F2B44] p-3.5 text-center">
+            <div class="hidden rounded-xl bg-[#13161B] border border-[#2A2F38] p-3.5 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Nichos</span>
                 <strong id="stat_nichos" class="text-xl font-black text-white mt-0.5 block">0</strong>
             </div>
@@ -105,10 +105,10 @@
         </div>
 
         <!-- Seção Recolhível de Detalhes das Localidades -->
-        <details class="rounded-2xl border border-[#1F2B44] bg-[#0E1422] p-4 text-xs text-slate-400">
+        <details class="rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 text-xs text-slate-400">
             <summary class="font-bold text-white cursor-pointer select-none flex items-center justify-between">
                 <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-list-check text-cyan-400"></i> Visualizar detalhes das localidades pesquisadas
+                    <i class="fa-solid fa-list-check text-[#60A5FA]"></i> Visualizar detalhes das localidades pesquisadas
                 </span>
                 <i class="fa-solid fa-chevron-down text-slate-500 text-xs transition-transform duration-200"></i>
             </summary>
@@ -132,7 +132,7 @@
                         <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">1</span>
                         Localização
                     </label>
-                    <span id="loc_summary_badge" class="text-[11px] font-bold text-cyan-400">Automática selecionada</span>
+                    <span id="loc_summary_badge" class="text-[11px] font-bold text-[#60A5FA]">Automática selecionada</span>
                 </div>
 
                 <!-- Cards de Seleção de Modo de Localização -->
@@ -175,8 +175,8 @@
                 </div>
 
                 <!-- Painel Dinâmico: Automático -->
-                <div id="loc_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
-                    <i class="fa-solid fa-circle-check text-cyan-400 text-sm mt-0.5"></i>
+                <div id="loc_panel_auto" class="rounded-2xl border border-blue-500/20 bg-blue-500/[0.05] p-4 text-xs text-slate-300 flex items-start gap-3">
+                    <i class="fa-solid fa-circle-check text-blue-400 text-sm mt-0.5"></i>
                     <div>
                         <strong class="text-white block font-medium">Seleção automática de cidades</strong>
                         <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
@@ -187,10 +187,10 @@
                 </div>
 
                 <!-- Painel Dinâmico: Selecionar Estados -->
-                <div id="loc_panel_states" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                <div id="loc_panel_states" class="hidden rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 space-y-3">
                     <div class="flex items-center justify-between">
                         <span class="text-[11px] font-bold text-slate-300">Clique para selecionar os estados desejados:</span>
-                        <span id="selected_states_count" class="text-[10px] text-cyan-400 font-bold">0 estados</span>
+                        <span id="selected_states_count" class="text-[10px] text-blue-400 font-bold">0 estados</span>
                     </div>
                     <div id="states_pill_grid" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
                         <!-- Carregado via JS -->
@@ -199,20 +199,20 @@
                 </div>
 
                 <!-- Painel Dinâmico: Selecionar Cidades -->
-                <div id="loc_panel_cities" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                <div id="loc_panel_cities" class="hidden rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 space-y-3">
                     <label class="block text-[11px] font-bold text-slate-300">
                         Pesquisar municípios pelo nome:
                         <div class="relative mt-1.5">
-                            <input id="city_autocomplete_input" data-clearable type="text" autocomplete="off" placeholder="Digite o nome da cidade (ex.: Campinas, Maringá, Sorocaba)..." class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400" aria-label="Buscar município">
-                            <div id="city_autocomplete_results" class="hidden absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-xl border border-[#1F2B44] bg-[#0A0E18] p-1 shadow-2xl"></div>
+                            <input id="city_autocomplete_input" data-clearable type="text" autocomplete="off" placeholder="Digite o nome da cidade (ex.: Campinas, Maringá, Sorocaba)..." class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-400" aria-label="Buscar município">
+                            <div id="city_autocomplete_results" class="hidden absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-xl border border-[#2A2F38] bg-[#181B20] p-1 shadow-2xl"></div>
                         </div>
                     </label>
                     <div class="flex items-center justify-between pt-1">
                         <span class="text-[10px] text-slate-500">Cidades selecionadas:</span>
-                        <span id="selected_cities_count" class="text-[10px] text-cyan-400 font-bold">0 cidades</span>
+                        <span id="selected_cities_count" class="text-[10px] text-blue-400 font-bold">0 cidades</span>
                     </div>
                     <div id="selected_cities_chips" class="flex flex-wrap gap-2 min-h-10">
-                        <span class="text-xs text-slate-600 italic">Nenhum município adicionado ainda.</span>
+                        <span class="text-xs text-slate-500 italic">Nenhum município adicionado ainda.</span>
                     </div>
                 </div>
 
@@ -235,7 +235,7 @@
                         <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">2</span>
                         Nicho de Mercado
                     </label>
-                    <span id="niche_summary_badge" class="text-[11px] font-bold text-cyan-400">Descobrir automaticamente</span>
+                    <span id="niche_summary_badge" class="text-[11px] font-bold text-blue-400">Descobrir automaticamente</span>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -259,8 +259,8 @@
                 </div>
 
                 <!-- Painel Nicho Automático -->
-                <div id="niche_panel_auto" class="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4 text-xs text-slate-300 flex items-start gap-3">
-                    <i class="fa-solid fa-bolt-lightning text-cyan-400 text-sm mt-0.5"></i>
+                <div id="niche_panel_auto" class="rounded-2xl border border-blue-500/20 bg-blue-500/[0.05] p-4 text-xs text-slate-300 flex items-start gap-3">
+                    <i class="fa-solid fa-bolt-lightning text-blue-400 text-sm mt-0.5"></i>
                     <div>
                         <strong class="text-white block font-medium">Sugestão baseada no histórico disponível</strong>
                         <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
@@ -270,7 +270,7 @@
                 </div>
 
                 <!-- Painel Nicho Manual -->
-                <div id="niche_panel_manual" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 space-y-3">
+                <div id="niche_panel_manual" class="hidden rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 space-y-3">
                     <div>
                         <span class="text-[11px] font-bold text-slate-300 block mb-1">Sugestões de nichos populares:</span>
                         <div id="popular_niches_chips" class="flex flex-wrap gap-2"></div>
@@ -280,18 +280,18 @@
                             Digite ou adicione nichos personalizados:
                         </label>
                         <div class="flex gap-2">
-                            <input id="manual_niche_input" data-clearable type="text" placeholder="Ex.: Clínicas Veterinárias, Construtoras..." class="flex-1 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400" aria-label="Adicionar nicho manualmente">
-                            <button type="button" onclick="addCustomNiche()" class="rounded-xl bg-[#1A2338] hover:bg-[#253350] border border-[#263550] text-white text-xs font-bold px-4 py-2.5 transition-colors">
+                            <input id="manual_niche_input" data-clearable type="text" placeholder="Ex.: Clínicas Veterinárias, Construtoras..." class="flex-1 rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-400" aria-label="Adicionar nicho manualmente">
+                            <button type="button" onclick="addCustomNiche()" class="rounded-xl bg-[#20242B] hover:bg-[#2A2F38] border border-[#2A2F38] text-white text-xs font-bold px-4 py-2.5 transition-colors">
                                 Adicionar
                             </button>
                         </div>
                     </div>
                     <div class="flex items-center justify-between pt-1">
                         <span class="text-[10px] text-slate-500">Nichos selecionados:</span>
-                        <span id="selected_niches_count" class="text-[10px] text-cyan-400 font-bold">0 nichos</span>
+                        <span id="selected_niches_count" class="text-[10px] text-blue-400 font-bold">0 nichos</span>
                     </div>
                     <div id="selected_niches_chips" class="flex flex-wrap gap-2 min-h-10">
-                        <span class="text-xs text-slate-600 italic">Nenhum nicho adicionado ainda.</span>
+                        <span class="text-xs text-slate-500 italic">Nenhum nicho adicionado ainda.</span>
                     </div>
                 </div>
             </div>
@@ -303,7 +303,7 @@
                         <span class="w-5 h-5 rounded-full bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center text-[10px]">3</span>
                         Meta de Leads Qualificados
                     </label>
-                    <span id="meta_summary_badge" class="text-[11px] font-bold text-cyan-400">100 leads qualificados</span>
+                    <span id="meta_summary_badge" class="text-[11px] font-bold text-blue-400">100 leads qualificados</span>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -315,7 +315,7 @@
 
                     <label class="meta-card selected" data-group="goal_mode" onclick="setGoalValue(100, this)">
                         <input type="radio" name="goal_choice" value="100" checked class="sr-only">
-                        <strong class="text-lg font-black text-cyan-300 block">100</strong>
+                        <strong class="text-lg font-black text-blue-400 block">100</strong>
                         <span class="text-[10px] text-slate-400">Recomendado</span>
                     </label>
 
@@ -332,34 +332,34 @@
                     </label>
                 </div>
 
-                <div id="custom_goal_wrap" class="hidden rounded-2xl border border-[#1F2B44] bg-[#080B12] p-4 flex items-center gap-4">
+                <div id="custom_goal_wrap" class="hidden rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 flex items-center gap-4">
                     <label for="custom_goal_input" class="text-xs font-bold text-slate-300">Quantidade desejada de leads qualificados:</label>
-                    <input id="custom_goal_input" type="number" min="5" max="2000" value="150" class="w-32 rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs font-black text-cyan-300 outline-none focus:border-cyan-400 text-center">
+                    <input id="custom_goal_input" type="number" min="5" max="2000" value="150" class="w-32 rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-2.5 text-xs font-black text-blue-400 outline-none focus:border-blue-400 text-center">
                 </div>
 
-                <p class="text-[11px] text-slate-400 leading-relaxed bg-[#080B12] border border-[#1F2B44] rounded-xl p-3 flex items-center gap-2">
+                <p class="text-[11px] text-slate-400 leading-relaxed bg-[#13161B] border border-[#2A2F38] rounded-xl p-3 flex items-center gap-2">
                     <i class="fa-solid fa-circle-info text-blue-400"></i>
                     <span>A meta representa <strong>leads qualificados</strong> (com score auditado e canal comercial válido), não empresas brutas encontradas.</span>
                 </p>
             </div>
 
             <!-- SEÇÃO RECOLHÍVEL: CONFIGURAÇÕES AVANÇADAS -->
-            <details class="rounded-2xl border border-[#1F2B44] bg-[#080B12] p-5 group transition-all">
+            <details class="rounded-2xl border border-[#2A2F38] bg-[#13161B] p-5 group transition-all">
                 <summary class="font-bold text-xs text-white uppercase tracking-wider cursor-pointer select-none flex items-center justify-between">
                     <span class="flex items-center gap-2 text-slate-300 group-hover:text-white">
-                        <i class="fa-solid fa-sliders text-cyan-400"></i> Configurações avançadas
+                        <i class="fa-solid fa-sliders text-blue-400"></i> Configurações avançadas
                     </span>
                     <span class="text-[10px] text-slate-500 font-normal">Padrões seguros já aplicados &bull; <i class="fa-solid fa-chevron-down ml-1 text-slate-500 transition-transform group-open:rotate-180"></i></span>
                 </summary>
 
-                <div class="mt-5 pt-5 border-t border-[#1F2B44] space-y-5">
+                <div class="mt-5 pt-5 border-t border-[#2A2F38] space-y-5">
                     <div class="grid sm:grid-cols-2 gap-4">
                         <!-- Nome opcional -->
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-bold text-white mb-1.5">
                                 Nome da Campanha <span class="text-slate-500 font-normal">(opcional)</span>
                             </label>
-                            <input id="adv_campaign_name" type="text" maxlength="120" placeholder="Ex.: Campanha Odonto e Estética Interior SP" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
+                            <input id="adv_campaign_name" type="text" maxlength="120" placeholder="Ex.: Campanha Odonto e Estética Interior SP" class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-2.5 text-xs text-white placeholder:text-slate-600 outline-none focus:border-cyan-400">
                         </div>
 
                         <!-- Score Mínimo -->
@@ -368,7 +368,7 @@
                                 Score Mínimo de Qualificação
                             </label>
                             <div class="flex items-center gap-2">
-                                <input id="adv_min_score" type="number" min="30" max="95" value="70" class="w-24 rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs font-black text-cyan-300 text-center outline-none focus:border-cyan-400">
+                                <input id="adv_min_score" type="number" min="30" max="95" value="70" class="w-24 rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-xs font-black text-blue-400 text-center outline-none focus:border-blue-400">
                                 <span class="text-xs text-slate-400">/ 100 (Padrão: 70)</span>
                             </div>
                         </div>
@@ -378,7 +378,7 @@
                             <label class="block text-xs font-bold text-white mb-1.5">
                                 Presença Digital (Site)
                             </label>
-                            <select id="adv_site_filter" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white font-bold outline-none focus:border-cyan-400">
+                            <select id="adv_site_filter" class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-xs text-white font-bold outline-none focus:border-blue-400">
                                 <option value="only_without_site" selected>Somente empresas sem site (recomendado)</option>
                                 <option value="without_and_weak">Sem site + sites fracos / precisando de melhora</option>
                                 <option value="all">Todas as empresas</option>
@@ -390,7 +390,7 @@
                             <label class="block text-xs font-bold text-white mb-1.5">
                                 Tamanho do Lote de Cidades
                             </label>
-                            <select id="adv_batch_size" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400">
+                            <select id="adv_batch_size" class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-xs text-white outline-none focus:border-blue-400">
                                 <option value="5">5 municípios por lote</option>
                                 <option value="10" selected>10 municípios por lote (recomendado)</option>
                                 <option value="25">25 municípios por lote</option>
@@ -402,7 +402,7 @@
                             <label class="block text-xs font-bold text-white mb-1.5">
                                 Concorrência Simultânea
                             </label>
-                            <select id="adv_concurrency" class="w-full rounded-xl border border-[#1F2B44] bg-[#111728] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400">
+                            <select id="adv_concurrency" class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2 text-xs text-white outline-none focus:border-blue-400">
                                 <option value="1">1 worker (menor consumo de recursos)</option>
                                 <option value="2" selected>2 workers paralelos (recomendado)</option>
                                 <option value="3">3 workers paralelos (máxima velocidade)</option>
@@ -448,7 +448,7 @@
                     <li><i>3</i><span>Valida presença digital e prioriza oportunidades.</span></li>
                 </ul>
                 <button id="btn_start_campaign" type="submit" class="campaign-primary-button w-full rounded-lg text-white font-semibold py-3 px-5 text-sm flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-magnifying-glass"></i><span>Iniciar busca</span>
+                    <i class="fa-solid fa-bolt-lightning"></i><span>INICIAR CAMPANHA INTELIGENTE</span><span class="sr-only">Iniciar busca</span>
                 </button>
                 <p class="text-center">O progresso e os leads encontrados aparecem nesta tela em tempo real.</p>
             </aside>
@@ -704,7 +704,7 @@
                 } else {
                     cityResults.innerHTML = data.municipalities.map(m => `
                         <button type="button" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-cyan-500/10 hover:text-white rounded-lg block" onclick='selectCity(${JSON.stringify(m)})'>
-                            <strong class="text-white">${escapeHtml(m.name)}</strong> - <span class="text-cyan-400 font-bold">${m.uf}</span>
+                            <strong class="text-white">${escapeHtml(m.name)}</strong> - <span class="text-[#60A5FA] font-bold">${m.uf}</span>
                             <span class="text-slate-500 ml-2 text-[10px]">Pop.: ${(m.population || 0).toLocaleString('pt-BR')}</span>
                         </button>
                     `).join('');
@@ -911,7 +911,7 @@
             'preparando': 'bg-amber-500/10 text-amber-300 border-amber-500/30',
             'pesquisando_nichos': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
             'selecionando_regioes': 'bg-blue-500/10 text-blue-300 border-blue-500/30',
-            'buscando_empresas': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+            'buscando_empresas': 'bg-cyan-500/10 text-blue-300 border-cyan-500/30',
             'validando_leads': 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
             'concluida': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
             'pausada': 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
@@ -958,7 +958,7 @@
         if (camp.locations_preview?.length) {
             const listWrap = document.getElementById('monitor_locations_list');
             listWrap.innerHTML = camp.locations_preview.map(loc => `
-                <div class="flex items-center justify-between p-2 rounded-lg bg-[#080B12] border border-[#1F2B44]">
+                <div class="flex items-center justify-between p-2 rounded-lg bg-[#13161B] border border-[#2A2F38]">
                     <div>
                         <strong class="text-white text-xs">${escapeHtml(loc.municipality_name)} - ${escapeHtml(loc.uf)}</strong>
                         <span class="text-slate-500 text-[10px] ml-2">${loc.businesses_found || 0} encontradas · ${loc.qualified_leads || 0} qualificados</span>
