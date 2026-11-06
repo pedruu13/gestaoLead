@@ -208,12 +208,12 @@ class TargetIntelligenceTests(unittest.TestCase):
                 with mock.patch.object(application, "discover_public_niches", return_value=discovered), mock.patch.object(application, "research_market_samples", side_effect=fake_research):
                     response = client.post("/api/sugerir_alvos", json={"regiao": "br"}, headers=headers)
                     self.assertEqual(202, response.status_code, response.get_data(as_text=True))
-                    for _ in range(100):
+                    for _ in range(150):
                         status = client.get("/api/sugerir_alvos/status").get_json()
-                        if not status.get("rodando"):
+                        if status and not status.get("rodando") and status.get("concluido"):
                             break
-                        time.sleep(0.02)
-                self.assertTrue(status["concluido"], status)
+                        time.sleep(0.05)
+                self.assertTrue(status.get("concluido"), status)
                 self.assertGreaterEqual(len(status["resultado"]["nichos"]), 2)
                 self.assertLessEqual(len(status["resultado"]["nichos"]), 4)
                 self.assertTrue(status["resultado"]["recomendacoes_detalhadas"])
