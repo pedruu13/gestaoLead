@@ -2,7 +2,7 @@
 {% set active_page = 'crm' %}
 {% block header_title %}Inteligência Comercial{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="lead-workspace">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
             <a href="/crm" class="text-xs font-bold text-cyan-400 hover:text-cyan-300"><i class="fa-solid fa-arrow-left mr-2"></i>Voltar ao pipeline</a>
@@ -98,12 +98,21 @@
             </section>
         </div>
 
-        <section class="executive-panel rounded-2xl p-6">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <section class="executive-panel message-studio rounded-2xl">
+            <div class="message-studio-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div><h2 class="text-sm font-black uppercase tracking-widest text-white">Pitches revisáveis</h2><p class="mt-1 text-xs text-slate-500">Edite antes de copiar ou abrir o WhatsApp.</p></div>
                 {% if lead.qualidade_pitch %}<span class="rounded-full px-3 py-1 text-[10px] font-black {{ 'bg-emerald-500/10 text-emerald-300' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300' }}">Qualidade {{ lead.qualidade_pitch.score or 0 }}/100</span>{% endif %}
             </div>
-            <div id="pitch-tabs" class="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-3">
+            <div class="message-variants">
+                {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('recepcao','Recepção')] %}
+                <article class="message-variant">
+                    <div class="message-variant-head"><h3>{{ label }}</h3><button type="button" class="message-copy" onclick="copyPitchMode('{{ mode }}', this)" aria-label="Copiar mensagem {{ label }}" data-tooltip="Copiar mensagem"><i class="fa-regular fa-copy"></i></button></div>
+                    <p>{{ lead.copies_pitch.get(mode) or 'Mensagem ainda não disponível para este lead.' }}</p>
+                </article>
+                {% endfor %}
+            </div>
+            <div class="message-editor">
+            <div id="pitch-tabs" class="grid grid-cols-2 gap-2 lg:grid-cols-3">
                 {% for mode, label in [('consultiva','Consultiva'),('direta','Direta'),('personalizada','Personalizada'),('recepcao','Recepção/agendamento'),('email','E-mail'),('previa_visual','Prévia visual')] %}
                 <button data-mode="{{ mode }}" onclick="selectPitch('{{ mode }}')" class="pitch-tab rounded-xl border border-[#263550] bg-[#0B1120] px-3 py-3 text-[10px] font-black text-slate-300 disabled:cursor-not-allowed disabled:opacity-40" {% if not lead.copies_pitch.get(mode) %}disabled title="Gere uma prévia para liberar esta abordagem"{% endif %}>{{ label }}</button>
                 {% endfor %}
@@ -116,6 +125,7 @@
                 {% if lead.email and not lead.do_not_contact %}<a id="email-action" href="#" class="rounded-xl bg-blue-600 px-4 py-3 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-2"></i>Abrir e-mail</a>{% endif %}
             </div>
             {% if lead.do_not_contact %}<div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-200"><i class="fa-solid fa-ban mr-2"></i>Contato bloqueado: {{ lead.do_not_contact_reason or 'preferência registrada' }}</div>{% endif %}
+            </div>
         </section>
     </div>
 
@@ -189,6 +199,15 @@ async function savePitch() {
     showAppToast('Pitch atualizado e mantido para revisão.');
 }
 async function copyPitch() { await navigator.clipboard.writeText(document.getElementById('pitch-editor').value); showAppToast('Pitch copiado.'); }
+async function copyPitchMode(mode, button) {
+    const text = pitchCopies[mode];
+    if (!text) return showAppToast('Esta mensagem ainda não está disponível.', 'error');
+    await navigator.clipboard.writeText(text);
+    const original = button.innerHTML;
+    button.innerHTML = '<i class="fa-solid fa-check"></i>';
+    showAppToast('Mensagem copiada.');
+    setTimeout(() => { button.innerHTML = original; }, 1200);
+}
 async function regenerarPitches() {
     const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/regenerate-pitches`, {method:'POST'});
     const data = await response.json();

@@ -34,6 +34,10 @@ class UIDesignSystemTests(unittest.TestCase):
         layout = (ROOT / "templates" / "layout.html").read_text(encoding="utf-8")
         self.assertIn("css/design-system.css", layout)
         self.assertIn("js/ui-system.js", layout)
+        self.assertIn("css/redesign.css", layout)
+        self.assertIn("20261106-r2", layout)
+        self.assertIn("gl-sidebar", layout)
+        self.assertIn("toggleSidebarCollapse", layout)
         self.assertIn('aria-live="polite"', layout)
         self.assertIn('aria-modal="true"', layout)
         self.assertIn('aria-describedby="app-confirm-text"', layout)
@@ -47,6 +51,19 @@ class UIDesignSystemTests(unittest.TestCase):
         self.assertIn('id="city_autocomplete_input" data-clearable', search)
         self.assertIn('id="filter_nome" data-clearable', crm)
         self.assertIn("ui-empty-state", crm)
+        self.assertIn("crm-data-shell", crm)
+        self.assertIn("crm_filter_toggle", crm)
+        self.assertIn("campaign-side-summary", search)
+
+    def test_core_screens_have_reconstructed_layouts(self):
+        stats = (ROOT / "templates" / "estatisticas.html").read_text(encoding="utf-8")
+        lead = (ROOT / "templates" / "lead_detail.html").read_text(encoding="utf-8")
+        redesign = (ROOT / "static" / "css" / "redesign.css").read_text(encoding="utf-8")
+        self.assertIn("analytics-kpi-grid", stats)
+        self.assertIn("message-variants", lead)
+        self.assertIn("copyPitchMode", lead)
+        self.assertIn(".sidebar-collapsed", redesign)
+        self.assertIn("#smart_campaign_form", redesign)
 
     def test_login_uses_same_design_system(self):
         client = application.app.test_client()

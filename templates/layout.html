@@ -5,282 +5,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>GestãoLead PRO &bull; Inteligência & Prospecção B2B</title>
-    <!-- Tailwind CSS (CDN) -->
+    <title>{% block title %}GestãoLead{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        darkBg: '#080B11',
-                        darkPanel: '#0F1523',
-                        darkCard: '#131A2B',
-                        darkBorder: '#1F2B44',
-                        darkInput: '#0A0E18',
-                        accentBlue: '#2563EB',
-                        accentCyan: '#06B6D4'
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: Inter, sans-serif;
-            background: radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.08) 0%, transparent 35%), 
-                        radial-gradient(circle at 90% 15%, rgba(6, 182, 212, 0.05) 0%, transparent 30%), 
-                        #080B11;
-            color: #F1F5F9;
-        }
-        :focus-visible { outline: 2px solid #22D3EE; outline-offset: 3px; }
-        .skip-link { position: fixed; left: 1rem; top: -4rem; z-index: 100; padding: .75rem 1rem; border-radius: .75rem; background: #fff; color: #0f172a; font-weight: 800; }
-        .skip-link:focus { top: 1rem; }
-        @media (max-width: 640px) {
-            .text-\[9px\], .text-\[10px\] { font-size: 0.6875rem !important; }
-        }
-        .sidebar-link { transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease; }
-        .executive-panel {
-            background: linear-gradient(180deg, #121827 0%, #0E1422 100%);
-            border: 1px solid #1E293B;
-            box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-        }
-        
-        /* Custom Scrollbar High-End Dark */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #080B11; }
-        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #334155; }
-
-        /* Loading Spinner */
-        .loader {
-            border: 2.5px solid #1E293B;
-            border-top: 2.5px solid #38BDF8;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 0.75s linear infinite;
-            display: inline-block;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}};</script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261106-r2') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261106-r2') }}">
 </head>
-<body class="app-shell flex h-screen overflow-hidden antialiased text-[#F1F5F9]">
+<body class="gl-app">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
-
-    <!-- Overlay p/ Mobile -->
-    <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/75 z-40 hidden md:hidden transition-opacity opacity-0"></div>
-
-    <!-- Sidebar High-End Executive Dark -->
-    <aside id="sidebar" class="app-sidebar w-64 border-r flex flex-col h-screen transition-transform duration-200 z-50 fixed md:relative -translate-x-full md:translate-x-0 shrink-0 overflow-hidden" aria-label="Navegação principal">
-        
-        <!-- Fechar Mobile -->
-        <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-4 text-slate-400 hover:text-white bg-[#131A2B] rounded-xl w-8 h-8 flex items-center justify-center border border-[#1F2B44]">
-            {{ icon('x', 'w-4 h-4') }}
-        </button>
-
-        <!-- Logo Executiva -->
-        <div class="p-6 flex items-center mb-2 w-64 border-b border-[#1A2338]">
-            <div class="app-logo-mark w-10 h-10 rounded-xl text-white flex items-center justify-center font-black mr-3 shrink-0">
-                {{ icon('crosshair', 'w-5 h-5') }}
-            </div>
-            <div class="min-w-0">
-                <div class="text-lg font-black text-white tracking-tight leading-none flex items-center gap-1.5">
-                    <span>Gestão<span class="text-blue-400">Lead</span></span>
-                    <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-cyan-300 border border-blue-500/30">PRO</span>
-                </div>
-                <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Enterprise Intelligence</span>
-            </div>
+    <div id="mobile-overlay" class="gl-mobile-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
+    <aside id="sidebar" class="gl-sidebar" aria-label="Navegação principal">
+        <div class="gl-brand-row">
+            <a href="/" class="gl-brand" aria-label="GestãoLead — início">
+                <span class="gl-brand-mark">{{ icon('crosshair', 'w-5 h-5') }}</span>
+                <span class="gl-brand-copy"><strong>GestãoLead</strong><small>Prospecção comercial</small></span>
+            </a>
+            <button id="sidebar-collapse" type="button" class="gl-icon-button gl-collapse-button" onclick="toggleSidebarCollapse()" aria-label="Recolher menu" data-tooltip="Recolher menu">{{ icon('chevron-down', 'w-4 h-4') }}</button>
+            <button type="button" class="gl-icon-button gl-mobile-close" onclick="toggleSidebar()" aria-label="Fechar menu">{{ icon('x', 'w-4 h-4') }}</button>
         </div>
-        
-        <!-- Botão Principal Executivo -->
-        <div class="px-4 mb-4 mt-2 w-64">
-            <a href="/" class="app-primary-action flex items-center justify-center gap-2.5 text-white text-xs font-black py-3 px-4 rounded-xl group whitespace-nowrap w-full">
-                {{ icon('scan-search', 'w-4 h-4 text-blue-100') }}
-                <span class="tracking-wider">NOVA PROSPECÇÃO</span>
-            </a>
+        <div class="gl-nav-primary">
+            <a href="/" class="gl-new-search {% if active_page == 'search' %}is-active{% endif %}">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova prospecção</span><kbd>N</kbd></a>
         </div>
-        
-        <!-- Links de Navegação -->
-        <nav class="flex-1 flex flex-col gap-1.5 px-3 w-64">
-            <div class="px-3 py-1.5 mt-1">
-                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Workspace</span>
-            </div>
-            
-            <a href="/crm" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'inbox' %}text-white{% else %}text-slate-300{% endif %}">
-                {{ icon('send', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'crm' and crm_view == 'inbox' else 'text-slate-400')) }}
-                A abordar
-            </a>
-
-            <a href="/crm/contatados" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'contacted' %}text-white{% else %}text-slate-300{% endif %}">
-                {{ icon('messages', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'crm' and crm_view == 'contacted' else 'text-slate-400')) }}
-                Contatados
-            </a>
-
-            <a href="/crm/descartados" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'crm' and crm_view == 'discarded' %}text-white{% else %}text-slate-300{% endif %}">
-                {{ icon('ban', 'w-4 h-4 ' ~ ('text-rose-300' if active_page == 'crm' and crm_view == 'discarded' else 'text-slate-400')) }}
-                Descartados
-            </a>
-            
-            <!-- Módulo de Estatísticas -->
-            <a href="/estatisticas" {% if active_page == 'estatisticas' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'estatisticas' %}text-white{% else %}text-slate-300{% endif %}">
-                {{ icon('chart', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'estatisticas' else 'text-slate-400')) }}
-                Performance & Métricas
-            </a>
+        <nav class="gl-nav" aria-label="Área comercial">
+            <span class="gl-nav-label">Operação</span>
+            <a href="/crm" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %}>{{ icon('send', 'w-4 h-4') }}<span>A abordar</span></a>
+            <a href="/crm/contatados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %}>{{ icon('messages', 'w-4 h-4') }}<span>Contatados</span></a>
+            <a href="/crm/descartados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %}>{{ icon('ban', 'w-4 h-4') }}<span>Descartados</span></a>
+            <span class="gl-nav-label">Análise</span>
+            <a href="/estatisticas" class="gl-nav-item" {% if active_page == 'estatisticas' %}aria-current="page"{% endif %}>{{ icon('chart', 'w-4 h-4') }}<span>Performance</span></a>
         </nav>
-        
-        <!-- Sessão Inferior -->
-        <div class="p-3 mb-2 flex flex-col gap-1 w-64 border-t border-[#1A2338]">
-            <a href="/configuracoes" {% if active_page == 'configuracoes' %}aria-current="page"{% endif %} class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap {% if active_page == 'configuracoes' %}text-white{% else %}text-slate-300{% endif %}">
-                {{ icon('sliders', 'w-4 h-4 ' ~ ('text-blue-300' if active_page == 'configuracoes' else 'text-slate-400')) }}
-                Configurações
-            </a>
-            <a href="/logout" class="sidebar-link flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap text-rose-400 hover:bg-rose-500/10 hover:text-rose-300">
-                {{ icon('log-out', 'w-4 h-4') }}
-                Encerrar Sessão
-            </a>
-            <div class="py-2 px-3 text-[10px] text-slate-400 text-center whitespace-nowrap">
-                GestãoLead Enterprise &copy; 2026
+        <div class="gl-sidebar-footer">
+            <a href="/configuracoes" class="gl-nav-item" {% if active_page == 'configuracoes' %}aria-current="page"{% endif %}>{{ icon('sliders', 'w-4 h-4') }}<span>Configurações</span></a>
+            <div class="gl-user-card">
+                <span class="gl-avatar">{{ (session.get('user', 'PL')[:2]).upper() }}</span>
+                <span class="gl-user-copy"><strong>{{ session.get('user', 'Admin') }}</strong><small>PH Digital</small></span>
+                <a href="/logout" class="gl-logout" aria-label="Encerrar sessão" data-tooltip="Encerrar sessão">{{ icon('log-out', 'w-4 h-4') }}</a>
             </div>
         </div>
     </aside>
-
-    <!-- Main Content Dark Executive Mode -->
-    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden relative w-full">
-        <!-- Headerbar Glass -->
-        <header class="app-header h-16 flex items-center px-4 md:px-8 border-b sticky top-0 z-30">
-            <button onclick="toggleSidebar()" class="mr-3 md:hidden text-slate-400 hover:text-white hover:bg-[#131A2B] w-10 h-10 rounded-xl flex items-center justify-center transition-colors focus:outline-none border border-[#1F2B44]">
-                {{ icon('menu', 'w-5 h-5') }}
-            </button>
-            <div class="flex-1 min-w-0">
-                <h2 class="text-base md:text-lg font-black text-white tracking-tight truncate">{% block header_title %}{% endblock %}</h2>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <!-- Status Badge -->
-                <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#101626] border border-[#1F2B44] text-[11px] font-bold text-slate-300">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>Radar Ativo</span>
-                </div>
-                
-                <a href="/logout" title="Usuário: {{ session.get('user', 'admin') }} (Clique para sair)" class="flex items-center gap-2.5 py-1.5 px-3 rounded-xl border border-[#1F2B44] bg-[#101626] hover:bg-[#151D30] transition-colors shadow-sm">
-                    <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                        {{ (session.get('user', 'PL')[:2]).upper() }}
-                    </div>
-                    <span class="text-xs font-bold text-slate-200 hidden sm:inline">{{ session.get('user', 'Admin') }}</span>
-                    {{ icon('chevron-down', 'w-3 h-3 text-slate-400 hidden sm:block') }}
-                </a>
-            </div>
+    <div class="gl-workspace">
+        <header class="gl-topbar">
+            <button type="button" class="gl-icon-button gl-menu-button" onclick="toggleSidebar()" aria-label="Abrir menu">{{ icon('menu', 'w-5 h-5') }}</button>
+            <div class="gl-page-heading"><span>GestãoLead</span><i>/</i><strong>{% block header_title %}{% endblock %}</strong></div>
+            <div class="gl-topbar-actions"><span class="gl-system-status"><i></i>Sistema operacional</span><a href="/" class="gl-topbar-cta">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova busca</span></a></div>
         </header>
-
-        <!-- Content Padding -->
-        <div class="p-4 md:p-8 flex-1 max-w-7xl mx-auto w-full">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-
-    <!-- Toast Executivo -->
-    <div id="app-toast" class="ui-toast fixed right-5 top-5 z-[70] hidden max-w-sm rounded-xl p-4 text-xs text-white" role="status" aria-live="polite" aria-atomic="true">
-        <div class="flex items-start gap-3">
-            <span id="app-toast-icon" class="text-blue-300 font-black" aria-hidden="true">✓</span>
-            <p id="app-toast-text" class="font-bold leading-relaxed text-slate-200"></p>
-        </div>
+        <main id="main-content" class="gl-main" tabindex="-1">{% block content %}{% endblock %}</main>
     </div>
-
-    <!-- Confirm Modal Executivo -->
-    <div id="app-confirm" class="ui-modal fixed inset-0 z-[80] hidden flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
-        <div class="ui-modal__panel w-full max-w-md rounded-2xl border border-[#2A2F38] bg-[#181B20] p-6 shadow-2xl">
-            <div class="flex items-start gap-4">
-                <div class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-500/15 text-cyan-400 border border-blue-500/25">
-                    {{ icon('shield-check', 'w-5 h-5') }}
-                </div>
-                <div class="min-w-0">
-                    <h3 id="app-confirm-title" class="text-base font-black text-white"></h3>
-                    <p id="app-confirm-text" class="mt-2 text-xs leading-relaxed text-slate-300"></p>
-                </div>
-            </div>
-            <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button>
-                <button id="app-confirm-accept" class="ui-button ui-button--primary"></button>
-            </div>
-        </div>
+    <div id="app-toast" class="ui-toast gl-toast hidden" role="status" aria-live="polite" aria-atomic="true"><span id="app-toast-icon" class="gl-toast-icon" aria-hidden="true">✓</span><p id="app-toast-text"></p></div>
+    <div id="app-confirm" class="ui-modal gl-confirm hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
+        <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" class="ui-button ui-button--primary"></button></div></div>
     </div>
-
     <script>
-        const nativeFetch = window.fetch.bind(window);
-        window.fetch = (input, options = {}) => {
-            const method = String(options.method || 'GET').toUpperCase();
-            const url = typeof input === 'string' ? input : input.url;
-            const sameOrigin = new URL(url, window.location.href).origin === window.location.origin;
-            if (sameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-                const headers = new Headers(options.headers || {});
-                headers.set('X-CSRF-Token', document.querySelector('meta[name="csrf-token"]').content);
-                options = {...options, headers};
-            }
-            return nativeFetch(input, options);
-        };
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(form => {
-                if (form.querySelector('input[name="csrf_token"]')) return;
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'csrf_token';
-                input.value = document.querySelector('meta[name="csrf-token"]').content;
-                form.appendChild(input);
-            });
-        });
-        let toastTimer;
-        function showAppToast(message, type = 'success') {
-            const toast = document.getElementById('app-toast');
-            const icon = document.getElementById('app-toast-icon');
-            document.getElementById('app-toast-text').textContent = message;
-            icon.className = type === 'error' ? 'fa-solid fa-circle-exclamation mt-0.5 text-rose-400 text-sm' : 'fa-solid fa-circle-check mt-0.5 text-cyan-400 text-sm';
-            toast.classList.remove('hidden');
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
-        }
-        function showAppConfirm({ title, message, confirmLabel = 'Confirmar', danger = false }) {
-            return new Promise(resolve => {
-                const modal = document.getElementById('app-confirm');
-                const accept = document.getElementById('app-confirm-accept');
-                const cancel = document.getElementById('app-confirm-cancel');
-                document.getElementById('app-confirm-title').textContent = title;
-                document.getElementById('app-confirm-text').textContent = message;
-                accept.textContent = confirmLabel;
-                accept.className = `rounded-xl px-4 py-2.5 text-xs font-black ${danger ? 'bg-rose-600 text-white hover:bg-rose-500 shadow-rose-600/30' : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-500 shadow-blue-600/30'} shadow-lg`;
-                modal.classList.remove('hidden'); modal.classList.add('flex'); accept.focus();
-                const close = answer => { modal.classList.add('hidden'); modal.classList.remove('flex'); accept.onclick = null; cancel.onclick = null; resolve(answer); };
-                accept.onclick = () => close(true); cancel.onclick = () => close(false);
-            });
-        }
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            
-            if (sidebar.classList.contains('-translate-x-full')) {
-                sidebar.classList.remove('-translate-x-full');
-                if(overlay) {
-                    overlay.classList.remove('hidden');
-                    setTimeout(() => overlay.classList.remove('opacity-0'), 10);
-                }
-            } else {
-                sidebar.classList.add('-translate-x-full');
-                if(overlay) {
-                    overlay.classList.add('opacity-0');
-                    setTimeout(() => overlay.classList.add('hidden'), 300);
-                }
-            }
-        }
+        const nativeFetch=window.fetch.bind(window);
+        window.fetch=(input,options={})=>{const method=String(options.method||'GET').toUpperCase();const url=typeof input==='string'?input:input.url;const sameOrigin=new URL(url,window.location.href).origin===window.location.origin;if(sameOrigin&&['POST','PUT','PATCH','DELETE'].includes(method)){const headers=new Headers(options.headers||{});headers.set('X-CSRF-Token',document.querySelector('meta[name="csrf-token"]').content);options={...options,headers};}return nativeFetch(input,options);};
+        document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('form[method="POST"],form[method="post"]').forEach(form=>{if(form.querySelector('input[name="csrf_token"]'))return;const input=document.createElement('input');input.type='hidden';input.name='csrf_token';input.value=document.querySelector('meta[name="csrf-token"]').content;form.appendChild(input);});if(localStorage.getItem('gestaolead:sidebar-collapsed')==='true')document.body.classList.add('sidebar-collapsed');});
+        function toggleSidebar(){const open=document.body.classList.toggle('sidebar-mobile-open');document.getElementById('mobile-overlay').setAttribute('aria-hidden',String(!open));}
+        function toggleSidebarCollapse(){const collapsed=document.body.classList.toggle('sidebar-collapsed');localStorage.setItem('gestaolead:sidebar-collapsed',String(collapsed));document.getElementById('sidebar-collapse').setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');}
     </script>
-    <script src="{{ url_for('static', filename='js/ui-system.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261106-r2') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

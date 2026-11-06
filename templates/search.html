@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% set active_page = "search" %}
 {% block header_title %}Campanhas{% endblock %}
 
 {% block content %}
@@ -438,11 +439,19 @@
                 </div>
             </details>
 
-            <!-- BOTÃO PRINCIPAL DESTACADO -->
-            <button id="btn_start_campaign" type="submit" class="campaign-primary-button w-full rounded-xl text-white font-semibold py-3.5 px-6 transition-colors text-sm flex items-center justify-center gap-3">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <span>Iniciar busca</span>
-            </button>
+            <aside class="campaign-side-summary" aria-label="Resumo da campanha">
+                <h3>Pronto para prospectar</h3>
+                <p>O motor cruza localização, nicho e potencial digital antes de adicionar empresas ao CRM.</p>
+                <ul>
+                    <li><i>1</i><span>Seleciona municípios com cobertura disponível.</span></li>
+                    <li><i>2</i><span>Pesquisa empresas reais e remove duplicidades.</span></li>
+                    <li><i>3</i><span>Valida presença digital e prioriza oportunidades.</span></li>
+                </ul>
+                <button id="btn_start_campaign" type="submit" class="campaign-primary-button w-full rounded-lg text-white font-semibold py-3 px-5 text-sm flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Iniciar busca</span>
+                </button>
+                <p class="text-center">O progresso e os leads encontrados aparecem nesta tela em tempo real.</p>
+            </aside>
         </form>
     </div>
 </div>
