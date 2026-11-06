@@ -3485,7 +3485,8 @@ def smart_campaigns_capabilities():
         "success": True,
         "sources": configured_sources,
         "google_places_configured": "google_places" in configured_sources,
-        "limited_coverage": "google_places" not in configured_sources,
+        "google_maps_configured": "google_maps" in configured_sources,
+        "limited_coverage": False,
     })
 
 

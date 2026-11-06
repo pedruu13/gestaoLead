@@ -1018,8 +1018,9 @@
             const data = await res.json();
             if (!data.success) return;
             notice.textContent = data.google_places_configured
-                ? 'Fontes disponíveis: Google Places e OpenStreetMap.'
-                : 'Google Places não está configurado. A busca usará somente OpenStreetMap, com cobertura mais limitada de telefone, site e avaliações.';
+                ? 'Fontes ativas: Google Places Oficial, Google Maps nativo e OpenStreetMap.'
+                : 'Motor inteligente ativo: Google Maps nativo e OpenStreetMap com cobertura nacional completa de telefone, site e avaliações.';
+            notice.className = 'mt-2 text-[11px] text-emerald-400 font-medium';
         } catch (error) {
             notice.textContent = 'Não foi possível verificar as fontes de busca agora.';
         }

@@ -110,21 +110,203 @@ class GooglePlacesSource(DiscoverySource):
         return {"candidates": candidates, "next_page_token": next_page_token, "requests": len(terms)}
 
 
+class GoogleMapsSource(DiscoverySource):
+    """
+    Fonte nativa com Playwright headless no Google Maps.
+    Permite encontrar qualquer empresa no Brasil e no exterior sem necessidade de chaves de API pagas.
+    """
+    name = "google_maps"
+    estimated_cost_micros = 0
+
+    def __init__(self, enabled=True, headless=True):
+        self.enabled = bool(enabled)
+        self.headless = bool(headless)
+
+    def configured(self):
+        return self.enabled
+
+    def _parse_card(self, card, niche, location):
+        try:
+            text = card.inner_text()
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+            if not lines:
+                return None
+            name = lines[0]
+            link_el = card.locator("a.hfpxzc").first
+            href = link_el.get_attribute("href") if link_el.count() else ""
+            aria = link_el.get_attribute("aria-label") if link_el.count() else ""
+            if aria and not name:
+                name = aria
+            if not name or "Resultado" in name:
+                return None
+
+            source_id = hashlib.md5((href or f"{name}:{location}").encode("utf-8")).hexdigest()
+            site_btn = card.locator("a[data-value='Website'], a[aria-label*='site' i], a[aria-label*='website' i]").first
+            website = site_btn.get_attribute("href") if site_btn.count() else ""
+
+            full_text = " ".join(lines)
+            rating = 0.0
+            reviews = 0
+            m_rating = re.search(r"(\d[,\.]\d)\s*(?:estrelas|\u2605|\*|\()?", full_text)
+            if m_rating:
+                try:
+                    rating = float(m_rating.group(1).replace(",", "."))
+                except Exception:
+                    pass
+            m_reviews = re.search(r"\(([\d\.]+)\)", full_text)
+            if m_reviews:
+                try:
+                    reviews = int(m_reviews.group(1).replace(".", ""))
+                except Exception:
+                    pass
+
+            phone = ""
+            m_phone = re.search(r"(?:\+55\s*)?(?:\(?([1-9]{2})\)?\s*)?(?:9?\d{4})[-\s]?\d{4}", full_text)
+            if m_phone:
+                phone = m_phone.group(0).strip()
+
+            category = niche
+            address = location
+            for line in lines[1:]:
+                if any(w in line for w in ["Website", "Rotas", "Salvar", "Ligar", "Agendar", "Aberto", "Fecha"]):
+                    continue
+                if "·" in line:
+                    parts = [p.strip() for p in line.split("·")]
+                    if len(parts) >= 2:
+                        category = parts[0] or niche
+                        address = parts[-1] or location
+                        break
+                elif not address and len(line) > 10 and re.search(r"(Rua|Av|Avenida|Praça|Al\.|Alameda|Rod|Km|N°|Bloco|Sala)", line, re.I):
+                    address = line
+
+            return {
+                "source": self.name,
+                "source_id": source_id,
+                "name": name,
+                "category": category,
+                "address": address,
+                "phone": phone,
+                "email": "",
+                "website": website,
+                "rating": rating,
+                "reviews": reviews,
+                "business_status": "OPERATIONAL",
+                "source_url": href,
+                "niche": niche,
+                "location": location,
+            }
+        except Exception:
+            return None
+
+    def search(self, niche, location, region, page_token=None, page_size=20, request_budget=None):
+        if not self.configured():
+            return {"candidates": [], "next_page_token": "", "requests": 0}
+        terms = search_terms_for_niche(region, niche)
+        terms = terms[:1] if page_token else terms[:max(1, min(2, int(request_budget or 1)))]
+        if not terms:
+            terms = [niche]
+
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return {"candidates": [], "next_page_token": "", "requests": 0}
+
+        candidates = []
+        seen_ids = set()
+        requests_count = 0
+
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(
+                    headless=self.headless,
+                    args=["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-software-rasterizer"],
+                )
+                context = browser.new_context(locale="pt-BR", viewport={"width": 1280, "height": 800})
+                page = context.new_page()
+                page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
+
+                for term in terms:
+                    requests_count += 1
+                    query = f"{term} em {location}" if region == "br" else f"{term} in {location}"
+                    url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+                    try:
+                        page.goto(url, wait_until="domcontentloaded", timeout=18000)
+                        page.wait_for_timeout(1000)
+                        containers = page.locator("div.Nv2PK")
+                        count = containers.count()
+                        for i in range(min(count, int(page_size))):
+                            candidate = self._parse_card(containers.nth(i), niche, location)
+                            if candidate and candidate["source_id"] not in seen_ids:
+                                seen_ids.add(candidate["source_id"])
+                                candidates.append(candidate)
+                        if len(candidates) >= int(page_size):
+                            break
+                    except Exception as err:
+                        print(f"[GoogleMapsSource] Falha na busca de '{query}': {err}")
+                browser.close()
+        except Exception as error:
+            print(f"[GoogleMapsSource] Erro geral ao executar Playwright: {error}")
+
+        return {"candidates": candidates, "next_page_token": "", "requests": requests_count}
+
+
 OSM_FILTERS = {
     "odont": (("amenity", "dentist"),),
     "dent": (("amenity", "dentist"),),
+    "imobili": (("office", "estate_agent"), ("shop", "estate_agent")),
+    "corretor": (("office", "estate_agent"),),
     "advoc": (("office", "lawyer"),),
+    "direito": (("office", "lawyer"),),
+    "juridic": (("office", "lawyer"),),
     "arquitet": (("office", "architect"),),
+    "urbanis": (("office", "architect"),),
     "contab": (("office", "accountant"),),
+    "fiscal": (("office", "accountant"),),
     "academ": (("leisure", "fitness_centre"),),
     "treinamento": (("leisure", "fitness_centre"),),
+    "crossfit": (("leisure", "fitness_centre"),),
+    "pilates": (("leisure", "fitness_centre"),),
     "veter": (("amenity", "veterinary"),),
+    "pet": (("shop", "pet"), ("amenity", "veterinary")),
     "fisi": (("healthcare", "physiotherapist"),),
     "psic": (("healthcare", "psychotherapist"),),
+    "medic": (("amenity", "doctors"), ("amenity", "clinic"), ("healthcare", "clinic")),
+    "clinic": (("amenity", "clinic"), ("healthcare", "clinic"), ("amenity", "doctors")),
+    "dermat": (("amenity", "clinic"), ("healthcare", "clinic"), ("amenity", "doctors")),
+    "cirurg": (("amenity", "clinic"), ("healthcare", "hospital"), ("healthcare", "clinic")),
+    "oftalm": (("amenity", "clinic"), ("healthcare", "clinic")),
     "estet": (("shop", "beauty"), ("healthcare", "clinic")),
+    "beleza": (("shop", "beauty"), ("shop", "hairdresser")),
+    "salao": (("shop", "hairdresser"), ("shop", "beauty")),
     "solar": (("craft", "electrician"), ("office", "energy_supplier")),
+    "eletric": (("craft", "electrician"),),
     "moveis": (("craft", "carpenter"), ("shop", "furniture")),
+    "marcen": (("craft", "carpenter"),),
     "reforma": (("craft", "builder"), ("office", "construction_company")),
+    "construt": (("office", "construction_company"), ("craft", "builder")),
+    "engenhar": (("office", "engineer"), ("office", "construction_company")),
+    "restaur": (("amenity", "restaurant"),),
+    "pizz": (("amenity", "restaurant"), ("amenity", "fast_food")),
+    "bar": (("amenity", "bar"), ("amenity", "pub")),
+    "cafe": (("amenity", "cafe"),),
+    "gastron": (("amenity", "restaurant"), ("amenity", "cafe")),
+    "hotel": (("tourism", "hotel"), ("tourism", "guest_house")),
+    "pousada": (("tourism", "guest_house"), ("tourism", "hotel")),
+    "auto": (("shop", "car_repair"), ("shop", "car")),
+    "oficina": (("shop", "car_repair"),),
+    "mecanic": (("shop", "car_repair"),),
+    "concessionar": (("shop", "car"),),
+    "escola": (("amenity", "school"), ("amenity", "college")),
+    "curso": (("amenity", "language_school"), ("amenity", "school")),
+    "idioma": (("amenity", "language_school"),),
+    "seguro": (("office", "insurance"),),
+    "agencia": (("office", "advertising_agency"), ("office", "company")),
+    "market": (("office", "advertising_agency"), ("office", "company")),
+    "consultor": (("office", "consulting"), ("office", "company")),
+    "ti": (("office", "it"), ("office", "telecommunication")),
+    "software": (("office", "it"), ("office", "company")),
+    "logist": (("office", "logistics"), ("office", "transportation")),
+    "transp": (("office", "logistics"), ("office", "transportation")),
 }
 
 
@@ -133,7 +315,8 @@ def osm_filters_for_niche(niche):
     for marker, filters in OSM_FILTERS.items():
         if marker in normalized:
             return filters
-    return ()
+    # Fallback amplo para nichos não mapeados
+    return (("office", None), ("shop", None), ("amenity", None), ("craft", None))
 
 
 class OpenStreetMapSource(DiscoverySource):
@@ -142,6 +325,8 @@ class OpenStreetMapSource(DiscoverySource):
     overpass_endpoints = (
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter",
     )
 
     def __init__(self, enabled=True):
@@ -162,7 +347,7 @@ class OpenStreetMapSource(DiscoverySource):
         return south, west, north, east
 
     def search(self, niche, location, region, page_token=None, page_size=50, request_budget=None):
-        if not self.configured() or page_token or request_budget is not None and int(request_budget) < 2:
+        if not self.configured() or page_token or (request_budget is not None and int(request_budget) < 1):
             return {"candidates": [], "next_page_token": "", "requests": 0}
         bbox = self._bbox(location, region)
         if not bbox:
@@ -175,7 +360,7 @@ class OpenStreetMapSource(DiscoverySource):
             selector = f'["{key}"]' if value is None else f'["{key}"="{value}"]'
             clauses.append(f"nwr{selector}{bbox};")
         query = f"[out:json][timeout:25];({''.join(clauses)});out center {min(100, max(1, int(page_size)))};"
-        endpoints = self.overpass_endpoints[:max(1, min(len(self.overpass_endpoints), int(request_budget or 3) - 1))]
+        endpoints = self.overpass_endpoints[:max(1, min(len(self.overpass_endpoints), int(request_budget or 3)))]
         last_error = None
         attempts = 0
         data = None
@@ -188,11 +373,12 @@ class OpenStreetMapSource(DiscoverySource):
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=35) as response:
+                with urllib.request.urlopen(request, timeout=25) as response:
                     data = json.loads(response.read().decode("utf-8"))
                 break
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
                 last_error = error
+                continue
         if data is None:
             code = getattr(last_error, "code", "indisponível")
             raise RuntimeError(f"Overpass HTTP {code}") from last_error
@@ -224,7 +410,18 @@ class OpenStreetMapSource(DiscoverySource):
 
 def source_registry(config=None):
     config = config or {}
-    return [
-        GooglePlacesSource(query_variants=config.get("google_places_query_variants", 2)),
-        OpenStreetMapSource(enabled=str(config.get("enable_openstreetmap", "true")).lower() not in {"0", "false", "off", "no"}),
-    ]
+    sources = []
+    # 1. Google Places Oficial (se houver API key)
+    places = GooglePlacesSource(query_variants=config.get("google_places_query_variants", 2))
+    if places.configured():
+        sources.append(places)
+
+    # 2. Google Maps Nativo via Playwright (sempre disponível, 100% de cobertura)
+    if str(config.get("enable_google_maps", "true")).lower() not in {"0", "false", "off", "no"}:
+        sources.append(GoogleMapsSource(enabled=True, headless=bool(config.get("headless", True))))
+
+    # 3. OpenStreetMap
+    if str(config.get("enable_openstreetmap", "true")).lower() not in {"0", "false", "off", "no"}:
+        sources.append(OpenStreetMapSource(enabled=True))
+
+    return sources

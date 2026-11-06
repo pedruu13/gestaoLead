@@ -227,7 +227,8 @@ class DiscoveryEngine:
                 return default
         daily_limits = {
             "google_places": configured_integer("google_places_daily_limit", 40),
-            "openstreetmap": configured_integer("openstreetmap_daily_limit", 30),
+            "google_maps": configured_integer("google_maps_daily_limit", 500),
+            "openstreetmap": configured_integer("openstreetmap_daily_limit", 500),
         }
         ttl_hours = configured_integer("discovery_cache_hours", 168)
         try:
@@ -239,13 +240,14 @@ class DiscoveryEngine:
                     if cancelled():
                         self._update_job(job_id, status="cancelled", checkpoint={"task_index": task_index, "source_index": source_index}, stats=stats, finished=True)
                         return self.load_candidates(job_id)
-                    if self._usage_today(source.name) >= daily_limits.get(source.name, 20):
+                    source_limit = daily_limits.get(source.name, 500)
+                    if self._usage_today(source.name) >= source_limit:
                         progress(stats, f"Cota diária da fonte {source.name} atingida; avançando.")
                         continue
                     page_token = ""
                     max_pages = 2 if source.name == "google_places" else 1
                     for page_number in range(max_pages):
-                        remaining_requests = daily_limits.get(source.name, 20) - self._usage_today(source.name)
+                        remaining_requests = source_limit - self._usage_today(source.name)
                         if remaining_requests <= 0:
                             progress(stats, f"Cota diária da fonte {source.name} atingida durante a paginação.")
                             break

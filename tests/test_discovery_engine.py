@@ -147,6 +147,16 @@ class DiscoveryEngineTests(unittest.TestCase):
         self.assertEqual(2, result["requests"])
         self.assertEqual(1, len(result["candidates"]))
 
+    def test_osm_filters_has_fallback_for_unknown_niche(self):
+        filters = discovery_sources.osm_filters_for_niche("Nicho Inexistente Super Raro")
+        self.assertTrue(len(filters) > 0)
+        self.assertIn(("office", None), filters)
+
+    def test_google_maps_source_configured_and_parses_cards(self):
+        source = discovery_sources.GoogleMapsSource(enabled=True)
+        self.assertTrue(source.configured())
+        self.assertEqual("google_maps", source.name)
+
 
 class ValidationAndLearningTests(unittest.TestCase):
     def test_absence_of_site_is_not_confirmed_from_one_source(self):
