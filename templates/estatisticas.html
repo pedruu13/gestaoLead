@@ -9,9 +9,11 @@
 <div class="analytics-page pb-12">
     <header class="analytics-header">
         <div><span>Visão comercial</span><h1>Operação em números</h1><p>Métricas reais da descoberta até o fechamento, sem estimativas inventadas.</p></div>
-        <div class="analytics-header__actions"><span><i></i>Dados atualizados</span><a href="/export/csv"><i class="fa-solid fa-arrow-down"></i>Exportar CSV</a></div>
+        <!-- Adaptado de Spell Pop Button: https://spell.sh/docs/pop-button -->
+        <div class="analytics-header__actions"><span><i></i>Dados atualizados</span><a class="export-action" href="/export/csv"><i class="fa-solid fa-arrow-down"></i>Exportar CSV</a></div>
     </header>
 
+    <!-- Adaptado de Profitize Progress Metric Card (Grátis): https://profitize.com.br/build/componentes/progress-metric-card -->
     <section class="metrics-rail analytics-kpi-grid" aria-label="Indicadores comerciais">
         {{ metric_item('Leads encontrados', total, (total - descartados)|string + ' ativos') }}
         {{ metric_item('Qualificados', qualificados, 'fila Prioridade', 'accent') }}
@@ -113,6 +115,7 @@
         </div>
     </section>
 
+    <!-- Adaptado de Profitize Indicator Chart (Grátis): https://profitize.com.br/build/componentes/indicator-chart e Spell Chart: https://spell.sh/docs/chart -->
     <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
     <div class="analytics-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Gráfico 1: Funil de Conversão Comercial -->

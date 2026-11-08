@@ -48,9 +48,11 @@
         </div>
     </aside>
     <div class="gl-workspace">
+        <!-- Fundo adaptado de Spell Light Rays: https://spell.sh/docs/light-rays -->
         <header class="gl-topbar">
             <button type="button" class="gl-icon-button gl-menu-button" onclick="toggleSidebar()" aria-label="Abrir menu">{{ icon('menu', 'w-5 h-5') }}</button>
             <div class="gl-page-heading"><span>GestãoLead</span><i>/</i><strong>{% block header_title %}{% endblock %}</strong></div>
+            <!-- Adaptado de Spell Keyboard Shortcuts: https://spell.sh/docs/keyboard-shortcuts e Uiverse Search Input: https://uiverse.io/mustafa7799/new-dolphin-33 -->
             <button type="button" class="gl-global-search" data-command-open aria-label="Abrir busca global">
                 {{ icon('scan-search', 'w-4 h-4') }}<span>Buscar ou navegar</span><kbd>Ctrl K</kbd>
             </button>
@@ -62,6 +64,7 @@
     <div id="app-confirm" class="ui-modal gl-confirm hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
         <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" class="ui-button ui-button--primary"></button></div></div>
     </div>
+    <!-- Adaptado de Spell Keyboard Shortcuts: https://spell.sh/docs/keyboard-shortcuts -->
     <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="command-title">
         <div class="command-palette__panel">
             <div class="command-palette__search">{{ icon('scan-search', 'w-5 h-5') }}<input id="command-input" type="search" placeholder="Buscar página ou ação" autocomplete="off"><kbd>Esc</kbd></div>

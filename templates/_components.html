@@ -6,6 +6,7 @@
 {%- endmacro %}
 
 {% macro copy_button(value, label='Copiar') -%}
+<!-- Adaptado de Spell Copy Button: https://spell.sh/docs/copy-button -->
 <button type="button" class="copy-button" data-copy-value="{{ value|e }}" aria-label="{{ label }}" data-tooltip="{{ label }}">
     <span class="copy-button__idle"><i class="fa-regular fa-copy" aria-hidden="true"></i></span>
     <span class="copy-button__done"><i class="fa-solid fa-check" aria-hidden="true"></i></span>

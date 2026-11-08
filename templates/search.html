@@ -17,6 +17,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1E293B] pb-6">
             <div>
                 <div class="flex items-center gap-3">
+                    <!-- Adaptado de Uiverse Loading UI: https://uiverse.io/Shoh2008/clever-goose-73 e Spell Spinner: https://spell.sh/docs/spinner -->
                     <span id="monitor_activity" class="ui-loader" aria-hidden="true"></span>
                     <span class="text-xs font-medium text-slate-400">Campanha atual</span>
                     <span id="monitor_status_badge" class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide border">
@@ -447,6 +448,7 @@
                     <li><i>2</i><span>Pesquisa empresas reais e remove duplicidades.</span></li>
                     <li><i>3</i><span>Valida presença digital e prioriza oportunidades.</span></li>
                 </ul>
+                <!-- Adaptado de Uiverse Button: https://uiverse.io/Itskrish01/wise-wombat-45 e Spell Pop Button: https://spell.sh/docs/pop-button -->
                 <button id="btn_start_campaign" type="submit" class="campaign-primary-button w-full rounded-lg text-white font-semibold py-3 px-5 text-sm flex items-center justify-center gap-3">
                     <i class="fa-solid fa-bolt-lightning"></i><span>INICIAR CAMPANHA INTELIGENTE</span><span class="sr-only">Iniciar busca</span>
                 </button>
@@ -478,9 +480,19 @@
     }
     .campaign-primary-button {
         background: #3B82F6;
+        border: 1px solid #60A5FA;
+        box-shadow: 0 3px 0 #1D4ED8;
+        transform: translateY(0);
+        transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
     }
     .campaign-primary-button:hover {
         background: #4A8FF0;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 0 #1D4ED8;
+    }
+    .campaign-primary-button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #1D4ED8;
     }
     .campaign-progress {
         background: var(--campaign-accent);

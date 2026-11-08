@@ -82,6 +82,22 @@ class UIDesignSystemTests(unittest.TestCase):
         self.assertIn("ISC", notice)
         self.assertIn("Nenhum componente Pro", notice)
 
+    def test_adapted_components_keep_exact_source_urls_in_rendered_templates(self):
+        templates = "\n".join(
+            (ROOT / "templates" / name).read_text(encoding="utf-8")
+            for name in ("layout.html", "search.html", "crm.html", "estatisticas.html", "configuracoes.html", "_components.html")
+        )
+        for source_url in (
+            "https://uiverse.io/Itskrish01/wise-wombat-45",
+            "https://uiverse.io/Shoh2008/clever-goose-73",
+            "https://spell.sh/docs/pop-button",
+            "https://spell.sh/docs/spinner",
+            "https://spell.sh/docs/chart",
+            "https://profitize.com.br/build/componentes/progress-metric-card",
+            "https://profitize.com.br/build/componentes/indicator-chart",
+        ):
+            self.assertIn(source_url, templates)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -91,6 +91,7 @@
                         <input type="password" name="google_places_api_key" placeholder="{% if config.get('google_places_configurado') %}Places API já configurada{% else %}Chave com Places API (New) habilitada{% endif %}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">
                     </label>
                     <label class="rounded-xl border border-[#263550] bg-[#090d14] p-4 text-xs font-bold text-slate-300">
+                        <!-- Adaptado de Uiverse Checkbox: https://uiverse.io/andrew-manzyk/ancient-turtle-91 -->
                         <input type="checkbox" name="enable_modular_discovery" value="true" class="mr-2" {% if config.get('enable_modular_discovery', True) %}checked{% endif %}> Usar motor modular
                         <small class="mt-1 block font-normal text-slate-500">Ativa fila, cache, quotas, validação e múltiplas fontes quando a API estiver configurada.</small>
                     </label>
@@ -196,6 +197,7 @@
                     <div class="flex flex-col justify-center">
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Ocultar Navegador (Headless)</label>
                         <label class="relative inline-flex items-center cursor-pointer">
+                            <!-- Adaptado de Uiverse Switch: https://uiverse.io/cuzpq/gentle-goat-72 -->
                             <input type="checkbox" name="headless" value="True" class="sr-only peer" {% if config.get('headless', True) %}checked{% endif %}>
                             <div class="w-11 h-6 bg-[#1A2338] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                             <span class="ml-3 text-xs font-medium text-slate-300">Rodar Invisível (Mais rápido)</span>
