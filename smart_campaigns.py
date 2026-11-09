@@ -220,7 +220,7 @@ def create_smart_campaign(db_name, payload):
     locations = []
 
     if location_mode == "auto":
-        locations, is_exploratory = resolve_auto_locations(db_name, limit=int(payload.get("locations_limit", 25)))
+        locations, is_exploratory = resolve_auto_locations(db_name, limit=int(payload.get("locations_limit", 6)))
     elif location_mode == "states":
         state_codes = payload.get("states") or []
         if isinstance(state_codes, str):
@@ -246,7 +246,7 @@ def create_smart_campaign(db_name, payload):
 
     niches = []
     if niche_mode == "auto":
-        auto_niches, niche_exploratory = resolve_auto_niches(db_name, limit=3)
+        auto_niches, niche_exploratory = resolve_auto_niches(db_name, limit=2)
         niches = auto_niches
         if niche_exploratory:
             is_exploratory = True

@@ -261,7 +261,8 @@ class DiscoveryEngine:
                         key, result = self._cache_get(source.name, request_payload)
                         if result is None:
                             last_error = None
-                            for attempt in range(2):
+                            max_attempts = 1 if source.name == "openstreetmap" else 2
+                            for attempt in range(max_attempts):
                                 try:
                                     result = source.search(
                                         niche, location, payload.get("region", "br"),
@@ -270,7 +271,7 @@ class DiscoveryEngine:
                                     break
                                 except Exception as error:
                                     last_error = error
-                                    if attempt == 0:
+                                    if attempt + 1 < max_attempts:
                                         time.sleep(0.5)
                             if result is None:
                                 stats["errors"] += 1

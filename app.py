@@ -156,6 +156,7 @@ def load_config():
                 save_config(config)
             if not str(config.get("agencia_nome", "")).strip():
                 config["agencia_nome"] = DEFAULT_AGENCY_NAME
+            config["enable_google_places"] = False
             return config
         except Exception:
             return {"vendedor_nome": "", "agencia_nome": DEFAULT_AGENCY_NAME, "velocidade": "normal", "headless": True}
@@ -2410,7 +2411,7 @@ def configuracoes():
         whatsapp_phone_id = nova_configuracao.pop("whatsapp_phone_number_id", "").strip()
         whatsapp_template = nova_configuracao.pop("whatsapp_template_name", "").strip()
         whatsapp_language = nova_configuracao.pop("whatsapp_template_language", "").strip()
-        google_places_key = nova_configuracao.pop("google_places_api_key", "").strip()
+        nova_configuracao.pop("google_places_api_key", None)
         score_weights = {}
         for key, default in DEFAULT_WEIGHTS.items():
             raw_value = nova_configuracao.pop(f"score_{key}", str(default))
@@ -2423,8 +2424,6 @@ def configuracoes():
         data.update(nova_configuracao)
         if api_key:
             persist_secret("GEMINI_API_KEY", api_key)
-        if google_places_key:
-            persist_secret("GOOGLE_PLACES_API_KEY", google_places_key)
         for secret_name, secret_value in (
             ("WHATSAPP_ACCESS_TOKEN", whatsapp_token),
             ("WHATSAPP_PHONE_NUMBER_ID", whatsapp_phone_id),
@@ -2436,6 +2435,8 @@ def configuracoes():
         data["headless"] = "headless" in nova_configuracao
         data["enable_modular_discovery"] = "enable_modular_discovery" in nova_configuracao
         data["enable_openstreetmap"] = "enable_openstreetmap" in nova_configuracao
+        data["openstreetmap_opt_in"] = data["enable_openstreetmap"]
+        data["enable_google_places"] = False
         save_config(data)
         return render_template("configuracoes.html", config=config_publica(data), success=True)
     return render_template("configuracoes.html", config=config_publica(load_config()), success=False)
@@ -3711,6 +3712,10 @@ def smart_campaigns_api():
 @app.route("/api/smart-campaigns/active")
 def smart_campaigns_active():
     campaign = get_latest_active_smart_campaign(DB_NAME)
+    if campaign:
+        interrupt_stale_campaign(DB_NAME, campaign["campaign_id"])
+        finalize_campaign_if_done(DB_NAME, campaign["campaign_id"])
+        campaign = smart_campaign_detail(DB_NAME, campaign["campaign_id"])
     return jsonify({"success": True, "campaign": campaign})
 
 
@@ -3718,6 +3723,7 @@ def smart_campaigns_active():
 def smart_campaign_detail_api(campaign_id):
     try:
         interrupt_stale_campaign(DB_NAME, campaign_id)
+        finalize_campaign_if_done(DB_NAME, campaign_id)
         return jsonify({"success": True, "campaign": smart_campaign_detail(DB_NAME, campaign_id)})
     except ValueError as error:
         return jsonify({"success": False, "error": str(error)}), 404

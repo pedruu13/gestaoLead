@@ -233,11 +233,11 @@ class GoogleMapsSource(DiscoverySource):
                     query = f"{term} em {location}" if region == "br" else f"{term} in {location}"
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
                     try:
-                        page.goto(url, wait_until="domcontentloaded", timeout=18000)
-                        page.wait_for_selector("div.Nv2PK, [role='feed']", timeout=12000)
+                        page.goto(url, wait_until="domcontentloaded", timeout=12000)
+                        page.wait_for_selector("div.Nv2PK, [role='feed']", timeout=7000)
                         containers = page.locator("div.Nv2PK")
                         stagnant_rounds = 0
-                        for scroll_round in range(8):
+                        for scroll_round in range(5):
                             previous_total = len(candidates)
                             for card_index in range(containers.count()):
                                 candidate = self._parse_card(containers.nth(card_index), niche, location)
@@ -345,8 +345,10 @@ class OpenStreetMapSource(DiscoverySource):
         "https://lz4.overpass-api.de/api/interpreter",
     )
 
-    def __init__(self, enabled=True):
+    def __init__(self, enabled=True, timeout_seconds=8, max_endpoints=2):
         self.enabled = bool(enabled)
+        self.timeout_seconds = max(3, min(15, int(timeout_seconds or 8)))
+        self.max_endpoints = max(1, min(len(self.overpass_endpoints), int(max_endpoints or 2)))
 
     def configured(self):
         return self.enabled
@@ -376,7 +378,7 @@ class OpenStreetMapSource(DiscoverySource):
             selector = f'["{key}"]' if value is None else f'["{key}"="{value}"]'
             clauses.append(f"nwr{selector}{bbox};")
         query = f"[out:json][timeout:25];({''.join(clauses)});out center {min(100, max(1, int(page_size)))};"
-        endpoints = self.overpass_endpoints[:max(1, min(len(self.overpass_endpoints), int(request_budget or 3)))]
+        endpoints = self.overpass_endpoints[:min(self.max_endpoints, max(1, int(request_budget or 1)))]
         last_error = None
         attempts = 0
         data = None
@@ -389,7 +391,7 @@ class OpenStreetMapSource(DiscoverySource):
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=25) as response:
+                with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                     data = json.loads(response.read().decode("utf-8"))
                 break
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
@@ -427,17 +429,25 @@ class OpenStreetMapSource(DiscoverySource):
 def source_registry(config=None):
     config = config or {}
     sources = []
-    # 1. Google Places Oficial (se houver API key)
+    # Google Places é pago e permanece desligado por padrão. Só entra quando
+    # houver chave e ativação explícita na configuração do servidor.
     places = GooglePlacesSource(query_variants=config.get("google_places_query_variants", 2))
-    if places.configured():
+    paid_places_enabled = str(config.get("enable_google_places", "false")).lower() in {"1", "true", "on", "yes"}
+    if paid_places_enabled and places.configured():
         sources.append(places)
 
     # 2. Google Maps Nativo via Playwright (sempre disponível, 100% de cobertura)
     if str(config.get("enable_google_maps", "true")).lower() not in {"0", "false", "off", "no"}:
         sources.append(GoogleMapsSource(enabled=True, headless=bool(config.get("headless", True))))
 
-    # 3. OpenStreetMap
-    if str(config.get("enable_openstreetmap", "true")).lower() not in {"0", "false", "off", "no"}:
-        sources.append(OpenStreetMapSource(enabled=True))
+    # OpenStreetMap é gratuito, porém o Overpass pode ficar indisponível por
+    # minutos. Fica opt-in para não bloquear a entrega dos resultados do Maps.
+    osm_opted_in = str(config.get("openstreetmap_opt_in", "false")).lower() in {"1", "true", "on", "yes"}
+    if osm_opted_in and str(config.get("enable_openstreetmap", "false")).lower() in {"1", "true", "on", "yes"}:
+        sources.append(OpenStreetMapSource(
+            enabled=True,
+            timeout_seconds=config.get("openstreetmap_timeout_seconds", 8),
+            max_endpoints=config.get("openstreetmap_max_endpoints", 2),
+        ))
 
     return sources

@@ -16,8 +16,9 @@
         {% if intelligence_status is defined %}
         <div class="search-engine-status" aria-label="Recursos configurados">
             <span>Gemini: <strong>{{ intelligence_status.gemini_status.label }}</strong></span>
-            <span>Google Places API: <strong>{{ 'Configurada' if intelligence_status.places else 'Não configurada' }}</strong></span>
-            <a href="/configuracoes">Configurar integrações</a>
+            <span>Busca de empresas: <strong>Gratuita</strong></span>
+            <span>Google Places pago: <strong>Desativado</strong></span>
+            <a href="/configuracoes">Ver fontes</a>
         </div>
         {% endif %}
     </section>
@@ -1214,7 +1215,7 @@
             const data = await res.json();
             if (data.success && data.campaign) {
                 updateMonitor(data.campaign);
-                if (['completed', 'cancelled', 'failed'].includes(data.campaign.status)) {
+                if (['completed', 'cancelled', 'failed', 'paused', 'interrupted'].includes(data.campaign.status)) {
                     stopPolling();
                 }
             }
@@ -1232,7 +1233,7 @@
             if (!data.success) return;
             notice.textContent = data.google_places_configured
                 ? 'Fontes ativas: Google Places Oficial, Google Maps nativo e OpenStreetMap.'
-                : 'Motor inteligente ativo: Google Maps nativo e OpenStreetMap com cobertura nacional completa de telefone, site e avaliações.';
+                : 'Busca gratuita ativa pelo Google Maps. Nenhuma API paga será utilizada.';
             notice.className = 'mt-2 text-[11px] text-emerald-400 font-medium';
         } catch (error) {
             notice.textContent = 'Não foi possível verificar as fontes de busca agora.';

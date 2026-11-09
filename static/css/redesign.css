@@ -6,6 +6,17 @@
 @media(max-width:1050px){#smart_campaign_form{grid-template-columns:1fr}#smart_campaign_form>.campaign-side-summary{grid-column:1;grid-row:auto;position:static;margin:20px 22px}.message-variants{grid-template-columns:1fr}}@media(max-width:800px){.gl-sidebar{transform:translateX(-100%);width:min(86vw,280px)}.gl-workspace,.sidebar-collapsed .gl-workspace{margin-left:0}.sidebar-mobile-open .gl-sidebar{transform:translateX(0)}.gl-mobile-overlay{position:fixed;inset:0;z-index:50;display:none;background:rgba(0,0,0,.68)}.sidebar-mobile-open .gl-mobile-overlay{display:block}.gl-mobile-close,.gl-menu-button{display:grid}.gl-collapse-button{display:none}.gl-topbar{padding:0 12px;gap:8px}.gl-system-status{display:none}.gl-main{padding:18px 14px 34px}.crm-filter-panel{max-height:250px;overflow:auto}}@media(max-width:560px){.gl-page-heading>span,.gl-page-heading>i,.gl-topbar-cta span{display:none}.campaign-hero{grid-template-columns:1fr}#smart_campaign_form>.space-y-3\.5{padding:18px 16px}#smart_campaign_form>details,#smart_campaign_form>.campaign-side-summary{margin-left:16px;margin-right:16px}}
 @media(prefers-reduced-motion:reduce){.gl-sidebar,.gl-workspace,.gl-collapse-button svg{transition:none!important}}
 
+/* Rolagem pertence ao documento. Evita painéis sticky/fixos sobrepondo telas em
+   viewports menores e remove o segundo scroll interno do layout anterior. */
+.gl-app{min-height:100dvh;overflow-x:hidden;overflow-y:auto}
+.gl-workspace{height:auto;min-height:100dvh;overflow:visible}
+.gl-topbar{position:sticky;top:0;z-index:45}
+.gl-main{min-height:calc(100dvh - var(--topbar-height));overflow:visible}
+.gl-main section,.gl-main [id]{scroll-margin-top:calc(var(--topbar-height) + 16px)}
+#smart_campaign_form>.campaign-side-summary,.proposal-editor{top:calc(var(--topbar-height) + 16px);max-height:calc(100dvh - var(--topbar-height) - 32px);overflow:auto;overscroll-behavior:contain}
+@media(max-width:1050px){#smart_campaign_form>.campaign-side-summary{max-height:none;overflow:visible}}
+@media(max-width:800px){.sidebar-mobile-open{overflow:hidden}.gl-main{min-height:calc(100dvh - var(--topbar-height))}.proposal-editor{position:static;max-height:none;overflow:visible}}
+
 .gl-global-search{width:min(28vw,320px);height:34px;margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid #292E37;border-radius:8px;background:#15181D;color:#64748B;font-size:11px;text-align:left}.gl-global-search:hover{border-color:#3A4350;background:#181B20;color:#94A3B8}.gl-global-search span{flex:1}.gl-global-search kbd{border:1px solid #2A2F38;border-radius:5px;padding:2px 5px;background:#101216;color:#64748B;font:600 9px Inter,sans-serif}.gl-topbar-actions{margin-left:12px}
 .lead-company{display:flex;align-items:center;gap:10px;min-width:0}.lead-company__copy{min-width:0}.lead-company__copy strong,.lead-company__copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lead-company__copy strong{color:#F1F5F9;font-size:12px;font-weight:620}.lead-company__copy span{margin-top:4px;color:#64748B;font-size:10px}
 @media(max-width:960px){.gl-global-search{width:38px;padding:0;justify-content:center}.gl-global-search span,.gl-global-search kbd{display:none}}
@@ -94,3 +105,15 @@
 @media(max-width:1180px){.delivery-action-dock{align-items:stretch;flex-wrap:wrap}.delivery-action-dock__summary{flex:1 1 100%}.delivery-mode-grid{flex:1 1 520px}}
 @media(max-width:1050px){.delivery-composer__body{grid-template-columns:1fr}.delivery-preview-card{border-right:0;border-bottom:1px solid var(--delivery-line)}.delivery-preview-card__artwork{min-height:380px}}
 @media(max-width:680px){.delivery-composer{border-radius:13px}.delivery-composer__header{align-items:flex-start;flex-direction:column;padding:19px}.delivery-composer__header h2{font-size:19px}.delivery-progress{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.delivery-progress span{justify-content:center;padding:7px 5px}.delivery-preview-card{padding:10px}.delivery-preview-card__bar{gap:7px}.delivery-preview-card__bar>span:nth-child(2){display:none}.delivery-preview-card__artwork{min-height:auto;aspect-ratio:1}.delivery-preview-card__artwork img{max-height:none}.delivery-preview-card__artwork>span{display:none}.delivery-preview-card__footer{align-items:flex-start;flex-direction:column;padding:12px 2px 2px}.delivery-preview-card__tools{width:100%;display:grid;grid-template-columns:1fr 1fr}.delivery-preview-card__tools a{justify-content:center;min-height:40px}.delivery-message-card{padding:18px}.delivery-message-card__heading button span{display:none}.delivery-message-card__editor textarea{min-height:190px}.delivery-message-card__editor>div{align-items:flex-start;flex-direction:column}.delivery-action-dock{display:grid;grid-template-columns:1fr;padding:14px}.delivery-action-dock__summary{margin:0 0 4px}.delivery-channel select{width:100%;min-height:44px}.delivery-mode-grid{display:grid;grid-template-columns:1fr}.delivery-mode{min-height:58px}.delivery-action-dock__primary,.delivery-action-dock__confirm{width:100%;justify-content:center;min-height:48px}.delivery-empty-state{padding:32px 18px}.delivery-empty-state__actions{width:100%;display:grid;grid-template-columns:1fr}.delivery-empty-state__actions button,.delivery-empty-state__actions a{justify-content:center;min-height:46px}}
+
+/* Correção final de fluxo: estas regras ficam no fim para vencer estilos de
+   páginas específicas que antes recriavam um viewport e um scroll internos. */
+.gl-app{min-height:100dvh;overflow-x:hidden;overflow-y:auto}
+.gl-workspace{height:auto;min-height:100dvh;overflow:visible}
+.gl-topbar{position:sticky;top:0;z-index:45}
+.gl-main{min-height:calc(100dvh - var(--topbar-height));overflow:visible}
+.campaign-hero{display:block}
+.campaign-hero .search-engine-status{justify-content:flex-start}
+#smart_campaign_form>.campaign-side-summary,.proposal-editor{top:calc(var(--topbar-height) + 16px);max-height:calc(100dvh - var(--topbar-height) - 32px);overflow:auto;overscroll-behavior:contain}
+@media(max-width:1050px){#smart_campaign_form>.campaign-side-summary{max-height:none;overflow:visible}}
+@media(max-width:800px){.sidebar-mobile-open{overflow:hidden}.proposal-editor{position:static;max-height:none;overflow:visible}}

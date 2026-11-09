@@ -76,6 +76,27 @@ class TestGeographicCampaignRuntime(unittest.TestCase):
         self.assertEqual(1, detail["queries_completed"])
         self.assertEqual(0, detail["qualified_leads"])
 
+    def test_completed_location_recovers_interrupted_parent(self):
+        campaign = self.create_campaign()
+        campaign_id = campaign["campaign_id"]
+        self.assertTrue(claim_campaign_worker(self.db_name, campaign_id, "worker-a"))
+        complete_location(self.db_name, self.first_location_id(campaign_id), {
+            "tentativas_busca": 1,
+            "consultas_concluidas": 1,
+            "encontrados": 9,
+            "salvos": 5,
+        })
+        connection = sqlite3.connect(self.db_name)
+        connection.execute("UPDATE geographic_campaigns SET status = 'interrupted' WHERE campaign_id = ?", (campaign_id,))
+        connection.commit()
+        connection.close()
+
+        self.assertTrue(finalize_campaign_if_done(self.db_name, campaign_id))
+        detail = smart_campaign_detail(self.db_name, campaign_id)
+        self.assertEqual("completed", detail["status"])
+        self.assertEqual(9, detail["companies_found"])
+        self.assertEqual(5, detail["qualified_leads"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -125,29 +125,20 @@
                 <h3 class="text-lg font-black text-white flex items-center mb-2">
                     <i class="fa-solid fa-database text-cyan-400 mr-3"></i> Fontes do motor de descoberta
                 </h3>
-                <p class="text-slate-400 text-xs mb-4">Com a Places API configurada, a busca usa Google Places e OpenStreetMap, guarda cache e pode retomar tarefas interrompidas. Sem a chave, o coletor atual permanece como fallback.</p>
+                <p class="text-slate-400 text-xs mb-4">A descoberta usa o coletor gratuito do Google Maps. A API paga do Google Places está desativada nesta instalação.</p>
                 <div class="grid gap-4 md:grid-cols-2">
-                    <label class="md:col-span-2 text-xs font-bold uppercase tracking-wider text-slate-300">Google Places API Key
-                        <input type="password" name="google_places_api_key" placeholder="{% if config.get('google_places_configurado') %}Places API já configurada{% else %}Chave com Places API (New) habilitada{% endif %}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm normal-case font-normal text-white outline-none focus:border-cyan-500">
-                    </label>
+                    <div class="md:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-emerald-200">
+                        <strong class="block font-bold">Modo sem cobrança ativo</strong>
+                        <span class="mt-1 block text-emerald-300/70">Google Places pago não participa das pesquisas. O sistema informa a fonte e o progresso real de cada campanha.</span>
+                    </div>
                     <label class="rounded-xl border border-[#263550] bg-[#090d14] p-4 text-xs font-bold text-slate-300">
                         <!-- Adaptado de Uiverse Checkbox: https://uiverse.io/andrew-manzyk/ancient-turtle-91 -->
                         <input type="checkbox" name="enable_modular_discovery" value="true" class="mr-2" {% if config.get('enable_modular_discovery', True) %}checked{% endif %}> Usar motor modular
                         <small class="mt-1 block font-normal text-slate-500">Ativa fila, cache, quotas, validação e múltiplas fontes quando a API estiver configurada.</small>
                     </label>
                     <label class="rounded-xl border border-[#263550] bg-[#090d14] p-4 text-xs font-bold text-slate-300">
-                        <input type="checkbox" name="enable_openstreetmap" value="true" class="mr-2" {% if config.get('enable_openstreetmap', True) %}checked{% endif %}> Complementar com OpenStreetMap
-                        <small class="mt-1 block font-normal text-slate-500">Usa somente dados públicos presentes no diretório, sem contornar bloqueios.</small>
-                    </label>
-                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Limite diário Google Places
-                        <input type="number" min="1" max="500" name="google_places_daily_limit" value="{{ config.get('google_places_daily_limit', 40) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
-                    </label>
-                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Consultas alternativas por alvo
-                        <select name="google_places_query_variants" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
-                            <option value="1" {% if config.get('google_places_query_variants')|int == 1 %}selected{% endif %}>1 · menor custo</option>
-                            <option value="2" {% if config.get('google_places_query_variants', 2)|int == 2 %}selected{% endif %}>2 · equilíbrio</option>
-                            <option value="3" {% if config.get('google_places_query_variants')|int == 3 %}selected{% endif %}>3 · maior cobertura</option>
-                        </select>
+                        <input type="checkbox" name="enable_openstreetmap" value="true" class="mr-2" {% if config.get('openstreetmap_opt_in', False) and config.get('enable_openstreetmap', False) %}checked{% endif %}> Complementar com OpenStreetMap
+                        <small class="mt-1 block font-normal text-slate-500">Opcional. Pode ficar lento quando os servidores públicos do Overpass estão congestionados.</small>
                     </label>
                     <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Limite diário OpenStreetMap
                         <input type="number" min="1" max="200" name="openstreetmap_daily_limit" value="{{ config.get('openstreetmap_daily_limit', 30) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">

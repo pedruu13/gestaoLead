@@ -45,6 +45,33 @@ class FakeSource:
         return {"candidates": [dict(self.candidate)], "next_page_token": "", "requests": 1}
 
 
+class DiscoverySourcePolicyTests(unittest.TestCase):
+    def test_paid_google_places_requires_explicit_server_opt_in(self):
+        with mock.patch.dict(os.environ, {"GOOGLE_PLACES_API_KEY": "test-key"}):
+            default_names = [source.name for source in discovery_sources.source_registry({})]
+            opted_in_names = [
+                source.name
+                for source in discovery_sources.source_registry({"enable_google_places": True})
+            ]
+        self.assertNotIn("google_places", default_names)
+        self.assertIn("google_places", opted_in_names)
+
+    def test_openstreetmap_legacy_flag_does_not_reactivate_slow_source(self):
+        legacy_names = [
+            source.name
+            for source in discovery_sources.source_registry({"enable_openstreetmap": True})
+        ]
+        opted_in_names = [
+            source.name
+            for source in discovery_sources.source_registry({
+                "enable_openstreetmap": True,
+                "openstreetmap_opt_in": True,
+            })
+        ]
+        self.assertNotIn("openstreetmap", legacy_names)
+        self.assertIn("openstreetmap", opted_in_names)
+
+
 class DiscoveryEngineTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
