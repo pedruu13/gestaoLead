@@ -4444,6 +4444,8 @@ def test_gemini():
         code = str(getattr(error, "code", ""))
         message = ("Cota ou limite de requisições atingido. Confira o uso e o faturamento no Google." if code == "429"
                    else "Chave inválida ou sem permissão. Confira as credenciais no Google." if code in {"400", "401", "403"}
+                   else "Modelo indisponível para esta chave. A integração precisa usar um modelo compatível." if code == "404"
+                   else "O Google está temporariamente indisponível ou com alta demanda. Tente novamente em alguns minutos." if code in {"500", "502", "503", "504"}
                    else "O Gemini não respondeu ao teste. Confira a conexão do servidor e tente novamente.")
         if api_key == os.environ.get("GEMINI_API_KEY", "").strip():
             record_check(DB_NAME, api_key, "error", message)
