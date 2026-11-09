@@ -21,6 +21,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, send_file
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
+from integration_status import gemini_status, record_check
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import (build_preview_config, capture_preview_png, generate_preview_assets,
                             render_preview_html, validate_preview_html)
@@ -168,6 +169,7 @@ def save_config(data):
 def config_publica(config):
     config_segura = dict(config)
     config_segura["gemini_configurada"] = bool(os.environ.get("GEMINI_API_KEY"))
+    config_segura["gemini_status"] = gemini_status(DB_NAME, os.environ.get("GEMINI_API_KEY", "").strip())
     config_segura["whatsapp_configurado"] = cloud_configured()
     config_segura["google_places_configurado"] = bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip())
     config_segura.pop("gemini_api_key", None)
@@ -1437,6 +1439,7 @@ def aplicar_cabecalhos_seguranca(response):
 def index():
     return render_template("search.html", intelligence_status={
         "gemini": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
+        "gemini_status": gemini_status(DB_NAME, os.environ.get("GEMINI_API_KEY", "").strip()),
         "places": bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()),
     })
 
@@ -4431,13 +4434,20 @@ def test_gemini():
         return jsonify({"success": False, "error": "Informe uma API Key para testar."})
         
     try:
-        _, model_name = first_available_response(api_key, "Diga apenas 'ok'", attempt_limit=2)
+        _, model_name = first_available_response(api_key, "Diga apenas 'ok'", attempt_limit=2, timeout_ms=15000)
         if chave_enviada:
             persist_secret("GEMINI_API_KEY", api_key)
-        return jsonify({"success": True, "message": f"Conexão bem-sucedida! Modelo ativo: {model_name}"})
+        message = "O Gemini respondeu a uma solicitação real com esta chave."
+        record_check(DB_NAME, api_key, "ok", message, model_name)
+        return jsonify({"success": True, "message": message, "status": gemini_status(DB_NAME, api_key)})
     except Exception as error:
-        print(f"[GEMINI] Falha no teste da API: {type(error).__name__}: {str(error)[:240]}")
-        return jsonify({"success": False, "error": "A chave não pôde ser validada. Confira a chave, a cota e a conexão do servidor."}), 502
+        code = str(getattr(error, "code", ""))
+        message = ("Cota ou limite de requisições atingido. Confira o uso e o faturamento no Google." if code == "429"
+                   else "Chave inválida ou sem permissão. Confira as credenciais no Google." if code in {"400", "401", "403"}
+                   else "O Gemini não respondeu ao teste. Confira a conexão do servidor e tente novamente.")
+        if api_key == os.environ.get("GEMINI_API_KEY", "").strip():
+            record_check(DB_NAME, api_key, "error", message)
+        return jsonify({"success": False, "error": message, "status": gemini_status(DB_NAME, os.environ.get("GEMINI_API_KEY", "").strip())}), 502
 
 STATUS_REGEN = load_regeneration_status()
 REGEN_LOCK = threading.Lock()

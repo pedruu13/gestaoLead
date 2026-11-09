@@ -9,8 +9,9 @@ MODEL_CANDIDATES = (
 )
 
 
-def generate_text(api_key, model, prompt, json_mode=False):
-    client = genai.Client(api_key=api_key)
+def generate_text(api_key, model, prompt, json_mode=False, timeout_ms=None):
+    options = {"http_options": types.HttpOptions(timeout=timeout_ms)} if timeout_ms else {}
+    client = genai.Client(api_key=api_key, **options)
     config = types.GenerateContentConfig(
         response_mime_type="application/json" if json_mode else "text/plain",
         temperature=0.55,
@@ -19,12 +20,13 @@ def generate_text(api_key, model, prompt, json_mode=False):
     return (response.text or "").strip()
 
 
-def first_available_response(api_key, prompt, json_mode=False, attempt_limit=None):
+def first_available_response(api_key, prompt, json_mode=False, attempt_limit=None, timeout_ms=None):
     last_error = None
     models = MODEL_CANDIDATES[:attempt_limit] if attempt_limit else MODEL_CANDIDATES
     for model in models:
         try:
-            text = generate_text(api_key, model, prompt, json_mode=json_mode)
+            options = {"timeout_ms": timeout_ms} if timeout_ms else {}
+            text = generate_text(api_key, model, prompt, json_mode=json_mode, **options)
             if text:
                 return text, model
         except Exception as error:

@@ -15,7 +15,7 @@
         </p>
         {% if intelligence_status is defined %}
         <div class="search-engine-status" aria-label="Recursos configurados">
-            <span>Mensagens: <strong>{{ 'Gemini configurado' if intelligence_status.gemini else 'Regras locais · Gemini não configurado' }}</strong></span>
+            <span>Gemini: <strong>{{ intelligence_status.gemini_status.label }}</strong></span>
             <span>Google Places API: <strong>{{ 'Configurada' if intelligence_status.places else 'Não configurada' }}</strong></span>
             <a href="/configuracoes">Configurar integrações</a>
         </div>

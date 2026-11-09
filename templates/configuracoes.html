@@ -52,23 +52,37 @@
                 <h3 class="text-lg font-black text-white flex items-center mb-2">
                     <i class="fa-solid fa-microchip text-cyan-400 mr-3"></i> Inteligência Artificial (Google Gemini)
                 </h3>
-                <p class="text-slate-400 text-xs mb-4">Insira sua API Key do Google Gemini para ativar o motor de inteligência artificial avançado.</p>
+                <p class="text-slate-400 text-xs mb-4">Confira se o Gemini respondeu a um teste real. Uma chave salva, sozinha, não confirma a conexão.</p>
+                {% set api_status = config.get('gemini_status', {}) %}
+                <div id="gemini-connection-status" class="integration-connection" data-status="{{ api_status.get('status', 'untested') }}" role="status" aria-live="polite">
+                    <strong id="gemini-status-label">{{ api_status.get('label', 'Ainda não testada') }}</strong>
+                    <p id="gemini-status-message">{{ api_status.get('message', '') }}</p>
+                    <p>Modelo: <span id="gemini-status-model">{{ api_status.get('model') or 'Nenhum confirmado' }}</span></p>
+                    <p>Último teste: <time id="gemini-status-date" datetime="{{ api_status.get('checked_at', '') }}">{{ api_status.get('checked_at') or 'Ainda não realizado' }}</time></p>
+                </div>
+                <style>
+                .integration-connection{border:1px solid #2A2F38;border-left:3px solid #94A3B8;border-radius:10px;padding:16px;margin:16px 0;background:#13161B;font-size:13px;color:#94A3B8}
+                .integration-connection p{margin-top:6px;overflow-wrap:anywhere}.integration-connection strong{color:#F1F5F9}
+                .integration-connection[data-status="ok"]{border-left-color:#22C55E}.integration-connection[data-status="ok"] strong{color:#86EFAC}
+                .integration-connection[data-status="error"]{border-left-color:#EF4444}.integration-connection[data-status="error"] strong{color:#FCA5A5}
+                @media(max-width:600px){ #gemini_api_key{min-width:0}#gemini-test-button{white-space:normal;min-width:95px}}
+                </style>
                 <div class="space-y-6">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Google Gemini API Key</label>
                         <div class="flex gap-2">
                             <input type="password" id="gemini_api_key" name="gemini_api_key" placeholder="{% if config.get('gemini_configurada') %}Chave já configurada no servidor &bull; informe outra apenas para trocar{% else %}AIzaSy...{% endif %}" class="w-full bg-[#080B12] border border-[#1F2B44] text-white rounded-xl px-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-inner">
-                            <button type="button" onclick="testarAPI()" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap shadow-lg shadow-blue-500/20 active:scale-[0.98]">
-                                <i class="fa-solid fa-vial mr-1.5"></i> Testar
+                            <button id="gemini-test-button" type="button" onclick="testarAPI()" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap">
+                                Testar conexão
                             </button>
                         </div>
                         <p id="api-test-result" class="text-xs mt-2.5 font-bold hidden"></p>
-                        <p class="text-[11px] text-slate-500 mt-2">A chave não é exibida na tela por segurança. O sistema testa automaticamente com fallback multi-modelo.</p>
+                        <p class="text-[11px] text-slate-500 mt-2">O botão faz uma solicitação curta ao Gemini e pode consumir cota. Sem preencher o campo, testa a chave já salva. O resultado vale para o momento do teste.</p>
                     </div>
 
                     <div class="bg-[#080B12] p-4 rounded-xl border border-[#1E293B]">
                         <h4 class="text-xs font-bold text-white mb-1 flex items-center">
-                            <i class="fa-solid fa-crosshairs text-cyan-400 mr-2"></i> Motor de Abordagem Comercial Ativado
+                            <i class="fa-solid fa-crosshairs text-cyan-400 mr-2"></i> Como as mensagens são geradas
                         </h4>
                         <p class="text-xs text-slate-400 leading-relaxed">
                             O sistema cruza Segmento, Avaliações, Localização e Presença Digital (site) para gerar:<br>
@@ -246,6 +260,10 @@
 {% block scripts %}
 <script>
     async function testarAPI() {
+        const button = document.getElementById('gemini-test-button');
+        if (button.disabled) return;
+        button.disabled = true;
+        button.textContent = 'Testando…';
         const keyInput = document.getElementById('gemini_api_key');
         const result = document.getElementById('api-test-result');
         const key = keyInput.value.trim();
@@ -261,6 +279,7 @@
                 body: JSON.stringify({key})
             });
             const data = await response.json();
+            if (data.status) renderGeminiStatus(data.status);
             result.classList.remove('text-slate-400');
 
             if (!response.ok || !data.success) {
@@ -268,12 +287,26 @@
             }
 
             result.classList.add('text-white');
-            result.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-white"></i> ' + (data.message || 'API Key validada com sucesso.');
+            result.textContent = data.message || 'API Key validada com sucesso.';
+            keyInput.value = '';
+            keyInput.placeholder = 'Chave salva no servidor';
         } catch (error) {
             result.classList.remove('text-slate-400');
             result.classList.add('text-rose-400');
-            result.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1.5"></i> ' + (error.message || 'Erro de conexão ao testar a API Key.');
+            result.textContent = error.message || 'Erro de conexão ao testar a API Key.';
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Testar conexão';
         }
     }
+    function renderGeminiStatus(status) {
+        document.getElementById('gemini-connection-status').dataset.status = status.status;
+        document.getElementById('gemini-status-label').textContent = status.label;
+        document.getElementById('gemini-status-message').textContent = status.message;
+        document.getElementById('gemini-status-model').textContent = status.model || 'Nenhum confirmado';
+        document.getElementById('gemini-status-date').textContent = status.checked_at ? new Date(status.checked_at).toLocaleString('pt-BR') : 'Ainda não realizado';
+    }
+    const initialCheckDate = document.getElementById('gemini-status-date');
+    if (initialCheckDate.dateTime) initialCheckDate.textContent = new Date(initialCheckDate.dateTime).toLocaleString('pt-BR');
 </script>
 {% endblock %}
