@@ -122,7 +122,7 @@ O repositório já possui `.github/workflows/deploy-oracle.yml`. Um push validad
 cd "${ORACLE_APP_PATH:-/home/ubuntu/gestaoLead}"
 git pull --ff-only origin main
 python3 -m pip install -r requirements.txt
-python3 -m playwright install chromium
+python3 -m playwright install --with-deps chromium
 sudo systemctl restart "${ORACLE_SERVICE:-gestaolead}"
 sudo systemctl is-active --quiet "${ORACLE_SERVICE:-gestaolead}"
 ```

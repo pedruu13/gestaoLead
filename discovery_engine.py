@@ -254,6 +254,7 @@ class DiscoveryEngine:
                         expected_requests = 1 if page_token else int(getattr(source, "query_variants", 3 if source.name == "openstreetmap" else 1))
                         request_budget = min(remaining_requests, expected_requests)
                         request_payload = {
+                            "extractor_version": 2,
                             "niche": niche, "location": location, "region": payload.get("region", "br"),
                             "page_token": page_token, "request_budget": request_budget,
                         }
@@ -288,7 +289,8 @@ class DiscoveryEngine:
                                 )
                                 progress(stats, f"{source.name} falhou após 2 tentativas; seguindo para a próxima fonte.")
                                 break
-                            self._cache_put(key, source.name, result, ttl_hours)
+                            if result.get("candidates") and not result.get("warnings"):
+                                self._cache_put(key, source.name, result, ttl_hours)
                             requests = int(result.get("requests") or 1)
                             stats["requests"] += requests
                             self._record_usage(source.name, requests=requests, candidates=len(result.get("candidates", [])), cost=requests * source.estimated_cost_micros)
@@ -306,7 +308,8 @@ class DiscoveryEngine:
                 stats["tasks_completed"] = task_index + 1
                 checkpoint = {"task_index": task_index + 1, "source_index": 0, "page_token": "", "page_number": 0}
                 self._update_job(job_id, checkpoint=checkpoint, stats=stats)
-            self._update_job(job_id, status="completed", checkpoint=checkpoint, stats=stats, finished=True)
+            failed_without_results = stats["errors"] > 0 and stats["candidates"] == 0
+            self._update_job(job_id, status="failed" if failed_without_results else "completed", checkpoint=checkpoint, stats=stats, finished=True)
         except Exception as error:
             stats["errors"] += 1
             source_name = locals().get("source").name if locals().get("source") else "unknown"

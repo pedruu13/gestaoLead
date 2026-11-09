@@ -21,6 +21,7 @@ site_audit_status.json
 regeneration_status.json
 regeneration_status.json.tmp
 backups/
+artifacts/
 
 # OS
 .DS_Store

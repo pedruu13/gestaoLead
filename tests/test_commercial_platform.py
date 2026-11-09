@@ -149,6 +149,15 @@ class CommercialIntelligenceTests(unittest.TestCase):
         generator.assert_not_called()
         self.assertTrue(result["qualidade"]["approved"])
         self.assertIn("site", result["mensagem"].casefold())
+        self.assertEqual("Regras locais", result["qualidade"]["provider"])
+
+    def test_review_does_not_require_an_unverified_missing_site_claim(self):
+        analysis = analyze_lead(sample_lead())
+        message = generate_fallback_pitches(analysis)["direta"]
+        self.assertNotIn("não encontrei", message)
+        self.assertTrue(review_pitch(message, analysis, "direta")["approved"])
+        bad_message = message + " Vocês não têm site."
+        self.assertIn("afirma ausência ou problema no site sem evidência específica", review_pitch(bad_message, analysis, "direta")["issues"])
 
     def test_deep_contact_search_only_uses_web_email_lookup_when_requested(self):
         with mock.patch.object(application, "buscar_email_web", return_value="contato@empresa.com") as lookup:
@@ -276,7 +285,7 @@ class CommercialIntelligenceTests(unittest.TestCase):
                     any(term in pitches["consultiva"].casefold() for term in ("desenvolvo sites", "criação de sites", "criamos sites")),
                     pitches["consultiva"],
                 )
-                self.assertIn("site próprio vinculado", pitches["consultiva"].casefold())
+                self.assertNotIn("não encontrei um site", pitches["consultiva"].casefold())
                 self.assertNotIn("se fizer sentido", pitches["consultiva"].casefold())
                 self.assertNotIn("três ideias práticas", pitches["consultiva"].casefold())
                 self.assertFalse(
@@ -392,6 +401,26 @@ class PreviewStudioTests(unittest.TestCase):
         rejected = build_preview_config(sample_lead(), {"hero_image": "https://example.com/photo.jpg"})
         self.assertEqual("", rejected["hero_image"])
 
+    def test_preview_templates_have_distinct_niche_identity_and_structure(self):
+        cases = {
+            "Dentistas": ("care", "signature-care"),
+            "Advogados": ("authority", "signature-authority"),
+            "Academias": ("technical", "signature-technical"),
+            "Pet shop": ("care", "signature-care"),
+            "Imobiliárias": ("portfolio", "signature-portfolio"),
+            "Escola de idiomas": ("editorial", "signature-editorial"),
+            "Oficina mecânica": ("technical", "signature-technical"),
+        }
+        rendered = []
+        for niche, (template, signature) in cases.items():
+            config = build_preview_config(sample_lead(f"Empresa {niche}", niche))
+            html = render_preview_html(config)
+            self.assertEqual(template, config["template"])
+            self.assertIn(f'class="theme-{template} variant-', html)
+            self.assertIn(signature, html)
+            rendered.append((config["headline"], config["primary"], signature))
+        self.assertGreaterEqual(len(set(rendered)), 6)
+
     def test_preview_rejects_unsupported_claims_and_unauthorized_assets(self):
         image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
         config = build_preview_config(sample_lead(), {"hero_image": image})
@@ -504,7 +533,8 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(200, client.get(approval.get_json()["public_url"]).status_code)
                 approved_detail = client.get("/leads/test-place").get_data(as_text=True)
                 self.assertIn(f"const latestPreviewId = {result['preview_id']}", approved_detail)
-                self.assertIn("Preparar no canal", approved_detail)
+                self.assertIn("Abordar apenas com mensagem", approved_detail)
+                self.assertIn("Abordar com mensagem e imagem", approved_detail)
                 self.assertIn("Confirmar envio realizado", approved_detail)
                 conn = sqlite3.connect(application.DB_NAME)
                 approved_state = conn.execute(
@@ -590,7 +620,7 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(200, health.status_code)
                 self.assertEqual("ok", health.get_json()["status"])
                 self.assertEqual("2026.11.05-discovery-engine-v9", health.get_json()["commercial_release"])
-                self.assertEqual("4.3", health.get_json()["pitch_pipeline_version"])
+                self.assertEqual("4.4", health.get_json()["pitch_pipeline_version"])
 
                 stage_change = client.post("/api/update_status", json={"place_id": "test-place", "status": "Proposta enviada"})
                 self.assertEqual(200, stage_change.status_code)

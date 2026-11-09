@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 {% set active_page = 'crm' %}
+{% set latest = previews[0] if previews else none %}
 {% block header_title %}Propostas Visuais{% endblock %}
 {% block content %}
-{% set latest = previews[0] if previews else none %}
 {% set proposal_status_labels = {'draft':'Rascunho', 'awaiting_approval':'Aguardando aprovação', 'approved':'Aprovada', 'rejected':'Rejeitada', 'needs_review':'Revisão necessária', 'failed':'Falha'} %}
 <div class="visual-proposal-page space-y-5">
     <header class="proposal-page-header">
@@ -10,7 +10,7 @@
             <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="proposal-back"><i class="fa-solid fa-arrow-left"></i> Voltar ao lead</a>
             <span class="proposal-kicker">Proposta visual inteligente</span>
             <h1>{{ lead.nome }}</h1>
-            <p>Pesquisa registrada, direção de arte própria e versões reais para desktop, celular e WhatsApp.</p>
+            <p>Revise o conteúdo e a identidade antes de preparar a apresentação para o cliente.</p>
         </div>
         <div class="proposal-header-status">
             <span class="proposal-status proposal-status--{{ latest.approval_status if latest else 'draft' }}"><i></i>{{ proposal_status_labels.get(latest.approval_status, latest.approval_status) if latest else 'Sem versão' }}</span>
@@ -46,6 +46,7 @@
 
             <div class="proposal-section-title proposal-section-title--spaced"><div><span>02</span><h2>Identidade autorizada</h2></div></div>
             <div class="proposal-asset-policy">
+                {% if not initial_config.hero_image %}<p><strong>Esta proposta ainda não possui uma foto do negócio.</strong> Inclua uma imagem autorizada para substituir a composição gráfica. A paleta do segmento é uma sugestão, não uma identidade de marca verificada.</p>{% endif %}
                 <p>Fotos e logotipos só entram após registrar a origem e a autorização de uso.</p>
                 <label>Condição de uso
                     <select id="asset_authorization">

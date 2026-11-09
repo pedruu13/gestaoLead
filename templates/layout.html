@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}};</script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r6') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261109-r6') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r7') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261109-r7') }}">
 </head>
 <body class="gl-app">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
@@ -85,7 +85,7 @@
         function toggleSidebar(){const open=document.body.classList.toggle('sidebar-mobile-open');document.getElementById('mobile-overlay').setAttribute('aria-hidden',String(!open));}
         function toggleSidebarCollapse(){const collapsed=document.body.classList.toggle('sidebar-collapsed');localStorage.setItem('gestaolead:sidebar-collapsed',String(collapsed));document.getElementById('sidebar-collapse').setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');}
     </script>
-    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261109-r6') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261109-r7') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

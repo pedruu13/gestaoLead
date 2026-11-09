@@ -135,7 +135,7 @@ class GoogleMapsSource(DiscoverySource):
             link_el = card.locator("a.hfpxzc").first
             href = link_el.get_attribute("href") if link_el.count() else ""
             aria = link_el.get_attribute("aria-label") if link_el.count() else ""
-            if aria and not name:
+            if aria:
                 name = aria
             if not name or "Resultado" in name:
                 return None
@@ -172,11 +172,13 @@ class GoogleMapsSource(DiscoverySource):
                     continue
                 if "·" in line:
                     parts = [p.strip() for p in line.split("·")]
+                    if re.match(r"^\d", parts[0]):
+                        continue
                     if len(parts) >= 2:
                         category = parts[0] or niche
                         address = parts[-1] or location
                         break
-                elif not address and len(line) > 10 and re.search(r"(Rua|Av|Avenida|Praça|Al\.|Alameda|Rod|Km|N°|Bloco|Sala)", line, re.I):
+                elif address == location and len(line) > 10 and re.search(r"(Rua|Av|Avenida|Praça|Al\.|Alameda|Rod|Km|N°|Bloco|Sala)", line, re.I):
                     address = line
 
             return {
@@ -190,7 +192,7 @@ class GoogleMapsSource(DiscoverySource):
                 "website": website,
                 "rating": rating,
                 "reviews": reviews,
-                "business_status": "OPERATIONAL",
+                "business_status": "CLOSED_PERMANENTLY" if "fechado permanentemente" in full_text.casefold() else "UNKNOWN",
                 "source_url": href,
                 "niche": niche,
                 "location": location,
@@ -208,12 +210,13 @@ class GoogleMapsSource(DiscoverySource):
 
         try:
             from playwright.sync_api import sync_playwright
-        except ImportError:
-            return {"candidates": [], "next_page_token": "", "requests": 0}
+        except ImportError as error:
+            raise RuntimeError("Playwright não está instalado; busca Google Maps indisponível.") from error
 
         candidates = []
         seen_ids = set()
         requests_count = 0
+        errors = []
 
         try:
             with sync_playwright() as playwright:
@@ -231,23 +234,36 @@ class GoogleMapsSource(DiscoverySource):
                     url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
                     try:
                         page.goto(url, wait_until="domcontentloaded", timeout=18000)
-                        page.wait_for_timeout(1000)
+                        page.wait_for_selector("div.Nv2PK, [role='feed']", timeout=12000)
                         containers = page.locator("div.Nv2PK")
-                        count = containers.count()
-                        for i in range(min(count, int(page_size))):
-                            candidate = self._parse_card(containers.nth(i), niche, location)
-                            if candidate and candidate["source_id"] not in seen_ids:
-                                seen_ids.add(candidate["source_id"])
-                                candidates.append(candidate)
+                        stagnant_rounds = 0
+                        for scroll_round in range(8):
+                            previous_total = len(candidates)
+                            for card_index in range(containers.count()):
+                                candidate = self._parse_card(containers.nth(card_index), niche, location)
+                                if candidate and candidate["source_id"] not in seen_ids:
+                                    seen_ids.add(candidate["source_id"])
+                                    candidates.append(candidate)
+                                if len(candidates) >= int(page_size):
+                                    break
+                            stagnant_rounds = stagnant_rounds + 1 if len(candidates) == previous_total else 0
+                            feed = page.locator("[role='feed']").first
+                            if len(candidates) >= int(page_size) or stagnant_rounds >= 2 or not feed.count():
+                                break
+                            feed.evaluate("element => element.scrollBy(0, element.clientHeight)")
+                            page.wait_for_timeout(700)
                         if len(candidates) >= int(page_size):
                             break
                     except Exception as err:
+                        errors.append(type(err).__name__)
                         print(f"[GoogleMapsSource] Falha na busca de '{query}': {err}")
                 browser.close()
         except Exception as error:
-            print(f"[GoogleMapsSource] Erro geral ao executar Playwright: {error}")
+            raise RuntimeError("Não foi possível executar o navegador da busca Google Maps.") from error
 
-        return {"candidates": candidates, "next_page_token": "", "requests": requests_count}
+        if errors and not candidates:
+            raise RuntimeError("Google Maps não retornou resultados legíveis; verifique conexão, consentimento ou bloqueio da fonte.")
+        return {"candidates": candidates, "next_page_token": "", "requests": requests_count, "warnings": errors}
 
 
 OSM_FILTERS = {

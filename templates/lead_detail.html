@@ -90,7 +90,10 @@
             <button type="button" class="delivery-action-dock__primary" onclick="approveAndPrepareVisualProposal()"><i class="fa-solid fa-shield-check"></i><span>Aprovar conjunto<small>Liberar preparação para envio</small></span></button>
             {% else %}
             <label class="delivery-channel">Canal<select id="visual-proposal-channel" aria-label="Canal para preparar a abordagem"><option value="WhatsApp">WhatsApp</option><option value="E-mail">E-mail</option><option value="Outro">Outro canal</option></select></label>
-            <button type="button" class="delivery-action-dock__primary" onclick="prepareVisualProposalChannel()" aria-label="Preparar no canal"><i class="fa-solid fa-paper-plane"></i><span>Preparar envio<small>Copiar mensagem + baixar imagem</small></span></button>
+            <div class="delivery-mode-grid" aria-label="Escolha como abordar o cliente">
+                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--message" onclick="return prepareVisualProposalContact(event, this, false)" aria-label="Abordar apenas com mensagem"><i class="fa-regular fa-message"></i><span>Abordar com mensagem<small>Abre o canal com o texto preparado</small></span></a>
+                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--image" onclick="return prepareVisualProposalContact(event, this, true)" aria-label="Abordar com mensagem e imagem"><i class="fa-regular fa-image"></i><span>Abordar com imagem<small>Baixa a prévia e abre o canal</small></span></a>
+            </div>
             <button type="button" class="delivery-action-dock__confirm" onclick="confirmVisualProposalSent()" aria-label="Confirmar envio realizado"><i class="fa-solid fa-check-double"></i>Confirmar que enviei</button>
             {% endif %}
         </footer>
@@ -114,7 +117,7 @@
                         <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
                         <h2 class="text-xs font-black uppercase tracking-wider text-white">Estúdio de Abordagens de Prospecção</h2>
                     </div>
-                    <p class="mt-1 text-xs text-slate-400">3 abordagens estruturadas sem clichês com limite estrito de palavras.</p>
+                    <p class="mt-1 text-xs text-slate-400">Origem: {{ lead.qualidade_pitch.get('provider', 'Não registrada nesta versão') if lead.qualidade_pitch else 'Não registrada nesta versão' }}{% if lead.qualidade_pitch and lead.qualidade_pitch.get('model') %} · {{ lead.qualidade_pitch.model }}{% endif %}</p>
                 </div>
                 {% if lead.qualidade_pitch %}
                 <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider {{ 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' if lead.qualidade_pitch.approved else 'bg-amber-500/10 text-amber-300 border border-amber-500/20' }}">
@@ -464,17 +467,52 @@ async function approveAndPrepareVisualProposal() {
     setTimeout(() => location.reload(), 650);
 }
 
-async function prepareVisualProposalChannel() {
-    if (!latestPreviewId || !(await saveVisualProposalMessage(false))) return;
+function visualContactUrl(channel, message) {
+    if (channel === 'WhatsApp' && whatsappBase) return `${whatsappBase}?text=${encodeURIComponent(message)}`;
+    if (channel === 'E-mail' && emailAddress) return `mailto:${emailAddress}?subject=${encodeURIComponent('Proposta visual de site')}&body=${encodeURIComponent(message)}`;
+    return '';
+}
+
+function downloadVisualProposalImage() {
+    if (!latestPreviewShareUrl) return false;
+    const download = document.createElement('a');
+    download.href = latestPreviewShareUrl;
+    download.download = `proposta-visual-${latestPreviewId}-whatsapp.png`;
+    document.body.appendChild(download);
+    download.click();
+    download.remove();
+    return true;
+}
+
+function prepareVisualProposalContact(event, link, includeImage) {
+    if (!latestPreviewId) {
+        event.preventDefault();
+        showAppToast('Gere e aprove a prévia antes de preparar esta abordagem.', 'error');
+        return false;
+    }
     const message = document.getElementById('visual-proposal-message').value.trim();
     const channel = document.getElementById('visual-proposal-channel').value;
-    await navigator.clipboard.writeText(message);
-    const download = document.createElement('a');
-    download.href = latestPreviewShareUrl; download.download = `proposta-visual-${latestPreviewId}-whatsapp.png`;
-    document.body.appendChild(download); download.click(); download.remove();
-    if (channel === 'WhatsApp' && whatsappBase) window.open(`${whatsappBase}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-    if (channel === 'E-mail' && emailAddress) window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent('Proposta visual de site')}&body=${encodeURIComponent(message)}`;
-    showAppToast('Mensagem copiada e imagem baixada. Confirme o envio somente depois de realizá-lo no canal.');
+    const contactUrl = visualContactUrl(channel, message);
+    saveVisualProposalMessage(false).catch(() => {});
+    navigator.clipboard.writeText(message).catch(() => {});
+    if (includeImage) downloadVisualProposalImage();
+    if (!contactUrl) {
+        event.preventDefault();
+        showAppToast(
+            includeImage
+                ? 'Mensagem copiada e imagem baixada. Este lead não possui um WhatsApp ou e-mail válido para abrir automaticamente.'
+                : 'Mensagem copiada. Este lead não possui um WhatsApp ou e-mail válido para abrir automaticamente.',
+            'warning'
+        );
+        return false;
+    }
+    link.href = contactUrl;
+    showAppToast(
+        includeImage
+            ? 'Imagem baixada e mensagem copiada. No canal, anexe a imagem antes de enviar.'
+            : 'Mensagem copiada e canal aberto. Revise antes de enviar.'
+    );
+    return true;
 }
 
 async function confirmVisualProposalSent() {

@@ -41,7 +41,7 @@ jobs:
             cd "$APP_PATH"
             git pull --ff-only origin main
             python3 -m pip install -r requirements.txt
-            python3 -m playwright install chromium
+            python3 -m playwright install --with-deps chromium
             sudo systemctl restart "$SERVICE"
             sleep 4
             sudo systemctl is-active --quiet "$SERVICE"

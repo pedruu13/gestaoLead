@@ -35,7 +35,7 @@ class UIDesignSystemTests(unittest.TestCase):
         self.assertIn("css/design-system.css", layout)
         self.assertIn("js/ui-system.js", layout)
         self.assertIn("css/redesign.css", layout)
-        self.assertIn("20261109-r6", layout)
+        self.assertIn("20261109-r7", layout)
         self.assertIn("gl-sidebar", layout)
         self.assertIn("toggleSidebarCollapse", layout)
         self.assertIn('aria-live="polite"', layout)
@@ -72,9 +72,19 @@ class UIDesignSystemTests(unittest.TestCase):
         self.assertIn("message-variants", lead)
         self.assertIn("delivery-composer", lead)
         self.assertIn("delivery-action-dock", lead)
+        self.assertIn("delivery-mode-grid", lead)
+        self.assertIn("prepareVisualProposalContact", lead)
+        self.assertNotIn("window.open(`${whatsappBase}", lead)
         self.assertIn("copyPitchMode", lead)
         self.assertIn(".sidebar-collapsed", redesign)
         self.assertIn("#smart_campaign_form", redesign)
+
+    def test_preview_studio_exposes_latest_version_to_actions(self):
+        studio = (ROOT / "templates" / "studio.html").read_text(encoding="utf-8")
+        latest_position = studio.index("{% set latest = previews[0] if previews else none %}")
+        content_position = studio.index("{% block content %}")
+        self.assertLess(latest_position, content_position)
+        self.assertIn("let activePreviewId = {{ latest.id if latest else 'null' }}", studio)
 
     def test_login_uses_same_design_system(self):
         client = application.app.test_client()

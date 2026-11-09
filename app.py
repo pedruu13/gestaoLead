@@ -1247,7 +1247,8 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
     api_key = os.environ.get("GEMINI_API_KEY", "").strip() or str(config.get("gemini_api_key", "")).strip()
     versoes = fallback
     gerada_por_ia = False
-    motivo = "Modelo profissional local aplicado"
+    motivo = "IA desativada nesta geração" if not use_external_ai else "Gemini sem chave configurada; texto gerado por regras locais"
+    generation_model = ""
 
     if api_key and use_external_ai:
         modos = ["consultiva", "direta", "personalizada", "recepcao", "email"]
@@ -1271,6 +1272,7 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
                     versoes = candidate
                     qualidade_fallback = qualidade
                     gerada_por_ia = True
+                    generation_model = model_name
                     motivo = f"Aprovada após {tentativas} tentativa(s) de IA"
                     break
                 feedback = qualidade["reasons"]
@@ -1286,6 +1288,8 @@ def gerar_copy_profissional(dados_lead, config, is_intl=False, preview_available
         f"Evidências verificadas:\n{resumo}"
     )
     qualidade_fallback["processing_note"] = motivo
+    qualidade_fallback["provider"] = "Gemini" if gerada_por_ia else "Regras locais"
+    qualidade_fallback["model"] = generation_model
     return {
         "analise": analise,
         "estrategia": inteligencia["main_argument"],
@@ -1431,7 +1435,10 @@ def aplicar_cabecalhos_seguranca(response):
 
 @app.route("/")
 def index():
-    return render_template("search.html")
+    return render_template("search.html", intelligence_status={
+        "gemini": bool(os.environ.get("GEMINI_API_KEY", "").strip()),
+        "places": bool(os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()),
+    })
 
 
 @app.route("/health")

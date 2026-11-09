@@ -4,7 +4,7 @@ import unicodedata
 from urllib.parse import urlparse
 
 
-PITCH_PIPELINE_VERSION = "4.3"
+PITCH_PIPELINE_VERSION = "4.4"
 
 
 SOCIAL_OR_DIRECTORY_HOSTS = (
@@ -394,8 +394,8 @@ def _site_observation_for_pitch(context, plan):
 
 def _short_site_observation(context):
     if context["site_verified"]:
-        return "Vi que vocês já possuem um site e há espaço para melhorar a experiência no celular."
-    return "No perfil do Google, não encontrei um site próprio vinculado."
+        return "Vi o endereço do site no cadastro de vocês."
+    return ""
 
 
 def analyze_lead(lead, preview_available=False):
@@ -480,7 +480,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
     pitches = {
         "consultiva": f"Olá! {introduction} {observation} Minha proposta é {plan['offer_action']} para {benefit}. Posso enviar um resumo objetivo do projeto?",
         "direta": f"Olá! {introduction} {observation} Quero apresentar uma proposta de site para {benefit}. Com quem posso falar sobre esse projeto?",
-        "curiosidade": f"Olá! {introduction} {observation} Notei que vocês estão sem uma página própria vinculada. Minha proposta é {plan['offer_action']} para {benefit}. Teria interesse em ver um modelo curto de 2 minutos?",
+        "curiosidade": f"Olá! {introduction} Minha proposta é {plan['offer_action']} para {benefit}. Quem cuida da apresentação dos serviços de vocês na internet?",
         "personalizada": f"Olá! {introduction} {observation} Para {plan['category_with_article']}, um site pode {benefit} antes do primeiro contato. Minha proposta é desenvolver esse projeto com uma navegação simples no celular. Podemos conversar por alguns minutos?",
         "recepcao": f"Olá! {introduction} {observation} Tenho uma proposta de site para {plan['proposal_target']}, com foco em {benefit}. Este número pode ser da recepção; você poderia encaminhar à pessoa responsável pelo site ou informar o melhor contato?",
         "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá! {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {benefit}, com uma experiência clara no celular. Se houver interesse, responda este e-mail e envio um resumo objetivo do projeto.",
@@ -566,14 +566,13 @@ def review_pitch(text, analysis, mode):
             issues.append("não apresenta quem oferece o serviço")
         if not any(term in folded for term in offer_terms):
             issues.append("não faz uma proposta comercial explícita de site")
-        if not analysis.get("normalized_context", {}).get("site_verified"):
-            evidence_terms = (
-                "site próprio vinculado", "sem uma página própria", "não encontrei um site próprio",
-                "não possuem um site próprio", "não possui um site próprio",
-                "website linked", "without a website",
-            )
-            if not any(term in folded for term in evidence_terms):
-                issues.append("não explica com segurança por que um site é necessário")
+        unsupported_claims = (
+            "vocês não têm site", "vocês estão sem uma página própria",
+            "não possuem um site próprio", "não possui um site próprio",
+            "há espaço para melhorar a experiência no celular",
+        )
+        if any(term in folded for term in unsupported_claims):
+            issues.append("afirma ausência ou problema no site sem evidência específica")
     if ("prévia" in folded or "demonstração" in folded or "conceito visual" in folded) and not analysis.get("preview_available"):
         issues.append("menciona material visual inexistente")
     if mode == "previa_visual":
@@ -633,6 +632,8 @@ def build_generation_prompt(analysis, modes, feedback=None, is_intl=False):
         "commercial_category": context["commercial_category"],
         "location": context["location"],
         "channels": context["channels"],
+        "recorded_context": context["services"],
+        "recorded_website": context["site_url"],
         "site_verified": context["site_verified"],
         "preview_available": context["preview_available"],
         "commercial_plan": analysis["commercial_plan"],
@@ -654,7 +655,7 @@ REGRAS OBRIGATÓRIAS:
 - Nunca copie categoria bruta do Google; use somente commercial_category de forma gramatical.
 - Use um benefício específico do segmento e trate-o como possibilidade, não como fato comprovado.
 - Apresente claramente quem está entrando em contato e que o serviço oferecido é criação ou reestruturação de site.
-- Mostre por que a ausência de uma página própria pode prejudicar a decisão ou qualificação do contato.
+- Explique como o site ajudaria o cliente a entender os serviços e dar o próximo passo. Ausência de URL não comprova ausência de site.
 - Faça uma proposta comercial explícita e termine com um próximo passo profissional.
 - Não afirme que o negócio tem um problema nem que está sem site.
 - Não use: perfil público consultado, oportunidade mais clara, estrutura que recomendaria, pelas informações públicas disponíveis, se fizer sentido, três ideias práticas.

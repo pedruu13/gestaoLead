@@ -86,6 +86,15 @@ class DiscoveryEngineTests(unittest.TestCase):
             candidate_identity({"name": "Clinica Sao Jose", "address": "Campinas-SP"}),
         )
 
+    def test_empty_search_is_not_cached_as_market_absence(self):
+        source = FakeSource()
+        source.search = mock.Mock(return_value={"candidates": [], "requests": 1})
+        engine = DiscoveryEngine(self.db_name, {})
+        with mock.patch.object(engine_module, "source_registry", return_value=[source]):
+            engine.run(engine.create_job(self.payload()))
+            engine.run(engine.create_job(self.payload()))
+        self.assertEqual(source.search.call_count, 2)
+
     def test_daily_quota_skips_source_without_calling_it(self):
         source = FakeSource()
         engine = DiscoveryEngine(self.db_name, {"google_places_daily_limit": 1})

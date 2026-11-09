@@ -3,13 +3,23 @@
 {% block header_title %}Campanhas{% endblock %}
 
 {% block content %}
+<style>
+.search-engine-status{display:flex;flex-wrap:wrap;gap:12px 24px;margin-top:20px;padding-top:16px;border-top:1px solid #2A2F38;font-size:12px;color:#94A3B8}.search-engine-status strong{color:#F1F5F9;font-weight:500}.search-engine-status a{color:#60A5FA}.campaign-page{min-width:0}.campaign-page input,.campaign-page select{max-width:100%}@media(max-width:600px){.search-engine-status{display:grid;gap:10px}.campaign-page input,.campaign-page select{font-size:16px;min-height:44px}.campaign-page button{min-height:44px}}
+</style>
 <div class="campaign-page max-w-5xl mx-auto pb-16 space-y-6">
     <section class="campaign-hero rounded-2xl border p-6 md:p-8">
-        <p class="campaign-kicker">Automação Comercial</p>
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">Nova Campanha Inteligente</h1><span class="sr-only">Buscar novos leads</span>
+        <p class="campaign-kicker">Prospecção</p>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">Encontre sua próxima oportunidade</h1><span class="sr-only">Buscar novos leads</span>
         <p class="text-slate-400 mt-2 max-w-2xl text-sm leading-relaxed">
-            Encontre empresas com potencial de contratar seus serviços, sem precisar escolher cidades ou nichos manualmente.
+            Escolha o segmento e a região. Acompanhe as empresas encontradas e revise as oportunidades antes do contato.
         </p>
+        {% if intelligence_status is defined %}
+        <div class="search-engine-status" aria-label="Recursos configurados">
+            <span>Mensagens: <strong>{{ 'Gemini configurado' if intelligence_status.gemini else 'Regras locais · Gemini não configurado' }}</strong></span>
+            <span>Google Places API: <strong>{{ 'Configurada' if intelligence_status.places else 'Não configurada' }}</strong></span>
+            <a href="/configuracoes">Configurar integrações</a>
+        </div>
+        {% endif %}
     </section>
 
     <!-- PAINEL DE ACOMPANHAMENTO (Tempo Real) -->
