@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}};</script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261106-r3') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261106-r3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r6') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261109-r6') }}">
 </head>
 <body class="gl-app">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
@@ -62,7 +62,7 @@
     </div>
     <div id="app-toast" class="ui-toast gl-toast hidden" role="status" aria-live="polite" aria-atomic="true"><span id="app-toast-icon" class="gl-toast-icon" aria-hidden="true">✓</span><p id="app-toast-text"></p></div>
     <div id="app-confirm" class="ui-modal gl-confirm hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
-        <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" class="ui-button ui-button--primary"></button></div></div>
+        <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" type="button" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" type="button" class="ui-button ui-button--primary"></button></div></div>
     </div>
     <!-- Adaptado de Spell Keyboard Shortcuts: https://spell.sh/docs/keyboard-shortcuts -->
     <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="command-title">
@@ -85,7 +85,7 @@
         function toggleSidebar(){const open=document.body.classList.toggle('sidebar-mobile-open');document.getElementById('mobile-overlay').setAttribute('aria-hidden',String(!open));}
         function toggleSidebarCollapse(){const collapsed=document.body.classList.toggle('sidebar-collapsed');localStorage.setItem('gestaolead:sidebar-collapsed',String(collapsed));document.getElementById('sidebar-collapse').setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');}
     </script>
-    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261106-r3') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261109-r6') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

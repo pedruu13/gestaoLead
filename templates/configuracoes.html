@@ -83,6 +83,32 @@
 
             <div>
                 <h3 class="text-lg font-black text-white flex items-center mb-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-violet-400 mr-3"></i> Propostas Visuais Inteligentes
+                </h3>
+                <p class="text-slate-400 text-xs mb-4">Limites para a fila manual de renderização. Nenhuma proposta é criada automaticamente para todos os leads.</p>
+                  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Limite diário
+                        <input type="number" min="1" max="100" name="visual_preview_daily_limit" value="{{ config.get('visual_preview_daily_limit', 10) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-violet-400">
+                    </label>
+                      <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Renderizações simultâneas
+                        <input type="number" min="1" max="4" name="visual_preview_concurrency" value="{{ config.get('visual_preview_concurrency', 1) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-violet-400">
+                      </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Tentativas máximas
+                        <input type="number" min="1" max="5" name="visual_preview_max_attempts" value="{{ config.get('visual_preview_max_attempts', 2) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-violet-400">
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Expiração pública (dias)
+                        <input type="number" min="1" max="180" name="visual_preview_expiration_days" value="{{ config.get('visual_preview_expiration_days', 30) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-violet-400">
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300">Score mínimo
+                        <input type="number" min="0" max="100" name="visual_preview_minimum_score" value="{{ config.get('visual_preview_minimum_score', 65) }}" class="mt-2 w-full rounded-xl border border-[#263550] bg-[#090d14] px-4 py-3 text-sm text-white outline-none focus:border-violet-400">
+                    </label>
+                </div>
+            </div>
+
+            <hr class="border-[#1E293B]">
+
+            <div>
+                <h3 class="text-lg font-black text-white flex items-center mb-2">
                     <i class="fa-solid fa-database text-cyan-400 mr-3"></i> Fontes do motor de descoberta
                 </h3>
                 <p class="text-slate-400 text-xs mb-4">Com a Places API configurada, a busca usa Google Places e OpenStreetMap, guarda cache e pode retomar tarefas interrompidas. Sem a chave, o coletor atual permanece como fallback.</p>

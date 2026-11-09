@@ -181,6 +181,9 @@ class TestSmartCampaignsFlaskAPI(unittest.TestCase):
         data = response.get_json()
         self.assertTrue(data["success"])
         self.assertGreaterEqual(len(data["states"]), 27)
+        sao_paulo = next((state for state in data["states"] if state["code"] == "SP"), None)
+        self.assertIsNotNone(sao_paulo)
+        self.assertEqual("São Paulo", sao_paulo["name"])
 
     def test_api_niches_popular(self):
         response = self.client.get("/api/smart-campaigns/niches/popular")

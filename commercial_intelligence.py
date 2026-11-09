@@ -308,6 +308,14 @@ def _contact_strategy_from_context(context):
 
 
 def recommend_contact_strategy(lead, preview_available=False):
+    if preview_available:
+        context = normalize_lead_context(lead, preview_available=True)
+        return {
+            "recommended_mode": "previa_visual",
+            "label": "Abordagem visual preparada",
+            "reason": "A primeira abordagem deve acompanhar a imagem demonstrativa já validada, sem pedir permissão para mostrá-la.",
+            "reception_likely": context.get("segment") in RECEPTION_FIRST_SEGMENTS,
+        }
     return _contact_strategy_from_context(normalize_lead_context(lead, preview_available=preview_available))
 
 
@@ -461,7 +469,7 @@ def generate_fallback_pitches(analysis, is_intl=False):
             "email": f"Subject: Website proposal\n\nHello, {agency_introduction} I could not find a website linked to the Google profile. Our proposal is to build a professional website that explains the service and guides visitors to the right contact channel. Reply to this email and I will send a short project outline.",
         }
         if analysis.get("preview_available"):
-            pitches["previa_visual"] = "Hi! I created a non-official visual concept using only confirmed information. It is not a finished website, but a way to discuss structure and mobile readability. May I send the image with a short explanation?"
+            pitches["previa_visual"] = f"Hello! {introduction} I created this attached non-official website preview to show how the service could be presented more clearly on mobile. The image is an initial concept and still requires the company's review. I can explain the choices and adapt the project."
         return pitches
 
     introduction = _seller_introduction(analysis)
@@ -478,7 +486,8 @@ def generate_fallback_pitches(analysis, is_intl=False):
         "email": f"Assunto: proposta de site para {context['commercial_category']}\n\nOlá! {agency_introduction} {observation} Nossa proposta é {plan['offer_action']} para {benefit}, com uma experiência clara no celular. Se houver interesse, responda este e-mail e envio um resumo objetivo do projeto.",
     }
     if analysis.get("preview_available"):
-        pitches["previa_visual"] = f"Olá! {introduction} Preparei uma prévia visual não oficial de um site {plan['entity_reference']}, com foco em {benefit} no celular. Posso enviar a imagem com uma explicação curta?"
+        reception_note = "Se for recepção, pode encaminhar o conjunto à pessoa responsável pelo site ou pelas decisões comerciais?" if context.get("segment") in RECEPTION_FIRST_SEGMENTS else "Posso explicar as decisões da proposta e ajustar o projeto com vocês."
+        pitches["previa_visual"] = f"Olá! {introduction} Preparei esta prévia não oficial para mostrar como um site {plan['entity_reference']} poderia {benefit}. A imagem acompanha a mensagem e é um conceito inicial sujeito à validação. {reception_note}"
     return pitches
 
 
@@ -567,6 +576,11 @@ def review_pitch(text, analysis, mode):
                 issues.append("não explica com segurança por que um site é necessário")
     if ("prévia" in folded or "demonstração" in folded or "conceito visual" in folded) and not analysis.get("preview_available"):
         issues.append("menciona material visual inexistente")
+    if mode == "previa_visual":
+        if not any(term in folded for term in ("imagem", "anexo", "prévia visual", "visual concept", "attached")):
+            issues.append("não deixa claro que a imagem acompanha a abordagem")
+        if any(term in folded for term in ("posso enviar", "pode enviar", "quer que eu envie", "may i send", "can i send", "would you like me to send")):
+            issues.append("pede permissão para mostrar uma prévia que já deve acompanhar a mensagem")
     if mode == "email" and not folded.startswith(("assunto:", "subject:")):
         issues.append("e-mail sem assunto")
     reception_terms = ("forward", "person", "handles") if is_english else ("encaminhar", "outra pessoa", "responsável")
@@ -648,6 +662,8 @@ REGRAS OBRIGATÓRIAS:
 - Use positioning e proof apenas quando estiverem preenchidos no perfil do vendedor; nunca invente prova social.
 - Não coloque o link do portfólio na primeira mensagem sem que o modo peça apresentação de material.
 - Não mencione prévia, demonstração ou conceito visual se preview_available for falso.
+- Em previa_visual, a imagem já acompanha a primeira mensagem. Diga que a prévia visual não oficial está em anexo e NUNCA pergunte se pode enviar, mostrar ou compartilhar a imagem.
+- Em previa_visual, explique que o material é um conceito inicial sujeito à validação da empresa e termine oferecendo explicação ou ajuste do projeto.
 - Crie argumentos e encerramentos realmente diferentes entre os modos.
 - Em recepcao, não tente vender tudo para quem atende. Apresente brevemente a PH Digital, diga claramente que é uma proposta de site e peça encaminhamento à pessoa que cuida do site ou das decisões comerciais.
 - Em recepcao, trate recepção/agendamento apenas como possibilidade e ofereça a alternativa de informar o melhor contato.

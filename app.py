@@ -22,7 +22,8 @@ from flask import Flask, render_template, request, jsonify, Response, session, r
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
-from preview_studio import build_preview_config, capture_preview_png, render_preview_html
+from preview_studio import (build_preview_config, capture_preview_png, generate_preview_assets,
+                            render_preview_html, validate_preview_html)
 from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 from conversion_intelligence import VALID_OUTCOMES, calculate_conversion_metrics, performance_adjustment
 from contact_quality import assess_phone, normalize_email, website_domain
@@ -393,6 +394,26 @@ def init_db():
                   config_json TEXT NOT NULL, html_content TEXT NOT NULL, screenshot_path TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   UNIQUE(place_id, version))""")
+    for col, tipo in [
+        ("public_token", "TEXT"), ("mobile_screenshot_path", "TEXT"),
+        ("share_screenshot_path", "TEXT"), ("status", "TEXT DEFAULT 'generated'"),
+        ("approval_status", "TEXT DEFAULT 'draft'"), ("validation_json", "TEXT DEFAULT '{}'"),
+        ("research_json", "TEXT DEFAULT '{}'"), ("art_direction_json", "TEXT DEFAULT '{}'"),
+        ("message_text", "TEXT"), ("approved_at", "TIMESTAMP"),
+        ("expires_at", "TIMESTAMP"), ("published_at", "TIMESTAMP"),
+        ("sent_at", "TIMESTAMP"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE preview_versions ADD COLUMN {col} {tipo}")
+        except sqlite3.OperationalError:
+            pass
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_preview_public_token ON preview_versions(public_token)")
+    c.execute("""CREATE TABLE IF NOT EXISTS visual_proposal_jobs
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, job_token TEXT NOT NULL UNIQUE,
+                  place_id TEXT NOT NULL, preview_id INTEGER, status TEXT NOT NULL,
+                  priority INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, max_attempts INTEGER DEFAULT 2,
+                  error TEXT, requested_config_json TEXT DEFAULT '{}',
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP)""")
     c.execute("""CREATE TABLE IF NOT EXISTS lead_interactions
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL,
                   interaction_type TEXT NOT NULL, channel TEXT, content TEXT NOT NULL,
@@ -465,6 +486,7 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_leads_status_data ON leads(status, data_adicao DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_leads_next_action ON leads(next_action_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_preview_place_version ON preview_versions(place_id, version DESC)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_visual_jobs_status_priority ON visual_proposal_jobs(status, priority DESC, created_at)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_interactions_place_created ON lead_interactions(place_id, created_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_discovery_last_seen ON lead_discovery_history(last_seen_at DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_target_research_context ON target_research_runs(region, context_key, finished_at DESC)")
@@ -629,7 +651,8 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
     if limit:
         params.extend((int(limit), max(0, int(offset))))
     c.execute(f"""SELECT leads.*,
-                 (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id
+                 (SELECT id FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_id,
+                 (SELECT message_text FROM preview_versions WHERE preview_versions.place_id = leads.place_id ORDER BY version DESC LIMIT 1) AS latest_preview_message
                  FROM leads{where}
                  ORDER BY COALESCE(potencial, 0) DESC, data_adicao DESC, nome COLLATE NOCASE ASC{pagination}""", params)
     rows = c.fetchall()
@@ -675,9 +698,12 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
                 lead[field_name] = json.loads(lead.get(field_name) or "{}")
             except (TypeError, json.JSONDecodeError):
                 lead[field_name] = {}
+        preview_available = bool(lead.get("latest_preview_id"))
+        if preview_available and lead.get("latest_preview_message"):
+            lead["copies_pitch"]["previa_visual"] = lead["latest_preview_message"]
         contact_strategy = lead["inteligencia_comercial"].get("contact_strategy")
-        if not contact_strategy:
-            contact_strategy = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=bool(lead.get("latest_preview_id")))
+        if preview_available or not contact_strategy:
+            contact_strategy = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=preview_available)
         lead["contact_strategy"] = contact_strategy
         lead["recommended_pitch_mode"] = contact_strategy["recommended_mode"]
     return leads
@@ -1314,7 +1340,7 @@ def check_auth(username, password):
 
 @app.before_request
 def require_login():
-    if request.endpoint in ("static", "login", "health"):
+    if request.endpoint in ("static", "login", "health", "public_preview_document"):
         return
     
     # Suporte para requisições com Authorization Header (compatibilidade com automações/curl)
@@ -1382,11 +1408,13 @@ def logout():
 @app.after_request
 def aplicar_cabecalhos_seguranca(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "SAMEORIGIN" if request.endpoint == "preview_document" else "DENY"
+    preview_endpoint = request.endpoint in {"preview_document", "public_preview_document"}
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if preview_endpoint else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    if request.endpoint == "preview_document":
-        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+    if preview_endpoint:
+        frame_ancestors = "'self'" if request.endpoint == "preview_document" else "'none'"
+        response.headers["Content-Security-Policy"] = f"default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; script-src 'none'; connect-src 'none'; frame-ancestors {frame_ancestors}; base-uri 'none'; form-action 'none'"
     else:
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "
@@ -1589,6 +1617,7 @@ def lead_to_raw_data(lead):
         "LinkedIn": lead.get("linkedin", ""), "Link Inicial": lead.get("link_inicial", ""),
         "Google Maps": lead.get("google_maps", ""), "Título do Site": lead.get("site_title", ""),
         "Descrição do Site": lead.get("site_description", ""), "Contexto do Site": lead.get("site_context", ""),
+        "evidence_json": lead.get("evidence_json", "[]"),
     }
 
 
@@ -1605,17 +1634,21 @@ def get_preview_versions(place_id):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        "SELECT id, place_id, version, config_json, screenshot_path, created_at FROM preview_versions WHERE place_id = ? ORDER BY version DESC",
+        "SELECT * FROM preview_versions WHERE place_id = ? ORDER BY version DESC",
         (place_id,),
     ).fetchall()
     conn.close()
     previews = []
     for row in rows:
         preview = dict(row)
-        try:
-            preview["config"] = json.loads(preview.pop("config_json"))
-        except (TypeError, json.JSONDecodeError):
-            preview["config"] = {}
+        for source_key, target_key, fallback in (
+            ("config_json", "config", {}), ("validation_json", "validation", {}),
+            ("research_json", "research", {}), ("art_direction_json", "art_direction", {}),
+        ):
+            try:
+                preview[target_key] = json.loads(preview.pop(source_key) or json.dumps(fallback))
+            except (TypeError, json.JSONDecodeError):
+                preview[target_key] = fallback
         previews.append(preview)
     return previews
 
@@ -1752,6 +1785,10 @@ def lead_detail(place_id):
     if not lead:
         return "Lead não encontrado", 404
     previews = get_preview_versions(place_id)
+    if previews:
+        lead["copies_pitch"]["previa_visual"] = previews[0].get("message_text") or previews[0]["config"].get("message_with_image", "")
+        lead["contact_strategy"] = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=True)
+        lead["recommended_pitch_mode"] = "previa_visual"
     intelligence = lead.get("inteligencia_comercial") or analyze_lead(lead_to_raw_data(lead), preview_available=bool(previews))
     interactions = get_lead_interactions(place_id)
     return render_template("lead_detail.html", lead=lead, intelligence=intelligence, previews=previews, interactions=interactions)
@@ -1764,7 +1801,57 @@ def preview_studio(place_id):
         return "Lead não encontrado", 404
     previews = get_preview_versions(place_id)
     initial_config = previews[0]["config"] if previews else build_preview_config(lead_to_raw_data(lead))
-    return render_template("studio.html", lead=lead, previews=previews, initial_config=initial_config)
+    settings = visual_proposal_settings()
+    eligibility = visual_proposal_eligibility(lead, settings)
+    return render_template(
+        "studio.html", lead=lead, previews=previews, initial_config=initial_config,
+        proposal_settings=settings, proposal_eligibility=eligibility,
+    )
+
+
+def _bounded_int(value, default, minimum, maximum):
+    try:
+        return max(minimum, min(maximum, int(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def visual_proposal_settings():
+    config = load_config()
+    return {
+        "daily_limit": _bounded_int(config.get("visual_preview_daily_limit"), 10, 1, 100),
+        "concurrency": _bounded_int(config.get("visual_preview_concurrency"), 1, 1, 4),
+        "max_attempts": _bounded_int(config.get("visual_preview_max_attempts"), 2, 1, 5),
+        "expiration_days": _bounded_int(config.get("visual_preview_expiration_days"), 30, 1, 180),
+        "minimum_score": _bounded_int(config.get("visual_preview_minimum_score"), 65, 0, 100),
+    }
+
+
+def visual_proposal_eligibility(lead, settings=None):
+    settings = settings or visual_proposal_settings()
+    reasons = []
+    score = _bounded_int(lead.get("potencial"), 0, 0, 100)
+    if lead.get("do_not_contact"):
+        reasons.append("Lead marcado como não contatar.")
+    if score < settings["minimum_score"]:
+        reasons.append(f"Score {score} abaixo do mínimo configurado ({settings['minimum_score']}).")
+    if lead.get("status") in {"Descartado", "Não fechado"}:
+        reasons.append(f"Etapa comercial atual: {lead.get('status')}.")
+    return {"eligible": not reasons, "score": score, "reasons": reasons, "minimum_score": settings["minimum_score"]}
+
+
+def _preview_usage_today(conn):
+    return conn.execute(
+        "SELECT COUNT(*) FROM visual_proposal_jobs WHERE date(created_at) = date('now', 'localtime')"
+    ).fetchone()[0]
+
+
+def _preview_record(preview_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM preview_versions WHERE id = ?", (preview_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 @app.route("/api/leads/<path:place_id>/previews", methods=["POST"])
@@ -1772,20 +1859,120 @@ def create_preview(place_id):
     lead = get_lead_by_id(place_id)
     if not lead:
         return jsonify({"success": False, "error": "Lead não encontrado"}), 404
-    payload = request.get_json(silent=True) or request.form.to_dict()
+    payload = dict(request.get_json(silent=True) or request.form.to_dict())
+    seller = seller_profile(load_config())
+    payload.setdefault("seller_name", seller["name"])
+    payload.setdefault("agency_name", seller["agency"] or DEFAULT_AGENCY_NAME)
+    settings = visual_proposal_settings()
+    eligibility = visual_proposal_eligibility(lead, settings)
+    if not eligibility["eligible"] and not payload.get("manual_override"):
+        return jsonify({"success": False, "error": "Lead não elegível para geração automática.", "eligibility": eligibility}), 409
+
+    job_token = secrets.token_urlsafe(18)
+    conn = sqlite3.connect(DB_NAME)
+    if _preview_usage_today(conn) >= settings["daily_limit"]:
+        conn.close()
+        return jsonify({"success": False, "error": "Limite diário de propostas visuais atingido."}), 429
+    active_jobs = conn.execute(
+        "SELECT COUNT(*) FROM visual_proposal_jobs WHERE status IN ('queued', 'rendering')"
+    ).fetchone()[0]
+    if active_jobs >= settings["concurrency"]:
+        conn.close()
+        return jsonify({
+            "success": False,
+            "error": "A fila de renderização está ocupada. Aguarde a proposta atual terminar.",
+        }), 429
+    cursor = conn.execute(
+        """INSERT INTO visual_proposal_jobs
+           (job_token, place_id, status, priority, max_attempts, requested_config_json)
+           VALUES (?, ?, 'queued', ?, ?, ?)""",
+        (job_token, place_id, eligibility["score"], settings["max_attempts"], json.dumps(payload, ensure_ascii=False)),
+    )
+    job_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
     config = build_preview_config(lead_to_raw_data(lead), payload)
     html = render_preview_html(config)
+    static_validation = validate_preview_html(html, config)
+    if not static_validation["approved"]:
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute(
+            "UPDATE visual_proposal_jobs SET status = 'failed', attempts = 1, error = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?",
+            ("; ".join(static_validation["errors"]), job_id),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"success": False, "error": "A validação da proposta visual falhou.", "validation": static_validation}), 422
+
+    public_token = secrets.token_urlsafe(28)
+    expires_at = (datetime.now() + timedelta(days=settings["expiration_days"])).isoformat(timespec="seconds")
     conn = sqlite3.connect(DB_NAME)
     try:
+        conn.execute("UPDATE visual_proposal_jobs SET status = 'rendering', attempts = 1, started_at = CURRENT_TIMESTAMP WHERE id = ?", (job_id,))
         version = conn.execute("SELECT COALESCE(MAX(version), 0) + 1 FROM preview_versions WHERE place_id = ?", (place_id,)).fetchone()[0]
         cursor = conn.execute(
-            "INSERT INTO preview_versions (place_id, version, config_json, html_content) VALUES (?, ?, ?, ?)",
-            (place_id, version, json.dumps(config, ensure_ascii=False), html),
+            """INSERT INTO preview_versions
+               (place_id, version, config_json, html_content, public_token, status, approval_status,
+                validation_json, research_json, art_direction_json, message_text, expires_at)
+               VALUES (?, ?, ?, ?, ?, 'rendering', 'draft', ?, ?, ?, ?, ?)""",
+            (
+                place_id, version, json.dumps(config, ensure_ascii=False), html, public_token,
+                json.dumps(static_validation, ensure_ascii=False), json.dumps(config["research"], ensure_ascii=False),
+                json.dumps(config["art_direction"], ensure_ascii=False), config["message_with_image"], expires_at,
+            ),
         )
         preview_id = cursor.lastrowid
+        conn.execute("UPDATE visual_proposal_jobs SET preview_id = ? WHERE id = ?", (preview_id, job_id))
         conn.commit()
     finally:
         conn.close()
+
+    render_error = None
+    paths = None
+    validation = None
+    for attempt in range(1, settings["max_attempts"] + 1):
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute(
+            "UPDATE visual_proposal_jobs SET attempts = ? WHERE id = ?",
+            (attempt, job_id),
+        )
+        conn.commit()
+        conn.close()
+        try:
+            paths, validation = generate_preview_assets(
+                html,
+                PREVIEW_DIR,
+                f"proposal-{preview_id}-{public_token[:8]}",
+                static_validation,
+            )
+            render_error = None
+            break
+        except Exception as error:
+            render_error = error
+
+    if render_error is not None or not paths or not validation:
+        conn = sqlite3.connect(DB_NAME)
+        error_text = str(render_error or "Falha de renderização sem diagnóstico")
+        conn.execute("UPDATE preview_versions SET status = 'failed', validation_json = ? WHERE id = ?", (json.dumps({"approved": False, "score": 0, "errors": [error_text]}, ensure_ascii=False), preview_id))
+        conn.execute("UPDATE visual_proposal_jobs SET status = 'failed', error = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?", (error_text, job_id))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": False, "error": f"Não foi possível renderizar a proposta: {error_text}"}), 503
+
+    final_status = "awaiting_approval" if validation["approved"] else "needs_review"
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute(
+        """UPDATE preview_versions SET screenshot_path = ?, mobile_screenshot_path = ?,
+           share_screenshot_path = ?, status = ?, approval_status = 'awaiting_approval', validation_json = ? WHERE id = ?""",
+        (paths["desktop"], paths["mobile"], paths["share"], final_status, json.dumps(validation, ensure_ascii=False), preview_id),
+    )
+    conn.execute(
+        "UPDATE visual_proposal_jobs SET status = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?",
+        ("completed" if validation["approved"] else "needs_review", job_id),
+    )
+    conn.commit()
+    conn.close()
 
     def refresh_pitch_with_preview():
         current_lead = get_lead_by_id(place_id)
@@ -1802,8 +1989,12 @@ def create_preview(place_id):
     return jsonify({
         "success": True, "preview_id": preview_id, "version": version,
         "preview_url": url_for("preview_document", preview_id=preview_id),
-        "png_url": url_for("preview_png", preview_id=preview_id),
-        "screenshot_ready": False, "png_deferred": True,
+        "png_url": url_for("preview_image", preview_id=preview_id, variant="desktop"),
+        "mobile_png_url": url_for("preview_image", preview_id=preview_id, variant="mobile"),
+        "share_png_url": url_for("preview_image", preview_id=preview_id, variant="share"),
+        "screenshot_ready": True, "png_deferred": False,
+        "approval_status": "awaiting_approval", "validation": validation,
+        "job_token": job_token,
     })
 
 
@@ -1817,24 +2008,131 @@ def preview_document(preview_id):
     return Response(row[0], mimetype="text/html")
 
 
-@app.route("/preview/<int:preview_id>/png")
-def preview_png(preview_id):
+@app.route("/demo/<token>")
+def public_preview_document(token):
     conn = sqlite3.connect(DB_NAME)
-    row = conn.execute("SELECT html_content, screenshot_path FROM preview_versions WHERE id = ?", (preview_id,)).fetchone()
+    row = conn.execute(
+        """SELECT html_content, expires_at FROM preview_versions
+           WHERE public_token = ? AND approval_status = 'approved' AND published_at IS NOT NULL""",
+        (token,),
+    ).fetchone()
     conn.close()
     if not row:
+        return "Demonstração indisponível", 404
+    try:
+        if row[1] and datetime.fromisoformat(row[1]) < datetime.now():
+            return "Esta demonstração expirou", 410
+    except ValueError:
+        return "Demonstração indisponível", 404
+    return Response(row[0], mimetype="text/html")
+
+
+@app.route("/preview/<int:preview_id>/image/<variant>")
+def preview_image(preview_id, variant):
+    column_map = {"desktop": "screenshot_path", "mobile": "mobile_screenshot_path", "share": "share_screenshot_path"}
+    column = column_map.get(variant)
+    if not column:
+        return jsonify({"success": False, "error": "Formato de imagem inválido"}), 400
+    conn = sqlite3.connect(DB_NAME)
+    row = conn.execute(f"SELECT {column} FROM preview_versions WHERE id = ?", (preview_id,)).fetchone()
+    conn.close()
+    if not row or not row[0] or not os.path.isfile(row[0]):
+        return jsonify({"success": False, "error": "Imagem ainda não disponível"}), 404
+    names = {"desktop": "desktop", "mobile": "mobile", "share": "whatsapp"}
+    return send_file(
+        row[0], mimetype="image/png", as_attachment=not bool(request.args.get("inline")),
+        download_name=f"proposta-visual-{preview_id}-{names[variant]}.png",
+    )
+
+
+@app.route("/preview/<int:preview_id>/png")
+def preview_png(preview_id):
+    record = _preview_record(preview_id)
+    if not record:
         return "Prévia não encontrada", 404
-    screenshot_path = row[1] or os.path.join(PREVIEW_DIR, f"preview_{preview_id}.png")
-    if not os.path.exists(screenshot_path):
+    if not record.get("screenshot_path") or not os.path.exists(record["screenshot_path"]):
+        screenshot_path = os.path.join(PREVIEW_DIR, f"legacy-preview-{preview_id}.png")
         try:
-            capture_preview_png(row[0], screenshot_path)
+            capture_preview_png(record["html_content"], screenshot_path)
             conn = sqlite3.connect(DB_NAME)
             conn.execute("UPDATE preview_versions SET screenshot_path = ? WHERE id = ?", (screenshot_path, preview_id))
             conn.commit()
             conn.close()
         except Exception as error:
             return jsonify({"success": False, "error": f"Não foi possível gerar o PNG: {error}"}), 503
-    return send_file(screenshot_path, mimetype="image/png", as_attachment=True, download_name=f"previa-site-{preview_id}.png")
+    return preview_image(preview_id, "desktop")
+
+
+@app.route("/api/previews/<int:preview_id>/approval", methods=["PATCH"])
+def update_preview_approval(preview_id):
+    payload = request.get_json(silent=True) or {}
+    decision = clean_text(payload.get("decision"), 30).casefold()
+    if decision not in {"approved", "rejected", "draft"}:
+        return jsonify({"success": False, "error": "Decisão inválida"}), 400
+    record = _preview_record(preview_id)
+    if not record:
+        return jsonify({"success": False, "error": "Proposta visual não encontrada"}), 404
+    try:
+        validation = json.loads(record.get("validation_json") or "{}")
+    except json.JSONDecodeError:
+        validation = {}
+    if decision == "approved" and not validation.get("approved"):
+        return jsonify({"success": False, "error": "A proposta precisa passar pela validação antes da aprovação."}), 409
+    publish = bool(payload.get("publish")) and decision == "approved"
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute(
+        """UPDATE preview_versions SET approval_status = ?, status = ?,
+           approved_at = CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+           published_at = CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id = ?""",
+        (decision, decision, decision, 1 if publish else 0, preview_id),
+    )
+    conn.commit()
+    conn.close()
+    public_url = url_for("public_preview_document", token=record["public_token"], _external=False) if publish else ""
+    return jsonify({"success": True, "approval_status": decision, "published": publish, "public_url": public_url})
+
+
+@app.route("/api/previews/<int:preview_id>/message", methods=["PATCH"])
+def update_preview_message(preview_id):
+    payload = request.get_json(silent=True) or {}
+    message = normalizar_texto(payload.get("message", ""), 900)
+    if not message:
+        return jsonify({"success": False, "error": "A mensagem da abordagem não pode ficar vazia."}), 400
+    folded = message.casefold()
+    if not any(term in folded for term in ("prévia", "imagem", "anexo")):
+        return jsonify({"success": False, "error": "A mensagem precisa mencionar a prévia visual que acompanha a abordagem."}), 400
+    if any(term in folded for term in ("posso enviar", "pode enviar", "quer que eu envie", "posso compartilhar")):
+        return jsonify({"success": False, "error": "A imagem já acompanha a primeira abordagem; não peça permissão para mostrá-la."}), 400
+    record = _preview_record(preview_id)
+    if not record:
+        return jsonify({"success": False, "error": "Proposta visual não encontrada"}), 404
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("UPDATE preview_versions SET message_text = ? WHERE id = ?", (message, preview_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": message})
+
+
+@app.route("/api/previews/<int:preview_id>/sent", methods=["POST"])
+def register_preview_sent(preview_id):
+    payload = request.get_json(silent=True) or {}
+    channel = clean_text(payload.get("channel") or "Outro", 40)
+    record = _preview_record(preview_id)
+    if not record:
+        return jsonify({"success": False, "error": "Proposta visual não encontrada"}), 404
+    if record.get("approval_status") != "approved":
+        return jsonify({"success": False, "error": "Aprovação obrigatória antes de registrar o envio."}), 409
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("UPDATE preview_versions SET sent_at = CURRENT_TIMESTAMP WHERE id = ?", (preview_id,))
+    conn.execute(
+        """INSERT INTO lead_interactions
+           (place_id, interaction_type, channel, content, sentiment)
+           VALUES (?, 'proposta_visual_enviada', ?, ?, 'aguardando resposta')""",
+        (record["place_id"], channel, f"Proposta visual versão {record['version']} registrada como enviada."),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
 
 
 @app.route("/api/leads/<path:place_id>/regenerate-pitches", methods=["POST"])
@@ -3929,8 +4227,13 @@ def limpar_crm():
         backup_path = criar_backup_crm()
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        screenshot_paths = [row[0] for row in c.execute("SELECT screenshot_path FROM preview_versions WHERE screenshot_path IS NOT NULL").fetchall()]
+        screenshot_paths = [
+            path for row in c.execute(
+                "SELECT screenshot_path, mobile_screenshot_path, share_screenshot_path FROM preview_versions"
+            ).fetchall() for path in row if path
+        ]
         c.execute("DELETE FROM lead_interactions")
+        c.execute("DELETE FROM visual_proposal_jobs")
         c.execute("DELETE FROM preview_versions")
         c.execute("DELETE FROM leads")
         conn.commit()

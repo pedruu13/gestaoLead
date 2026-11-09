@@ -1,25 +1,160 @@
+import json
 import os
 import re
+from datetime import datetime, timezone
+from hashlib import sha256
 from html import escape
 
 from commercial_intelligence import analyze_lead, clean_text
 
 
-SEGMENT_PROFILES = {
-    "saúde": {"template": "care", "primary": "#147d74", "surface": "#f4fbfa", "ink": "#12302d", "headline": "Cuidado explicado com clareza, antes mesmo da consulta.", "cta": "Agendar atendimento", "services": ["Atendimentos e especialidades", "Orientações para a primeira consulta", "Equipe e estrutura"], "section_title": "Informação que acolhe e facilita a decisão."},
-    "odontologia": {"template": "care", "primary": "#0877a9", "surface": "#f2f9fc", "ink": "#102f3e", "headline": "Um sorriso começa com confiança e informação clara.", "cta": "Agendar avaliação", "services": ["Tratamentos odontológicos", "Como funciona a avaliação", "Estrutura e atendimento"], "section_title": "Tudo o que o paciente precisa saber para agendar."},
-    "estética": {"template": "editorial", "primary": "#a64265", "surface": "#fff8f8", "ink": "#3b1e29", "headline": "Beleza com propósito, técnica e atendimento próximo.", "cta": "Quero uma avaliação", "services": ["Procedimentos e indicações", "Avaliação personalizada", "Cuidados antes e depois"], "section_title": "Uma experiência digital à altura do atendimento."},
-    "advocacia": {"template": "authority", "primary": "#b78a3d", "surface": "#f4f1ea", "ink": "#171a1f", "headline": "Orientação jurídica com seriedade desde o primeiro contato.", "cta": "Falar com o escritório", "services": ["Áreas de atuação", "Como o atendimento funciona", "Contato confidencial"], "section_title": "Clareza para quem precisa tomar uma decisão importante."},
-    "arquitetura": {"template": "portfolio", "primary": "#b65d3f", "surface": "#f5f1eb", "ink": "#24211d", "headline": "Projetos que transformam rotina, espaço e experiência.", "cta": "Apresentar meu projeto", "services": ["Projetos residenciais", "Interiores e ambientes", "Acompanhamento de obra"], "section_title": "Um portfólio que deixa o trabalho falar primeiro."},
-    "reformas": {"template": "technical", "primary": "#dc6b20", "surface": "#f8f6f1", "ink": "#242424", "headline": "Reforma bem planejada, do orçamento à entrega.", "cta": "Solicitar orçamento", "services": ["Reformas residenciais", "Planejamento e orçamento", "Execução e acompanhamento"], "section_title": "Processo claro para reduzir dúvidas antes da obra."},
-    "contabilidade": {"template": "authority", "primary": "#295fb8", "surface": "#f4f7fb", "ink": "#172641", "headline": "Contabilidade próxima para decisões mais seguras.", "cta": "Falar com um especialista", "services": ["Abertura e regularização", "Rotina fiscal e contábil", "Consultoria para empresas"], "section_title": "Serviços organizados para o empresário encontrar respostas."},
-    "engenharia": {"template": "technical", "primary": "#3e6477", "surface": "#f3f6f7", "ink": "#152b35", "headline": "Engenharia aplicada com método, precisão e responsabilidade.", "cta": "Solicitar análise", "services": ["Projetos e laudos", "Execução técnica", "Consultoria especializada"], "section_title": "Capacidade técnica apresentada de forma objetiva."},
-    "manutenção": {"template": "technical", "primary": "#d55324", "surface": "#f8f5f1", "ink": "#28221f", "headline": "Solução rápida, serviço explicado e contato sem complicação.", "cta": "Pedir atendimento", "services": ["Serviços disponíveis", "Regiões atendidas", "Orçamento e chamado"], "section_title": "Quem precisa resolver agora encontra o caminho certo."},
-    "gastronomia": {"template": "hospitality", "primary": "#bd3d2b", "surface": "#fff8ed", "ink": "#311b16", "headline": "Uma experiência que começa antes de chegar à mesa.", "cta": "Fazer uma reserva", "services": ["Cardápio e especialidades", "Horários e localização", "Reservas e eventos"], "section_title": "Sabor, ambiente e informação no mesmo lugar."},
+REFERENCE_SETS = {
+    "care": [
+        "https://www.siteinspire.com/websites/category/health-and-fitness",
+        "https://www.siteinspire.com/website/11812-decibel-health",
+        "https://www.lapa.ninja/post/vibrantpractice/",
+        "https://www.awwwards.com/mobile-excellence-guidelines.pdf",
+    ],
+    "editorial": [
+        "https://www.siteinspire.com/websites/selected",
+        "https://www.lapa.ninja/category/health-fitness/",
+        "https://assets.awwwards.com/awards/gallery/2023/07/HOT-RIGHT-NOW-BOOK-2023.pdf",
+    ],
+    "authority": [
+        "https://www.siteinspire.com/websites/category/minimal",
+        "https://www.lapa.ninja/category/business/",
+        "https://www.awwwards.com/mobile-excellence-guidelines.pdf",
+    ],
+    "portfolio": [
+        "https://www.siteinspire.com/websites/selected",
+        "https://www.lapa.ninja/post/",
+        "https://assets.awwwards.com/awards/gallery/2023/07/HOT-RIGHT-NOW-BOOK-2023.pdf",
+    ],
+    "technical": [
+        "https://www.siteinspire.com/websites/category/minimal",
+        "https://www.lapa.ninja/category/business/",
+        "https://www.awwwards.com/mobile-excellence-guidelines.pdf",
+    ],
+    "hospitality": [
+        "https://www.siteinspire.com/websites/selected",
+        "https://www.lapa.ninja/post/",
+        "https://assets.awwwards.com/awards/gallery/2023/07/HOT-RIGHT-NOW-BOOK-2023.pdf",
+    ],
+    "professional": [
+        "https://www.siteinspire.com/websites/category/minimal",
+        "https://www.lapa.ninja/category/business/",
+        "https://www.awwwards.com/mobile-excellence-guidelines.pdf",
+    ],
 }
 
-DEFAULT_PROFILE = {"template": "professional", "primary": "#2563eb", "surface": "#f6f8fb", "ink": "#13213b", "headline": "Serviço bem apresentado para facilitar a próxima decisão.", "cta": "Falar com a equipe", "services": ["Serviços e especialidades", "Como funciona o atendimento", "Contato e orçamento"], "section_title": "Informação organizada para quem já está procurando."}
-ALLOWED_TEMPLATES = {"care", "editorial", "authority", "portfolio", "technical", "hospitality", "professional"}
+
+SEGMENT_PROFILES = {
+    "saúde": {
+        "template": "care", "primary": "#16756d", "surface": "#f2f8f5", "ink": "#17312e",
+        "headline": "Informação clara para tornar o primeiro contato mais tranquilo.", "cta": "Agendar atendimento",
+        "services": ["Atendimentos e especialidades", "Orientações para a primeira consulta", "Equipe e estrutura"],
+        "details": ["Organize as opções de atendimento sem sobrecarregar quem está pesquisando.", "Antecipe dúvidas práticas antes do contato com a recepção.", "Apresente ambiente e equipe somente com materiais aprovados."],
+        "section_title": "Um caminho simples da pesquisa ao atendimento.", "mood": "acolhedor, sereno e preciso",
+        "heading_font": "'Trebuchet MS', Arial, sans-serif", "body_font": "Arial, sans-serif",
+    },
+    "odontologia": {
+        "template": "care", "primary": "#087aa2", "surface": "#f1f8fa", "ink": "#102e3a",
+        "headline": "Confiança começa quando o paciente encontra respostas claras.", "cta": "Agendar avaliação",
+        "services": ["Tratamentos e indicações", "Como funciona a avaliação", "Estrutura de atendimento"],
+        "details": ["Separe os tratamentos por necessidade para facilitar a compreensão.", "Explique o primeiro passo sem prometer diagnóstico ou resultado.", "Use fotos próprias para transmitir segurança antes da visita."],
+        "section_title": "Conteúdo pensado para reduzir dúvidas antes do agendamento.", "mood": "clínico, humano e luminoso",
+        "heading_font": "'Palatino Linotype', Georgia, serif", "body_font": "Arial, sans-serif",
+    },
+    "estética": {
+        "template": "editorial", "primary": "#9f4662", "surface": "#fff8f5", "ink": "#3a2027",
+        "headline": "Uma apresentação digital com o mesmo cuidado da experiência presencial.", "cta": "Solicitar uma avaliação",
+        "services": ["Procedimentos e indicações", "Avaliação personalizada", "Cuidados e orientações"],
+        "details": ["Apresente cada procedimento com linguagem simples e responsável.", "Mostre como funciona a avaliação inicial sem criar expectativas irreais.", "Organize orientações que ajudem a cliente a chegar mais preparada."],
+        "section_title": "Beleza, informação e atendimento em uma composição editorial.", "mood": "editorial, delicado e contemporâneo",
+        "heading_font": "Didot, 'Bodoni MT', Georgia, serif", "body_font": "Arial, sans-serif",
+    },
+    "advocacia": {
+        "template": "authority", "primary": "#b28a45", "surface": "#eee9df", "ink": "#171a1f",
+        "headline": "Orientação jurídica apresentada com clareza desde o primeiro contato.", "cta": "Falar com o escritório",
+        "services": ["Áreas de atuação", "Como funciona o atendimento", "Canal de contato reservado"],
+        "details": ["Organize as áreas atendidas sem transformar o site em um texto jurídico extenso.", "Explique o fluxo inicial do atendimento com objetividade.", "Destaque um canal de contato discreto e fácil de localizar."],
+        "section_title": "Seriedade visual para quem precisa tomar uma decisão importante.", "mood": "sóbrio, editorial e seguro",
+        "heading_font": "Georgia, 'Times New Roman', serif", "body_font": "Arial, sans-serif",
+    },
+    "arquitetura": {
+        "template": "portfolio", "primary": "#a6533c", "surface": "#f3efe8", "ink": "#25211d",
+        "headline": "Projetos apresentados com espaço, ritmo e intenção.", "cta": "Apresentar meu projeto",
+        "services": ["Projetos selecionados", "Escopo e processo", "Contato para novos projetos"],
+        "details": ["Deixe as imagens aprovadas conduzirem a narrativa do portfólio.", "Mostre etapas do processo sem prometer prazos ou escopos não confirmados.", "Crie um caminho direto para quem deseja apresentar uma demanda."],
+        "section_title": "Uma vitrine digital que deixa o trabalho falar primeiro.", "mood": "arquitetônico, tátil e minimalista",
+        "heading_font": "'Arial Narrow', Arial, sans-serif", "body_font": "Arial, sans-serif",
+    },
+    "reformas": {
+        "template": "technical", "primary": "#d66625", "surface": "#f6f3ed", "ink": "#252321",
+        "headline": "Serviços bem explicados para transformar interesse em orçamento.", "cta": "Solicitar orçamento",
+        "services": ["Tipos de reforma", "Etapas do atendimento", "Região e orçamento"],
+        "details": ["Separe os serviços para o cliente identificar rapidamente o que precisa.", "Apresente um fluxo demonstrativo de contato, visita e proposta.", "Informe cobertura e condições somente depois de confirmadas."],
+        "section_title": "Objetividade para quem precisa planejar uma obra.", "mood": "industrial, direto e organizado",
+        "heading_font": "Impact, 'Arial Narrow', sans-serif", "body_font": "Arial, sans-serif",
+    },
+    "contabilidade": {
+        "template": "authority", "primary": "#315fa9", "surface": "#f3f6fa", "ink": "#172640",
+        "headline": "Serviços contábeis organizados para decisões empresariais mais claras.", "cta": "Falar com a equipe",
+        "services": ["Abertura e regularização", "Rotina fiscal e contábil", "Atendimento a empresas"],
+        "details": ["Agrupe serviços por momento da empresa e não por jargão interno.", "Explique quais informações normalmente iniciam o atendimento.", "Direcione cada perfil de cliente para o canal correto."],
+        "section_title": "Um site que ajuda o empresário a encontrar respostas.", "mood": "corporativo, confiável e acessível",
+        "heading_font": "Georgia, serif", "body_font": "Arial, sans-serif",
+    },
+    "engenharia": {
+        "template": "technical", "primary": "#3d6675", "surface": "#f0f4f5", "ink": "#142a33",
+        "headline": "Capacidade técnica apresentada com método e precisão.", "cta": "Solicitar análise",
+        "services": ["Projetos e escopos", "Documentação técnica", "Consultoria especializada"],
+        "details": ["Organize as frentes de atuação de forma escaneável.", "Mostre etapas e documentos sem atribuir certificações não confirmadas.", "Facilite o envio inicial de uma demanda técnica."],
+        "section_title": "Informação técnica sem criar barreiras para o cliente.", "mood": "estrutural, preciso e funcional",
+        "heading_font": "'Arial Narrow', Arial, sans-serif", "body_font": "Arial, sans-serif",
+    },
+    "manutenção": {
+        "template": "technical", "primary": "#d35128", "surface": "#f7f4ee", "ink": "#28221f",
+        "headline": "Quem precisa resolver rápido encontra o serviço e o contato certo.", "cta": "Pedir atendimento",
+        "services": ["Serviços disponíveis", "Regiões atendidas", "Chamado e orçamento"],
+        "details": ["Dê prioridade aos problemas que o cliente reconhece no dia a dia.", "Exiba cobertura somente quando a área estiver confirmada.", "Reduza etapas entre a necessidade e o pedido de atendimento."],
+        "section_title": "Um site objetivo para demandas que não podem esperar.", "mood": "utilitário, enérgico e direto",
+        "heading_font": "Impact, 'Arial Narrow', sans-serif", "body_font": "Arial, sans-serif",
+    },
+    "gastronomia": {
+        "template": "hospitality", "primary": "#b13f2d", "surface": "#fff7ea", "ink": "#301c16",
+        "headline": "Uma experiência que começa antes de chegar à mesa.", "cta": "Ver contato e horários",
+        "services": ["Especialidades da casa", "Ambiente e experiência", "Localização e contato"],
+        "details": ["Use imagens próprias para apresentar os destaques com autenticidade.", "Mostre ambiente e proposta sem inventar cardápio ou avaliações.", "Deixe horário, localização e contato fáceis de encontrar."],
+        "section_title": "Sabor, ambiente e informação no mesmo lugar.", "mood": "sensorial, caloroso e editorial",
+        "heading_font": "Georgia, 'Times New Roman', serif", "body_font": "Arial, sans-serif",
+    },
+}
+
+DEFAULT_PROFILE = {
+    "template": "professional", "primary": "#2563eb", "surface": "#f5f7fa", "ink": "#15223a",
+    "headline": "Serviços bem apresentados para facilitar a próxima decisão.", "cta": "Falar com a equipe",
+    "services": ["Serviços e especialidades", "Como funciona o atendimento", "Contato e orçamento"],
+    "details": ["Organize o que a empresa oferece em uma leitura rápida.", "Explique o primeiro passo sem criar compromissos inexistentes.", "Direcione a pessoa interessada para o canal comercial disponível."],
+    "section_title": "Informação organizada para quem já está pesquisando.", "mood": "profissional, claro e contemporâneo",
+    "heading_font": "Georgia, serif", "body_font": "Arial, sans-serif",
+}
+
+ALLOWED_TEMPLATES = set(REFERENCE_SETS)
+AUTHORIZED_ASSET_STATUSES = {"owned", "authorized", "licensed"}
+FORBIDDEN_CLAIMS = ("garantia de resultado", "resultado garantido", "o melhor da cidade", "número 1", "líder absoluto", "100% de sucesso")
+SEGMENT_ALIASES = {
+    "odontologia": ("dentista", "odontolog", "ortodont", "implante dent"),
+    "saúde": ("médic", "clínica", "fisioter", "psicolog", "nutri", "saúde"),
+    "estética": ("estética", "estetic", "harmonização", "beleza", "spa"),
+    "advocacia": ("advogad", "advocacia", "jurídic", "escritório de direito"),
+    "arquitetura": ("arquitet", "interiores", "paisagismo"),
+    "reformas": ("reforma", "construtora", "construção civil"),
+    "contabilidade": ("contador", "contáb", "contabilidade"),
+    "engenharia": ("engenhar", "laudo técnico"),
+    "manutenção": ("manutenção", "assistência técnica", "eletricista", "encanador", "refrigeração"),
+    "gastronomia": ("restaurante", "pizzaria", "cafeteria", "confeitaria", "gastronomia", "bar "),
+}
 
 
 def safe_color(value, fallback):
@@ -34,79 +169,345 @@ def safe_data_image(value, max_length=1_800_000):
     return value if re.fullmatch(r"data:image/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\r\n]+", value) else ""
 
 
-def build_preview_config(lead, overrides=None):
+def resolve_profile_key(research):
+    haystack = " ".join((research.get("name", ""), research.get("segment", ""), research.get("category", ""))).casefold()
+    if research.get("segment") in SEGMENT_PROFILES:
+        return research["segment"]
+    for profile_key, aliases in SEGMENT_ALIASES.items():
+        if any(alias in haystack for alias in aliases):
+            return profile_key
+    return ""
+
+
+def _json_list(value):
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value or "[]")
+        return parsed if isinstance(parsed, list) else []
+    except (TypeError, json.JSONDecodeError):
+        return []
+
+
+def _source_item(label, value, source, source_url="", confidence="MÉDIA"):
+    return {
+        "label": label,
+        "value": clean_text(value, 300),
+        "source": clean_text(source, 80),
+        "source_url": clean_text(source_url, 500),
+        "confidence": confidence,
+        "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def build_research_context(lead, evidence=None):
     analysis = analyze_lead(lead, preview_available=True)
-    profile = SEGMENT_PROFILES.get(analysis["segment"], DEFAULT_PROFILE)
+    evidence_rows = list(evidence or _json_list(lead.get("evidence_json") or lead.get("Evidências")))
+    sources = []
+    if analysis.get("name"):
+        sources.append(_source_item("Nome comercial", analysis["name"], "Cadastro do lead", lead.get("Google Maps", ""), "ALTA"))
+    if analysis.get("category"):
+        sources.append(_source_item("Segmento", analysis["category"], "Categoria pública", lead.get("Google Maps", ""), "MÉDIA"))
+    if analysis.get("location"):
+        sources.append(_source_item("Localização", analysis["location"], "Cadastro do lead", lead.get("Google Maps", ""), "MÉDIA"))
+    for label, key in (("Site informado", "Link Inicial"), ("Instagram", "Instagram"), ("Facebook", "Facebook"), ("LinkedIn", "LinkedIn")):
+        if lead.get(key):
+            sources.append(_source_item(label, lead[key], "Canal público", lead[key], "MÉDIA"))
+    for row in evidence_rows[:20]:
+        if not isinstance(row, dict) or not row.get("value"):
+            continue
+        sources.append(_source_item(
+            row.get("evidence_type") or row.get("type") or "Evidência",
+            row.get("value"), row.get("source") or "Fonte registrada",
+            row.get("source_url") or row.get("url") or "",
+            row.get("confidence") or "MÉDIA",
+        ))
+    confirmed_services = []
+    raw_services = lead.get("Serviços Confirmados") or lead.get("services_confirmed") or []
+    if isinstance(raw_services, str):
+        confirmed_services = [clean_text(item, 80) for item in re.split(r"[\n;,]", raw_services) if clean_text(item, 80)]
+    elif isinstance(raw_services, list):
+        confirmed_services = [clean_text(item, 80) for item in raw_services if clean_text(item, 80)]
+    return {
+        "name": analysis.get("name", "Empresa"),
+        "segment": analysis.get("segment", "geral"),
+        "category": analysis.get("category", ""),
+        "location": analysis.get("location", ""),
+        "commercial_benefit": analysis.get("commercial_plan", {}).get("benefit", "organizar os serviços e facilitar o próximo contato"),
+        "reception_likely": analysis.get("contact_strategy", {}).get("recommended_mode") == "recepcao",
+        "confirmed_services": confirmed_services[:8],
+        "sources": sources,
+        "confidence": "ALTA" if len(sources) >= 5 else "MÉDIA" if len(sources) >= 3 else "BAIXA",
+        "needs_manual_review": len(sources) < 3,
+    }
+
+
+def build_art_direction(research, overrides=None):
     overrides = overrides or {}
-    name = clean_text(overrides.get("name") or analysis["name"], 90)
-    category = clean_text(analysis["category"], 120)
-    location = clean_text(analysis["location"], 120)
-    services_value = overrides.get("services")
-    if isinstance(services_value, str):
-        services = [clean_text(item, 70) for item in services_value.splitlines() if clean_text(item, 70)]
-    elif isinstance(services_value, list):
-        services = [clean_text(item, 70) for item in services_value if clean_text(item, 70)]
-    else:
-        services = list(profile["services"])
+    profile_key = resolve_profile_key(research)
+    profile = SEGMENT_PROFILES.get(profile_key, DEFAULT_PROFILE)
     selected_template = clean_text(overrides.get("template"), 30)
     if selected_template not in ALLOWED_TEMPLATES:
         selected_template = profile["template"]
+    seed = int(sha256(f"{research['name']}|{research['category']}".encode("utf-8")).hexdigest()[:8], 16)
+    variants = {
+        "care": ("soft-split", "orbital", "rounded"),
+        "editorial": ("image-first", "offset-type", "pill"),
+        "authority": ("dark-split", "rule-grid", "square"),
+        "portfolio": ("gallery-first", "architectural", "square"),
+        "technical": ("spec-grid", "blueprint", "square"),
+        "hospitality": ("story-first", "menu-lines", "pill"),
+        "professional": ("balanced-split", "signal-grid", "rounded"),
+    }
+    hero_layout, visual_motif, button_style = variants[selected_template]
     return {
-        "name": name,
-        "segment": analysis["segment"],
-        "category": category,
-        "location": location,
         "template": selected_template,
-        "headline": clean_text(overrides.get("headline") or profile["headline"], 150),
-        "subheadline": clean_text(overrides.get("subheadline") or f"Uma proposta digital para apresentar o trabalho de {name} e facilitar o contato de quem já procura pelo serviço{f' em {location}' if location else ''}.", 260),
-        "cta": clean_text(overrides.get("cta") or profile["cta"], 45),
-        "services": services[:6] or list(profile["services"]),
-        "section_title": clean_text(overrides.get("section_title") or profile["section_title"], 150),
+        "profile_key": profile_key or "geral",
+        "variant": f"v{seed % 3 + 1}",
+        "mood": profile["mood"],
         "primary": safe_color(overrides.get("primary"), profile["primary"]),
         "surface": safe_color(overrides.get("surface"), profile["surface"]),
         "ink": safe_color(overrides.get("ink"), profile["ink"]),
-        "hero_image": safe_data_image(overrides.get("hero_image") or lead.get("Imagem do Negócio")),
-        "brand_logo": safe_data_image(overrides.get("brand_logo") or lead.get("Logo do Negócio"), 700_000),
-        "disclaimer": "Demonstração conceitual não oficial — conteúdo sujeito à validação da empresa",
+        "heading_font": profile["heading_font"],
+        "body_font": profile["body_font"],
+        "hero_layout": hero_layout,
+        "visual_motif": visual_motif,
+        "button_style": button_style,
+        "image_treatment": "recorte editorial com contraste controlado" if selected_template in {"editorial", "portfolio", "hospitality"} else "imagem contextual com leitura preservada",
+        "sections": ["cabeçalho", "hero", "serviços", "processo ou contexto", "chamada final", "rodapé"],
+        "references": list(REFERENCE_SETS[selected_template]),
+        "rationale": f"A composição prioriza uma leitura {profile['mood']}, organiza as informações essenciais de {research['category'] or research['segment']} e conduz o visitante a um próximo passo claro.",
     }
+
+
+def _asset_from_overrides(overrides, key, max_length):
+    authorization = clean_text(overrides.get("asset_authorization"), 30).casefold()
+    if authorization not in AUTHORIZED_ASSET_STATUSES:
+        return ""
+    return safe_data_image(overrides.get(key), max_length)
+
+
+def build_preview_message(config, include_attachment=True):
+    seller_name = clean_text(config.get("seller_name"), 80)
+    agency_name = clean_text(config.get("agency_name"), 100) or "PH Digital"
+    introduction = f"Sou {seller_name.split()[0]}, da {agency_name}." if seller_name else f"Aqui é da {agency_name}."
+    benefit = clean_text(config.get("research", {}).get("commercial_benefit"), 180) or "organizar os serviços e facilitar o próximo contato"
+    reception_note = (
+        "Se for recepção, pode encaminhar o conjunto à pessoa responsável pelo site ou pelas decisões comerciais?"
+        if config.get("research", {}).get("reception_likely")
+        else "Posso explicar as decisões da proposta e ajustar o projeto com vocês."
+    )
+    return (
+        f"Olá! {introduction} Preparei esta prévia não oficial para mostrar como um site próprio poderia {benefit}.\n\n"
+        f"A imagem acompanha a mensagem e é um conceito inicial sujeito à validação. {reception_note}"
+    )
+
+
+def build_preview_config(lead, overrides=None, evidence=None):
+    overrides = overrides or {}
+    research = build_research_context(lead, evidence)
+    direction = build_art_direction(research, overrides)
+    profile = SEGMENT_PROFILES.get(direction["profile_key"], DEFAULT_PROFILE)
+    services_value = overrides.get("services")
+    if isinstance(services_value, str):
+        services = [clean_text(item, 70) for item in services_value.splitlines() if clean_text(item, 70)]
+        services_origin = "editado"
+    elif isinstance(services_value, list):
+        services = [clean_text(item, 70) for item in services_value if clean_text(item, 70)]
+        services_origin = "editado"
+    elif research["confirmed_services"]:
+        services = research["confirmed_services"]
+        services_origin = "confirmado"
+    else:
+        services = list(profile["services"])
+        services_origin = "sugerido"
+    authorization = clean_text(overrides.get("asset_authorization"), 30).casefold()
+    config = {
+        "name": clean_text(overrides.get("name") or research["name"], 90),
+        "segment": research["segment"],
+        "category": clean_text(research["category"], 120),
+        "location": clean_text(research["location"], 120),
+        "template": direction["template"],
+        "variant": direction["variant"],
+        "headline": clean_text(overrides.get("headline") or profile["headline"], 150),
+        "subheadline": clean_text(overrides.get("subheadline") or f"Conceito de site para organizar a apresentação de {research['category'].lower() if research['category'] else 'serviços'}, destacar informações úteis e criar um caminho direto para contato{f' em {research['location']}' if research['location'] else ''}.", 280),
+        "cta": clean_text(overrides.get("cta") or profile["cta"], 45),
+        "services": services[:6] or list(profile["services"]),
+        "service_details": list(profile["details"]),
+        "services_origin": services_origin,
+        "section_title": clean_text(overrides.get("section_title") or profile["section_title"], 150),
+        "primary": direction["primary"],
+        "surface": direction["surface"],
+        "ink": direction["ink"],
+        "hero_image": _asset_from_overrides(overrides, "hero_image", 1_800_000),
+        "brand_logo": _asset_from_overrides(overrides, "brand_logo", 700_000),
+        "asset_authorization": authorization if authorization in AUTHORIZED_ASSET_STATUSES else "none",
+        "asset_source": clean_text(overrides.get("asset_source"), 500),
+        "seller_name": clean_text(overrides.get("seller_name"), 80),
+        "agency_name": clean_text(overrides.get("agency_name"), 100) or "PH Digital",
+        "research": research,
+        "art_direction": direction,
+        "disclaimer": "Demonstração conceitual não oficial — conteúdo e identidade sujeitos à validação da empresa",
+    }
+    config["message"] = build_preview_message(config, include_attachment=True)
+    config["message_with_image"] = config["message"]
+    return config
 
 
 def _visual(config, data):
     hero_image = config.get("hero_image")
     logo = config.get("brand_logo")
-    image_style = f' style="background-image:linear-gradient(180deg,transparent 25%,rgba(0,0,0,.62)),url(\'{hero_image}\')"' if hero_image else ""
-    logo_html = f'<img class="logo" src="{logo}" alt="Logo fornecido para a demonstração">' if logo else f'<span class="wordmark">{escape(config["name"][:2].upper())}</span>'
-    label = data.get("location") or data.get("category") or "Apresentação do negócio"
-    return f'<div class="visual {"has-photo" if hero_image else "no-photo"}"{image_style}><div class="visual-top">{logo_html}<span>{data["segment"]}</span></div><p>{label}</p></div>'
+    image_style = f' style="background-image:linear-gradient(180deg,transparent 22%,rgba(0,0,0,.7)),url(\'{hero_image}\')"' if hero_image else ""
+    logo_html = f'<img class="logo" src="{logo}" alt="Logotipo autorizado para a demonstração">' if logo else f'<span class="wordmark">{escape(config["name"][:2].upper())}</span>'
+    label = data.get("location") or data.get("category") or "Conceito de apresentação"
+    asset_note = "Imagem autorizada" if hero_image else "Composição gráfica própria — sem fotografia de terceiros"
+    return f'<div class="visual {"has-photo" if hero_image else "no-photo"}"{image_style}><div class="visual-top">{logo_html}<span>{data["segment"]}</span></div><div class="visual-caption"><small>{asset_note}</small><p>{label}</p></div></div>'
 
 
 def render_preview_html(config):
-    data = {key: escape(str(value)) for key, value in config.items() if key not in {"services", "hero_image", "brand_logo"}}
-    cards = "".join(f'<article class="service"><span>0{index}</span><h3>{escape(service)}</h3><p>Bloco demonstrativo para explicar este serviço com clareza e direcionar o contato.</p></article>' for index, service in enumerate(config.get("services", []), 1))
+    data = {key: escape(str(value)) for key, value in config.items() if key not in {"services", "service_details", "hero_image", "brand_logo", "research", "art_direction"}}
+    details = list(config.get("service_details") or DEFAULT_PROFILE["details"])
+    cards = "".join(
+        f'<article class="service"><span>0{index}</span><h3>{escape(service)}</h3><p>{escape(details[(index - 1) % len(details)])}</p></article>'
+        for index, service in enumerate(config.get("services", []), 1)
+    )
     visual = _visual(config, data)
-    if data["template"] in {"portfolio", "hospitality", "editorial"}:
+    template = config.get("template", "professional")
+    if template in {"portfolio", "hospitality", "editorial"}:
         hero = f'<section class="hero hero-image-first">{visual}<div class="hero-copy"><div class="eyebrow">{data["category"]}</div><h1>{data["headline"]}</h1><p>{data["subheadline"]}</p><a class="button" href="#contato">{data["cta"]}</a></div></section>'
-    elif data["template"] == "authority":
-        hero = f'<section class="hero hero-authority"><div class="hero-copy"><div class="eyebrow">{data["category"]}</div><h1>{data["headline"]}</h1><p>{data["subheadline"]}</p><div class="actions"><a class="button" href="#contato">{data["cta"]}</a><span>Atendimento responsável<br>e informações objetivas</span></div></div>{visual}</section>'
+    elif template == "authority":
+        hero = f'<section class="hero hero-authority"><div class="hero-copy"><div class="eyebrow">{data["category"]}</div><h1>{data["headline"]}</h1><p>{data["subheadline"]}</p><div class="actions"><a class="button" href="#contato">{data["cta"]}</a><span>Informação objetiva<br>e contato reservado</span></div></div>{visual}</section>'
+    elif template == "technical":
+        hero = f'<section class="hero hero-technical"><div class="hero-copy"><div class="eyebrow">Conceito técnico · {data["category"]}</div><h1>{data["headline"]}</h1><p>{data["subheadline"]}</p><a class="button" href="#contato">{data["cta"]}</a></div>{visual}</section>'
     else:
         hero = f'<section class="hero"><div class="hero-copy"><div class="eyebrow">{data["category"]}</div><h1>{data["headline"]}</h1><p>{data["subheadline"]}</p><a class="button" href="#contato">{data["cta"]}</a></div>{visual}</section>'
+    direction = config.get("art_direction") or {}
+    heading_font = direction.get("heading_font") or DEFAULT_PROFILE["heading_font"]
+    body_font = direction.get("body_font") or DEFAULT_PROFILE["body_font"]
+    suggested_note = "Conteúdos sugeridos para validação" if config.get("services_origin") != "confirmado" else "Serviços registrados nas fontes disponíveis"
+    radius = "999px" if direction.get("button_style") == "pill" else "4px"
+    visual_radius = "30px 8px 30px 8px" if template == "care" else "2px"
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{data['name']} — demonstração</title><style>
-:root{{--primary:{data['primary']};--surface:{data['surface']};--ink:{data['ink']};--line:color-mix(in srgb,var(--ink) 14%,transparent)}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--surface);color:var(--ink);font-family:Georgia,"Times New Roman",serif}}a{{color:inherit;text-decoration:none}}.shell{{min-height:100vh;overflow:hidden}}.notice{{padding:9px 5vw;background:var(--ink);color:white;text-align:center;font:700 10px/1.4 ui-sans-serif,system-ui;letter-spacing:.13em;text-transform:uppercase}}header{{display:flex;align-items:center;justify-content:space-between;padding:24px 6vw;border-bottom:1px solid var(--line)}}.brand{{font-size:22px;font-weight:800;letter-spacing:-.04em}}nav{{display:flex;gap:28px;font:700 12px/1 ui-sans-serif,system-ui;text-transform:uppercase;letter-spacing:.08em}}.button{{display:inline-flex;align-items:center;justify-content:center;padding:15px 22px;border-radius:3px;background:var(--primary);color:white;font:800 12px/1 ui-sans-serif,system-ui;text-transform:uppercase;letter-spacing:.08em}}
-.hero{{display:grid;grid-template-columns:1.05fr .95fr;gap:6vw;align-items:center;padding:72px 6vw 82px;min-height:650px}}.hero-copy{{position:relative;z-index:2}}.eyebrow{{color:var(--primary);font:900 11px/1.4 ui-sans-serif,system-ui;text-transform:uppercase;letter-spacing:.18em}}h1{{font-size:clamp(48px,6.4vw,92px);line-height:.96;letter-spacing:-.055em;margin:24px 0 28px;max-width:960px}}.hero-copy>p{{font:400 clamp(16px,1.7vw,20px)/1.65 ui-sans-serif,system-ui;max-width:670px;opacity:.72;margin:0 0 34px}}.visual{{min-height:480px;border-radius:2px;background:var(--ink);color:white;padding:28px;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:space-between;box-shadow:24px 28px 0 color-mix(in srgb,var(--primary) 20%,transparent)}}.visual.no-photo{{background-image:linear-gradient(135deg,color-mix(in srgb,var(--primary) 72%,var(--ink)),var(--ink));position:relative;overflow:hidden}}.visual.no-photo:after{{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(255,255,255,.18);border-radius:50%;right:-180px;bottom:-180px}}.visual-top{{display:flex;justify-content:space-between;align-items:center;font:800 10px/1 ui-sans-serif,system-ui;text-transform:uppercase;letter-spacing:.13em;position:relative;z-index:1}}.logo{{display:block;max-width:150px;max-height:70px;object-fit:contain;background:white;padding:8px}}.wordmark{{display:grid;place-items:center;width:64px;height:64px;border:1px solid rgba(255,255,255,.35);font:900 24px/1 ui-sans-serif,system-ui}}.visual>p{{position:relative;z-index:1;font:700 13px/1.5 ui-sans-serif,system-ui;max-width:250px}}
-.hero-image-first{{grid-template-columns:1.12fr .88fr;padding-top:46px}}.hero-image-first .visual{{min-height:610px;order:0}}.hero-image-first .hero-copy{{order:1}}.hero-authority{{background:var(--ink);color:white}}.actions{{display:flex;align-items:center;gap:28px}}.actions span{{font:600 11px/1.5 ui-sans-serif,system-ui;opacity:.6;text-transform:uppercase;letter-spacing:.08em}}.services-wrap{{padding:76px 6vw 96px;background:white}}.section-head{{display:flex;justify-content:space-between;gap:34px;align-items:end;margin-bottom:46px}}h2{{font-size:clamp(36px,5vw,64px);letter-spacing:-.05em;line-height:1;margin:0;max-width:780px}}.section-head p{{font:400 14px/1.7 ui-sans-serif,system-ui;max-width:410px;opacity:.62}}.services{{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}}.service{{padding:34px;min-height:235px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}}.service span{{color:var(--primary);font:900 11px/1 ui-sans-serif,system-ui}}.service h3{{font-size:25px;line-height:1.1;margin:48px 0 14px}}.service p{{font:400 13px/1.65 ui-sans-serif,system-ui;opacity:.62}}.contact{{margin:0 6vw 76px;padding:58px;background:var(--primary);color:white;display:flex;align-items:center;justify-content:space-between;gap:42px}}.contact h2{{max-width:760px}}.contact .button{{background:white;color:var(--ink);flex:none}}footer{{padding:30px 6vw;border-top:1px solid var(--line);display:flex;justify-content:space-between;font:600 11px/1.4 ui-sans-serif,system-ui;opacity:.65}}
-@media(max-width:760px){{nav{{display:none}}header{{padding:18px 5vw}}.hero,.hero-image-first{{grid-template-columns:1fr;padding:54px 5vw 64px;min-height:auto}}.hero-image-first .visual{{min-height:420px;order:1}}.hero-image-first .hero-copy{{order:0}}h1{{font-size:49px}}.visual{{min-height:350px;box-shadow:12px 14px 0 color-mix(in srgb,var(--primary) 20%,transparent)}}.services-wrap{{padding:58px 5vw}}.section-head{{display:block}}.services{{grid-template-columns:1fr}}.service{{min-height:185px}}.contact{{margin:0 5vw 50px;padding:34px;display:block}}.contact .button{{margin-top:24px}}footer{{padding:24px 5vw;gap:18px;flex-direction:column}}}}
-</style></head><body><div class="shell"><div class="notice">{data['disclaimer']}</div><header><a class="brand" href="#">{data['name']}</a><nav><a href="#servicos">Serviços</a><a href="#sobre">Sobre</a><a href="#contato">Contato</a></nav><a class="button" href="#contato">{data['cta']}</a></header><main>{hero}<section class="services-wrap" id="servicos"><div class="section-head"><h2>{data['section_title']}</h2><p>Estrutura criada para este segmento. Textos, fotos, marca e informações finais devem ser aprovados pela empresa.</p></div><div class="services">{cards}</div></section><section class="contact" id="contato"><h2>Transforme interesse em um próximo passo claro.</h2><a class="button" href="#">{data['cta']}</a></section></main><footer><strong>{data['name']}</strong><span>{data['location'] or 'Localização a confirmar'} · Demonstração não oficial</span></footer></div></body></html>"""
+:root{{--primary:{data['primary']};--surface:{data['surface']};--ink:{data['ink']};--line:color-mix(in srgb,var(--ink) 16%,transparent);--heading:{heading_font};--body:{body_font}}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--surface);color:var(--ink);font-family:var(--body)}}a{{color:inherit;text-decoration:none}}.shell{{min-height:100vh;overflow:hidden}}.notice{{padding:9px 5vw;background:var(--ink);color:white;text-align:center;font:700 10px/1.4 var(--body);letter-spacing:.13em;text-transform:uppercase}}header{{display:flex;align-items:center;justify-content:space-between;padding:24px 6vw;border-bottom:1px solid var(--line)}}.brand{{font:800 22px/1 var(--heading);letter-spacing:-.035em}}nav{{display:flex;gap:28px;font:700 11px/1 var(--body);text-transform:uppercase;letter-spacing:.1em}}.button{{display:inline-flex;align-items:center;justify-content:center;padding:15px 22px;border:1px solid transparent;border-radius:{radius};background:var(--primary);color:white;font:800 11px/1 var(--body);text-transform:uppercase;letter-spacing:.09em}}
+.hero{{display:grid;grid-template-columns:1.05fr .95fr;gap:6vw;align-items:center;padding:72px 6vw 82px;min-height:650px}}.hero-copy{{position:relative;z-index:2}}.eyebrow{{color:var(--primary);font:900 10px/1.4 var(--body);text-transform:uppercase;letter-spacing:.2em}}h1,h2,h3{{font-family:var(--heading)}}h1{{font-size:clamp(47px,6.2vw,90px);line-height:.96;letter-spacing:-.055em;margin:24px 0 28px;max-width:950px}}.hero-copy>p{{font:400 clamp(16px,1.7vw,20px)/1.65 var(--body);max-width:670px;opacity:.74;margin:0 0 34px}}.visual{{min-height:480px;border-radius:{visual_radius};background:var(--ink);color:white;padding:28px;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:space-between;box-shadow:24px 28px 0 color-mix(in srgb,var(--primary) 20%,transparent)}}.visual.no-photo{{background-image:linear-gradient(145deg,color-mix(in srgb,var(--primary) 76%,var(--ink)),var(--ink));position:relative;overflow:hidden}}.visual.no-photo:before,.visual.no-photo:after{{content:"";position:absolute;border:1px solid rgba(255,255,255,.2);border-radius:50%}}.visual.no-photo:before{{width:420px;height:420px;right:-170px;bottom:-170px}}.visual.no-photo:after{{width:180px;height:180px;left:17%;top:24%;background:rgba(255,255,255,.04)}}.visual-top{{display:flex;justify-content:space-between;align-items:center;font:800 10px/1 var(--body);text-transform:uppercase;letter-spacing:.13em;position:relative;z-index:1}}.logo{{display:block;max-width:150px;max-height:70px;object-fit:contain;background:white;padding:8px}}.wordmark{{display:grid;place-items:center;width:64px;height:64px;border:1px solid rgba(255,255,255,.38);font:900 24px/1 var(--body)}}.visual-caption{{position:relative;z-index:1}}.visual-caption small{{font:700 9px/1.3 var(--body);letter-spacing:.1em;text-transform:uppercase;opacity:.65}}.visual-caption p{{font:700 13px/1.5 var(--body);max-width:280px;margin:8px 0 0}}
+.hero-image-first{{grid-template-columns:1.12fr .88fr;padding-top:46px}}.hero-image-first .visual{{min-height:610px;order:0}}.hero-image-first .hero-copy{{order:1}}.hero-authority{{background:var(--ink);color:white}}.hero-authority .visual{{box-shadow:24px 28px 0 color-mix(in srgb,var(--primary) 45%,transparent)}}.hero-technical{{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:42px 42px}}.actions{{display:flex;align-items:center;gap:28px}}.actions span{{font:600 10px/1.5 var(--body);opacity:.62;text-transform:uppercase;letter-spacing:.09em}}.services-wrap{{padding:76px 6vw 96px;background:white}}.section-head{{display:flex;justify-content:space-between;gap:34px;align-items:end;margin-bottom:46px}}h2{{font-size:clamp(35px,5vw,62px);letter-spacing:-.05em;line-height:1;margin:0;max-width:780px}}.section-head p{{font:400 14px/1.7 var(--body);max-width:410px;opacity:.64}}.section-note{{display:inline-flex;margin-bottom:18px;padding:8px 11px;border:1px solid var(--line);font:800 9px/1 var(--body);letter-spacing:.11em;text-transform:uppercase}}.services{{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}}.service{{padding:34px;min-height:235px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}}.service span{{color:var(--primary);font:900 11px/1 var(--body)}}.service h3{{font-size:25px;line-height:1.1;margin:48px 0 14px}}.service p{{font:400 13px/1.65 var(--body);opacity:.65}}.context{{display:grid;grid-template-columns:.7fr 1.3fr;gap:8vw;padding:80px 6vw;background:var(--ink);color:white}}.context span{{color:var(--primary);font:800 10px/1 var(--body);letter-spacing:.13em;text-transform:uppercase}}.context p{{font:400 clamp(20px,2.5vw,34px)/1.35 var(--heading);margin:0}}.contact{{margin:0 6vw 76px;padding:58px;background:var(--primary);color:white;display:flex;align-items:center;justify-content:space-between;gap:42px}}.contact h2{{max-width:760px}}.contact .button{{background:white;color:var(--ink);flex:none}}footer{{padding:30px 6vw;border-top:1px solid var(--line);display:flex;justify-content:space-between;font:600 11px/1.4 var(--body);opacity:.65}}
+@media(max-width:760px){{nav,header>.button{{display:none}}header{{padding:18px 5vw}}.hero,.hero-image-first{{grid-template-columns:1fr;padding:54px 5vw 64px;min-height:auto}}.hero-image-first .visual{{min-height:390px;order:1}}.hero-image-first .hero-copy{{order:0}}h1{{font-size:46px}}.visual{{min-height:340px;box-shadow:12px 14px 0 color-mix(in srgb,var(--primary) 20%,transparent)}}.services-wrap{{padding:58px 5vw}}.section-head{{display:block}}.section-head p{{margin-top:18px}}.services{{grid-template-columns:1fr}}.service{{min-height:170px}}.service h3{{margin-top:30px}}.context{{grid-template-columns:1fr;padding:58px 5vw}}.contact{{margin:0 5vw 50px;padding:34px;display:block}}.contact .button{{margin-top:24px}}footer{{padding:24px 5vw;gap:18px;flex-direction:column}}}}
+</style></head><body><div class="shell"><div class="notice">{data['disclaimer']}</div><header><a class="brand" href="#">{data['name']}</a><nav><a href="#servicos">Serviços</a><a href="#conceito">Conceito</a><a href="#contato">Contato</a></nav><a class="button" href="#contato">{data['cta']}</a></header><main>{hero}<section class="services-wrap" id="servicos"><span class="section-note">{suggested_note}</span><div class="section-head"><h2>{data['section_title']}</h2><p>Esta estrutura demonstra como o conteúdo pode ser organizado. Informações finais, marca e imagens dependem da aprovação da empresa.</p></div><div class="services">{cards}</div></section><section class="context" id="conceito"><span>Direção do conceito</span><p>{escape(direction.get('rationale') or 'Composição criada para facilitar leitura, confiança e contato.')}</p></section><section class="contact" id="contato"><h2>Uma apresentação mais clara pode tornar o próximo passo mais simples.</h2><a class="button" href="#">{data['cta']}</a></section></main><footer><strong>{data['name']}</strong><span>{data['location'] or 'Localização a confirmar'} · Demonstração não oficial</span></footer></div></body></html>"""
+
+
+def _hex_rgb(value):
+    value = value.lstrip("#")
+    return tuple(int(value[index:index + 2], 16) / 255 for index in (0, 2, 4))
+
+
+def _luminance(value):
+    channels = [channel / 12.92 if channel <= .03928 else ((channel + .055) / 1.055) ** 2.4 for channel in _hex_rgb(value)]
+    return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2]
+
+
+def contrast_ratio(first, second):
+    light, dark = sorted((_luminance(first), _luminance(second)), reverse=True)
+    return round((light + .05) / (dark + .05), 2)
+
+
+def validate_preview_html(html, config):
+    errors = []
+    warnings = []
+    lowered = html.casefold()
+    for required in ("<main", "id=\"contato\"", "class=\"button\"", "demonstração conceitual não oficial", "@media(max-width:760px)"):
+        if required not in lowered:
+            errors.append(f"Elemento obrigatório ausente: {required}")
+    if "lorem ipsum" in lowered:
+        errors.append("Lorem ipsum não é permitido.")
+    if re.search(r"url\(['\"]?https?://", html, re.IGNORECASE) or re.search(r"src=[\"']https?://", html, re.IGNORECASE):
+        errors.append("A prévia contém ativo remoto sem controle de licença.")
+    for claim in FORBIDDEN_CLAIMS:
+        if claim in lowered:
+            errors.append(f"Afirmação comercial não comprovada: {claim}")
+    if config.get("hero_image") and config.get("asset_authorization") not in AUTHORIZED_ASSET_STATUSES:
+        errors.append("Imagem sem autorização registrada.")
+    if config.get("research", {}).get("needs_manual_review"):
+        warnings.append("Poucas fontes disponíveis; revisar conteúdo antes de aprovar.")
+    text_ratio = contrast_ratio(config.get("ink", "#111111"), config.get("surface", "#ffffff"))
+    if text_ratio < 4.5:
+        errors.append(f"Contraste de texto insuficiente ({text_ratio}:1).")
+    score = max(0, 100 - len(errors) * 25 - len(warnings) * 5)
+    return {"approved": not errors and score >= 80, "score": score, "errors": errors, "warnings": warnings, "contrast_ratio": text_ratio}
+
+
+def _inspect_page(page):
+    return page.evaluate("""() => {
+        const brokenImages = [...document.images].filter(img => !img.complete || img.naturalWidth === 0).length;
+        const cta = document.querySelector('#contato .button');
+        const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;
+        const clipped = [...document.querySelectorAll('h1,h2,h3,.button')].filter(el => el.scrollWidth > el.clientWidth + 2).length;
+        return {broken_images: brokenImages, cta_visible: !!cta && !!cta.getClientRects().length, horizontal_overflow: overflow, clipped_text: clipped};
+    }""")
+
+
+def generate_preview_assets(html, output_dir, preview_key, static_report=None):
+    from playwright.sync_api import sync_playwright
+
+    os.makedirs(output_dir, exist_ok=True)
+    paths = {
+        "desktop": os.path.join(output_dir, f"{preview_key}-desktop.png"),
+        "mobile": os.path.join(output_dir, f"{preview_key}-mobile.png"),
+        "share": os.path.join(output_dir, f"{preview_key}-whatsapp.png"),
+    }
+    report = dict(static_report or {"approved": True, "score": 100, "errors": [], "warnings": []})
+    report["errors"] = list(report.get("errors", []))
+    report["warnings"] = list(report.get("warnings", []))
+    report["render_checks"] = {}
+    console_errors = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            for variant, viewport, full_page in (
+                ("desktop", {"width": 1440, "height": 1000}, True),
+                ("mobile", {"width": 390, "height": 844}, True),
+                ("share", {"width": 1080, "height": 1080}, False),
+            ):
+                page = browser.new_page(viewport=viewport, device_scale_factor=1)
+                page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+                page.set_content(html, wait_until="load")
+                page.emulate_media(reduced_motion="reduce")
+                page.wait_for_timeout(120)
+                checks = _inspect_page(page)
+                report["render_checks"][variant] = checks
+                page.screenshot(path=paths[variant], full_page=full_page, animations="disabled")
+                page.close()
+        finally:
+            browser.close()
+    report["console_errors"] = console_errors
+    for variant, checks in report["render_checks"].items():
+        if checks["broken_images"]:
+            report["errors"].append(f"{variant}: imagem ausente ou quebrada.")
+        if checks["horizontal_overflow"]:
+            report["errors"].append(f"{variant}: rolagem horizontal indevida.")
+        if checks["clipped_text"]:
+            report["errors"].append(f"{variant}: texto cortado em {checks['clipped_text']} elemento(s).")
+        if not checks["cta_visible"]:
+            report["errors"].append(f"{variant}: CTA não visível.")
+    if console_errors:
+        report["errors"].append("Erros de console durante a renderização.")
+    report["errors"] = list(dict.fromkeys(report["errors"]))
+    report["approved"] = not report["errors"] and report.get("score", 0) >= 80
+    if report["errors"]:
+        report["score"] = max(0, report.get("score", 100) - 15 * len(report["errors"]))
+    report["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return paths, report
 
 
 def capture_preview_png(html, destination, width=1440, height=1100):
     from playwright.sync_api import sync_playwright
+
     os.makedirs(os.path.dirname(destination), exist_ok=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
             page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
-            page.set_content(html, wait_until="domcontentloaded")
-            page.wait_for_timeout(100)
+            page.set_content(html, wait_until="load")
+            page.emulate_media(reduced_motion="reduce")
             page.screenshot(path=destination, full_page=True, animations="disabled")
         finally:
             browser.close()

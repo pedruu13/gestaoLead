@@ -17,7 +17,7 @@ from commercial_intelligence import (
     recommend_contact_strategy,
     review_pitch,
 )
-from preview_studio import build_preview_config, render_preview_html
+from preview_studio import build_preview_config, render_preview_html, validate_preview_html
 from lead_scoring import SCORE_VERSION, score_lead
 
 
@@ -350,6 +350,10 @@ class CommercialIntelligenceTests(unittest.TestCase):
         analysis = analyze_lead(sample_lead(), preview_available=True)
         pitches = generate_fallback_pitches(analysis)
         self.assertIn("previa_visual", pitches)
+        self.assertIn("imagem", pitches["previa_visual"].casefold())
+        self.assertNotIn("posso enviar", pitches["previa_visual"].casefold())
+        self.assertNotIn("posso compartilhar", pitches["previa_visual"].casefold())
+        self.assertEqual("previa_visual", recommend_contact_strategy(sample_lead(), preview_available=True)["recommended_mode"])
         self.assertTrue(evaluate_pitches(pitches, analysis, require_preview=True)["approved"])
 
 
@@ -361,6 +365,9 @@ class PreviewStudioTests(unittest.TestCase):
         self.assertIn("@media(max-width:760px)", html)
         self.assertNotIn("<script", html.casefold())
         self.assertNotIn("src=\"http", html.casefold())
+        self.assertIn("imagem acompanha", config["message"].casefold())
+        self.assertNotIn("posso enviar", config["message"].casefold())
+        self.assertEqual(config["message"], config["message_with_image"])
 
     def test_preview_direction_changes_by_segment_and_accepts_real_assets(self):
         dentist = build_preview_config(sample_lead("Clínica Sorriso", "Dentistas"))
@@ -368,7 +375,12 @@ class PreviewStudioTests(unittest.TestCase):
         image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
         portfolio = build_preview_config(
             sample_lead("Traço Vivo", "Arquitetos"),
-            {"hero_image": image, "brand_logo": image},
+            {
+                "hero_image": image,
+                "brand_logo": image,
+                "asset_authorization": "authorized",
+                "asset_source": "Acervo autorizado para o teste",
+            },
         )
         self.assertEqual("care", dentist["template"])
         self.assertEqual("authority", lawyer["template"])
@@ -379,6 +391,18 @@ class PreviewStudioTests(unittest.TestCase):
         self.assertIn(image, html)
         rejected = build_preview_config(sample_lead(), {"hero_image": "https://example.com/photo.jpg"})
         self.assertEqual("", rejected["hero_image"])
+
+    def test_preview_rejects_unsupported_claims_and_unauthorized_assets(self):
+        image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+        config = build_preview_config(sample_lead(), {"hero_image": image})
+        self.assertEqual("", config["hero_image"])
+        unsafe_html = render_preview_html(config).replace(
+            "Demonstração conceitual não oficial",
+            "Resultados garantidos para todos os clientes",
+        )
+        validation = validate_preview_html(unsafe_html, config)
+        self.assertFalse(validation["approved"])
+        self.assertTrue(any("comprovada" in error.casefold() or "obrigatório" in error.casefold() for error in validation["errors"]))
 
     def test_generate_preview_route_persists_version_and_exports_real_png(self):
         old_db = application.DB_NAME
@@ -405,6 +429,12 @@ class PreviewStudioTests(unittest.TestCase):
                 with client.session_transaction() as session:
                     session["authenticated"] = True
                     session["user"] = "teste"
+                initial_detail = client.get("/leads/test-place")
+                self.assertIn("Preparar abordagem com prévia", initial_detail.get_data(as_text=True))
+                initial_crm_html = client.get("/crm").get_data(as_text=True)
+                self.assertIn('data-place-id="test-place"', initial_crm_html)
+                self.assertIn('onclick="gerarPreviaRapida(this)"', initial_crm_html)
+                self.assertIn("Preparar abordagem com prévia", initial_crm_html)
                 regenerated = client.post("/api/leads/test-place/regenerate-pitches")
                 self.assertEqual(200, regenerated.status_code, regenerated.get_data(as_text=True))
                 regenerated_data = regenerated.get_json()
@@ -412,23 +442,90 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertTrue(regenerated_data["qualidade"]["approved"], regenerated_data["qualidade"]["reasons"])
                 self.assertNotIn("perfil público consultado", regenerated_data["versoes"]["consultiva"].casefold())
 
-                response = client.post("/api/leads/test-place/previews", json={"headline": "Um sorriso começa com informação clara"})
+                response = client.post("/api/leads/test-place/previews", json={
+                    "headline": "Um sorriso começa com informação clara",
+                    "manual_override": True,
+                })
                 self.assertEqual(200, response.status_code, response.get_data(as_text=True))
                 result = response.get_json()
                 self.assertTrue(result["success"])
-                self.assertFalse(result["screenshot_ready"])
-                self.assertTrue(result["png_deferred"])
-                png_response = client.get(result["png_url"])
-                self.assertEqual(200, png_response.status_code)
-                self.assertTrue(png_response.data.startswith(b"\x89PNG\r\n\x1a\n"))
-                png_response.close()
+                self.assertTrue(result["screenshot_ready"])
+                self.assertFalse(result["png_deferred"])
+                self.assertTrue(result["validation"]["approved"], result["validation"]["errors"])
+                for image_url in (result["png_url"], result["mobile_png_url"], result["share_png_url"]):
+                    png_response = client.get(image_url)
+                    self.assertEqual(200, png_response.status_code)
+                    self.assertTrue(png_response.data.startswith(b"\x89PNG\r\n\x1a\n"))
+                    png_response.close()
                 conn = sqlite3.connect(application.DB_NAME)
-                row = conn.execute("SELECT version, config_json, html_content, screenshot_path FROM preview_versions").fetchone()
+                row = conn.execute(
+                    """SELECT version, config_json, html_content, screenshot_path,
+                              mobile_screenshot_path, share_screenshot_path, public_token,
+                              approval_status, validation_json, message_text
+                       FROM preview_versions"""
+                ).fetchone()
                 conn.close()
                 self.assertEqual(1, row[0])
                 self.assertEqual("Um sorriso começa com informação clara", json.loads(row[1])["headline"])
                 self.assertIn("Demonstração conceitual não oficial", row[2])
                 self.assertTrue(os.path.exists(row[3]))
+                self.assertTrue(os.path.exists(row[4]))
+                self.assertTrue(os.path.exists(row[5]))
+                self.assertGreaterEqual(len(row[6]), 24)
+                self.assertEqual("awaiting_approval", row[7])
+                self.assertTrue(json.loads(row[8])["approved"])
+                self.assertIn("imagem acompanha", row[9].casefold())
+                self.assertNotIn("posso enviar", row[9].casefold())
+
+                crm_html = client.get("/crm").get_data(as_text=True)
+                self.assertIn("Revisar abordagem com prévia", crm_html)
+                inbox_lead = next(item for item in application.load_leads("inbox") if item["place_id"] == "test-place")
+                self.assertEqual("previa_visual", inbox_lead["contact_strategy"]["recommended_mode"])
+                self.assertEqual(row[9], inbox_lead["copies_pitch"]["previa_visual"])
+
+                invalid_message = client.patch(
+                    f"/api/previews/{result['preview_id']}/message",
+                    json={"message": "Posso compartilhar a prévia visual com vocês?"},
+                )
+                self.assertEqual(400, invalid_message.status_code)
+                edited_message = "Olá! A imagem acompanha esta prévia não oficial de site. O conceito ainda depende da validação da empresa. Posso explicar a proposta e ajustar o projeto com vocês."
+                saved_message = client.patch(
+                    f"/api/previews/{result['preview_id']}/message",
+                    json={"message": edited_message},
+                )
+                self.assertEqual(200, saved_message.status_code, saved_message.get_data(as_text=True))
+
+                self.assertEqual(404, client.get(f"/demo/{row[6]}").status_code)
+                approval = client.patch(
+                    f"/api/previews/{result['preview_id']}/approval",
+                    json={"decision": "approved", "publish": True},
+                )
+                self.assertEqual(200, approval.status_code, approval.get_data(as_text=True))
+                self.assertEqual(200, client.get(approval.get_json()["public_url"]).status_code)
+                approved_detail = client.get("/leads/test-place").get_data(as_text=True)
+                self.assertIn(f"const latestPreviewId = {result['preview_id']}", approved_detail)
+                self.assertIn("Preparar no canal", approved_detail)
+                self.assertIn("Confirmar envio realizado", approved_detail)
+                conn = sqlite3.connect(application.DB_NAME)
+                approved_state = conn.execute(
+                    "SELECT approval_status, sent_at FROM preview_versions WHERE id = ?",
+                    (result["preview_id"],),
+                ).fetchone()
+                sent_interactions = conn.execute(
+                    "SELECT COUNT(*) FROM lead_interactions WHERE interaction_type = 'proposta_visual_enviada'"
+                ).fetchone()[0]
+                conn.close()
+                self.assertEqual(("approved", None), approved_state)
+                self.assertEqual(0, sent_interactions)
+                sent = client.post(f"/api/previews/{result['preview_id']}/sent", json={"channel": "WhatsApp"})
+                self.assertEqual(200, sent.status_code, sent.get_data(as_text=True))
+                studio = client.get("/leads/test-place/studio")
+                self.assertEqual(200, studio.status_code)
+                studio_html = studio.get_data(as_text=True)
+                self.assertIn("function generatePreview()", studio_html)
+                self.assertNotIn("desktop: &#34;", studio_html)
+                self.assertIn("Aprovada", studio_html)
+                self.assertIn(edited_message, studio_html)
 
                 contacted = client.post("/api/leads/test-place/contacted", json={
                     "channel": "WhatsApp",
@@ -487,7 +584,7 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(1, lead_state[0])
                 self.assertEqual("Não fechado", lead_state[1])
                 self.assertTrue(lead_state[2])
-                self.assertEqual(3, interaction_count)
+                self.assertEqual(4, interaction_count)
 
                 health = client.get("/health")
                 self.assertEqual(200, health.status_code)
@@ -514,6 +611,8 @@ class PreviewStudioTests(unittest.TestCase):
                 self.assertEqual(0, conn.execute("SELECT COUNT(*) FROM lead_interactions").fetchone()[0])
                 conn.close()
                 self.assertFalse(os.path.exists(row[3]))
+                self.assertFalse(os.path.exists(row[4]))
+                self.assertFalse(os.path.exists(row[5]))
             finally:
                 application.DB_NAME = old_db
                 application.PREVIEW_DIR = old_preview_dir

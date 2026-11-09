@@ -138,7 +138,7 @@
 
                 <!-- Cards de Seleção de Modo de Localização -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <label class="decision-card selected" data-group="loc_mode" onclick="setLocMode('auto', this)">
+                    <label class="decision-card selected" data-group="loc_mode">
                         <input type="radio" name="location_mode" value="auto" checked class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-location-dot"></i></div>
                         <div>
@@ -147,7 +147,7 @@
                         </div>
                     </label>
 
-                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('states', this)">
+                    <label class="decision-card" data-group="loc_mode">
                         <input type="radio" name="location_mode" value="states" class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-map"></i></div>
                         <div>
@@ -156,7 +156,7 @@
                         </div>
                     </label>
 
-                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('cities', this)">
+                    <label class="decision-card" data-group="loc_mode">
                         <input type="radio" name="location_mode" value="cities" class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-city"></i></div>
                         <div>
@@ -165,7 +165,7 @@
                         </div>
                     </label>
 
-                    <label class="decision-card" data-group="loc_mode" onclick="setLocMode('brazil', this)">
+                    <label class="decision-card" data-group="loc_mode">
                         <input type="radio" name="location_mode" value="brazil" class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-earth-americas"></i></div>
                         <div>
@@ -189,11 +189,22 @@
 
                 <!-- Painel Dinâmico: Selecionar Estados -->
                 <div id="loc_panel_states" class="hidden rounded-2xl border border-[#2A2F38] bg-[#13161B] p-4 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold text-slate-300">Clique para selecionar os estados desejados:</span>
+                    <div class="state-picker-header">
+                        <div>
+                            <span class="text-[11px] font-bold text-slate-200">Selecione um ou mais estados</span>
+                            <p class="mt-1 text-[10px] text-slate-500">Pesquise por nome ou sigla. A seleção permanece salva nesta sessão.</p>
+                        </div>
                         <span id="selected_states_count" class="text-[10px] text-blue-400 font-bold">0 estados</span>
                     </div>
-                    <div id="states_pill_grid" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                    <div class="state-picker-toolbar">
+                        <div class="relative min-w-0 flex-1">
+                            <input id="state_search_input" data-clearable type="text" autocomplete="off" placeholder="Buscar estado ou UF, ex.: São Paulo ou SP" class="w-full rounded-xl border border-[#2A2F38] bg-[#181B20] px-4 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-blue-400" aria-label="Buscar estado">
+                        </div>
+                        <button id="select_visible_states" type="button" class="state-picker-action">Selecionar visíveis</button>
+                        <button id="clear_selected_states" type="button" class="state-picker-action">Limpar</button>
+                    </div>
+                    <div id="state_load_status" class="hidden rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-300" role="status"></div>
+                    <div id="states_pill_grid" class="state-grid" aria-label="Estados disponíveis">
                         <!-- Carregado via JS -->
                         <span class="text-xs text-slate-500">Carregando estados...</span>
                     </div>
@@ -240,7 +251,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label class="decision-card selected" data-group="niche_mode" onclick="setNicheMode('auto', this)">
+                    <label class="decision-card selected" data-group="niche_mode">
                         <input type="radio" name="niche_mode" value="auto" checked class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-compass"></i></div>
                         <div>
@@ -249,7 +260,7 @@
                         </div>
                     </label>
 
-                    <label class="decision-card" data-group="niche_mode" onclick="setNicheMode('manual', this)">
+                    <label class="decision-card" data-group="niche_mode">
                         <input type="radio" name="niche_mode" value="manual" class="sr-only">
                         <div class="decision-icon"><i class="fa-solid fa-bullseye"></i></div>
                         <div>
@@ -308,25 +319,25 @@
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue(50, this)">
+                    <label class="meta-card" data-group="goal_mode">
                         <input type="radio" name="goal_choice" value="50" class="sr-only">
                         <strong class="text-lg font-black text-white block">50</strong>
                         <span class="text-[10px] text-slate-400">leads qualificados</span>
                     </label>
 
-                    <label class="meta-card selected" data-group="goal_mode" onclick="setGoalValue(100, this)">
+                    <label class="meta-card selected" data-group="goal_mode">
                         <input type="radio" name="goal_choice" value="100" checked class="sr-only">
                         <strong class="text-lg font-black text-blue-400 block">100</strong>
                         <span class="text-[10px] text-slate-400">Recomendado</span>
                     </label>
 
-                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue(250, this)">
+                    <label class="meta-card" data-group="goal_mode">
                         <input type="radio" name="goal_choice" value="250" class="sr-only">
                         <strong class="text-lg font-black text-white block">250</strong>
                         <span class="text-[10px] text-slate-400">leads qualificados</span>
                     </label>
 
-                    <label class="meta-card" data-group="goal_mode" onclick="setGoalValue('custom', this)">
+                    <label class="meta-card" data-group="goal_mode">
                         <input type="radio" name="goal_choice" value="custom" class="sr-only">
                         <strong class="text-sm font-black text-white block">Personalizado</strong>
                         <span class="text-[10px] text-slate-400">definir valor</span>
@@ -561,11 +572,16 @@
         border: 1px solid #1F2B44;
         background: #0B101C;
         color: #94A3B8;
-        border-radius: 0.65rem;
-        padding: 0.35rem 0.65rem;
+        border-radius: 0.75rem;
+        min-height: 2.75rem;
+        padding: 0.55rem 0.7rem;
         font-size: 0.75rem;
         font-weight: 700;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        text-align: left;
         transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
     }
     .state-pill:hover {
@@ -577,6 +593,46 @@
         background: rgba(96, 165, 250, 0.12);
         color: #BFDBFE;
     }
+    .state-pill__code {
+        display: inline-grid;
+        place-items: center;
+        width: 2rem;
+        height: 1.7rem;
+        flex: 0 0 auto;
+        border-radius: 0.5rem;
+        background: #181F2D;
+        color: #F1F5F9;
+        font-size: 0.68rem;
+        letter-spacing: 0.04em;
+    }
+    .state-pill.active .state-pill__code { background: #2563EB; }
+    .state-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+        gap: 0.5rem;
+        max-height: 22rem;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+    .state-picker-header,
+    .state-picker-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+    .state-picker-action {
+        min-height: 2.75rem;
+        border: 1px solid #2A2F38;
+        border-radius: 0.75rem;
+        background: #181B20;
+        color: #CBD5E1;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .state-picker-action:hover { border-color: #60A5FA; color: #F1F5F9; }
 
     .selected-tag {
         display: inline-flex;
@@ -609,6 +665,18 @@
         background: #111728;
         cursor: pointer;
     }
+    @media (max-width: 640px) {
+        .state-picker-header,
+        .state-picker-toolbar { align-items: stretch; flex-wrap: wrap; }
+        .state-picker-header > div,
+        .state-picker-toolbar > div { flex-basis: 100%; }
+        .state-picker-action { flex: 1 1 calc(50% - 0.375rem); }
+        .state-grid { grid-template-columns: 1fr; max-height: none; overflow: visible; }
+        .state-pill { min-height: 3rem; }
+        .decision-card,
+        .meta-card { min-height: 3.25rem; }
+        .selected-tag button { min-width: 2rem; min-height: 2rem; }
+    }
     .filter-box {
         width: 1.35rem;
         height: 1.35rem;
@@ -632,7 +700,7 @@
 {% block scripts %}
 <script>
     // Estado local da UI
-    const state = {
+    const campaignState = {
         locMode: 'auto',
         nicheMode: 'auto',
         goalValue: 100,
@@ -642,6 +710,9 @@
         activeCampaignId: null,
         pollingTimer: null
     };
+    const CAMPAIGN_DRAFT_KEY = 'gestaolead:campaign-draft:v1';
+    let availableStates = [];
+    const citySearchResults = new Map();
 
     function escapeHtml(val) {
         return String(val ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -649,7 +720,7 @@
 
     // 1. Controle de Localização
     function setLocMode(mode, element) {
-        state.locMode = mode;
+        campaignState.locMode = mode;
         document.querySelectorAll('[data-group="loc_mode"]').forEach(el => el.classList.remove('selected'));
         if (element) element.classList.add('selected');
 
@@ -660,40 +731,120 @@
 
         const badge = document.getElementById('loc_summary_badge');
         if (mode === 'auto') badge.textContent = 'Automática selecionada';
-        else if (mode === 'states') badge.textContent = `${state.selectedStates.size} estados`;
-        else if (mode === 'cities') badge.textContent = `${state.selectedCities.size} cidades`;
+        else if (mode === 'states') badge.textContent = `${campaignState.selectedStates.size} estados`;
+        else if (mode === 'cities') badge.textContent = `${campaignState.selectedCities.size} cidades`;
         else if (mode === 'brazil') badge.textContent = 'Brasil inteiro';
+        saveCampaignDraft();
     }
+
+    document.querySelectorAll('input[name="location_mode"]').forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.checked) setLocMode(input.value, input.closest('[data-group="loc_mode"]'));
+        });
+    });
 
     // Carregar Estados do Brasil
     async function loadStates() {
+        const grid = document.getElementById('states_pill_grid');
+        const status = document.getElementById('state_load_status');
+        grid.innerHTML = '<span class="text-xs text-slate-500">Carregando estados...</span>';
+        status.classList.add('hidden');
         try {
             const res = await fetch('/api/smart-campaigns/geo/states');
             const data = await res.json();
-            if (!data.success) return;
-            const grid = document.getElementById('states_pill_grid');
-            grid.innerHTML = (data.states || []).map(s => `
-                <button type="button" class="state-pill" data-uf="${s.code}" onclick="toggleState('${s.code}')">
-                    ${s.code} · ${escapeHtml(s.name)}
-                </button>
-            `).join('');
+            if (!res.ok || !data.success) throw new Error(data.error || 'Não foi possível carregar os estados.');
+            availableStates = (data.states || [])
+                .filter(item => item?.code && item?.name)
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+            if (!availableStates.some(item => item.code === 'SP')) throw new Error('A base geográfica não retornou São Paulo.');
+            restoreCampaignDraft();
+            renderStateOptions();
         } catch (e) {
-            console.warn('Erro ao carregar estados', e);
+            grid.innerHTML = '';
+            status.classList.remove('hidden');
+            status.innerHTML = `${escapeHtml(e.message || 'Erro ao carregar estados.')} <button id="retry_states" type="button" class="ml-2 underline font-bold">Tentar novamente</button>`;
         }
     }
 
+    function normalizeSearchText(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+    }
+
+    function visibleStates() {
+        const query = normalizeSearchText(document.getElementById('state_search_input')?.value);
+        if (!query) return availableStates;
+        return availableStates.filter(item => normalizeSearchText(`${item.code} ${item.name}`).includes(query));
+    }
+
+    function renderStateOptions() {
+        const grid = document.getElementById('states_pill_grid');
+        const items = visibleStates();
+        if (!items.length) {
+            grid.innerHTML = '<span class="text-xs text-slate-500">Nenhum estado encontrado para essa busca.</span>';
+            return;
+        }
+        grid.innerHTML = items.map(item => {
+            const active = campaignState.selectedStates.has(item.code);
+            return `<button type="button" class="state-pill${active ? ' active' : ''}" data-state-option data-uf="${item.code}" aria-pressed="${active}">
+                <span class="state-pill__code">${item.code}</span><span>${escapeHtml(item.name)}</span>
+            </button>`;
+        }).join('');
+    }
+
+    function updateStateSummary() {
+        const total = campaignState.selectedStates.size;
+        document.getElementById('selected_states_count').textContent = `${total} ${total === 1 ? 'selecionado' : 'selecionados'}`;
+        if (campaignState.locMode === 'states') document.getElementById('loc_summary_badge').textContent = `${total} ${total === 1 ? 'estado' : 'estados'}`;
+        saveCampaignDraft();
+    }
+
     function toggleState(code) {
-        if (state.selectedStates.has(code)) {
-            state.selectedStates.delete(code);
+        if (campaignState.selectedStates.has(code)) {
+            campaignState.selectedStates.delete(code);
         } else {
-            state.selectedStates.add(code);
+            campaignState.selectedStates.add(code);
         }
         document.querySelectorAll(`[data-uf="${code}"]`).forEach(el => {
-            el.classList.toggle('active', state.selectedStates.has(code));
+            const active = campaignState.selectedStates.has(code);
+            el.classList.toggle('active', active);
+            el.setAttribute('aria-pressed', String(active));
         });
-        document.getElementById('selected_states_count').textContent = `${state.selectedStates.size} selecionados`;
-        document.getElementById('loc_summary_badge').textContent = `${state.selectedStates.size} estados`;
+        updateStateSummary();
     }
+
+    function saveCampaignDraft() {
+        try {
+            sessionStorage.setItem(CAMPAIGN_DRAFT_KEY, JSON.stringify({states: [...campaignState.selectedStates]}));
+        } catch (error) {}
+    }
+
+    function restoreCampaignDraft() {
+        try {
+            const draft = JSON.parse(sessionStorage.getItem(CAMPAIGN_DRAFT_KEY) || '{}');
+            const validCodes = new Set(availableStates.map(item => item.code));
+            campaignState.selectedStates = new Set((draft.states || []).filter(code => validCodes.has(code)));
+            updateStateSummary();
+        } catch (error) {}
+    }
+
+    document.getElementById('state_search_input').addEventListener('input', renderStateOptions);
+    document.getElementById('states_pill_grid').addEventListener('click', event => {
+        const button = event.target.closest('[data-state-option]');
+        if (button) toggleState(button.dataset.uf);
+    });
+    document.getElementById('select_visible_states').addEventListener('click', () => {
+        visibleStates().forEach(item => campaignState.selectedStates.add(item.code));
+        renderStateOptions();
+        updateStateSummary();
+    });
+    document.getElementById('clear_selected_states').addEventListener('click', () => {
+        campaignState.selectedStates.clear();
+        renderStateOptions();
+        updateStateSummary();
+    });
+    document.getElementById('state_load_status').addEventListener('click', event => {
+        if (event.target.closest('#retry_states')) loadStates();
+    });
 
     // Autocomplete de Cidades IBGE
     let citySearchTimer = null;
@@ -714,8 +865,10 @@
                 if (!data.success || !data.municipalities?.length) {
                     cityResults.innerHTML = '<p class="p-3 text-xs text-slate-500">Nenhum município encontrado.</p>';
                 } else {
+                    citySearchResults.clear();
+                    data.municipalities.forEach(item => citySearchResults.set(String(item.id), item));
                     cityResults.innerHTML = data.municipalities.map(m => `
-                        <button type="button" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-cyan-500/10 hover:text-white rounded-lg block" onclick='selectCity(${JSON.stringify(m)})'>
+                        <button type="button" data-city-result data-city-id="${m.id}" class="w-full min-h-11 text-left px-3 py-2 text-xs text-slate-300 hover:bg-cyan-500/10 hover:text-white rounded-lg block">
                             <strong class="text-white">${escapeHtml(m.name)}</strong> - <span class="text-[#60A5FA] font-bold">${m.uf}</span>
                             <span class="text-slate-500 ml-2 text-[10px]">Pop.: ${(m.population || 0).toLocaleString('pt-BR')}</span>
                         </button>
@@ -728,37 +881,48 @@
         }, 220);
     });
 
+    cityResults.addEventListener('click', event => {
+        const button = event.target.closest('[data-city-result]');
+        const city = button ? citySearchResults.get(button.dataset.cityId) : null;
+        if (city) selectCity(city);
+    });
+
     function selectCity(city) {
-        state.selectedCities.set(Number(city.id), city);
+        campaignState.selectedCities.set(Number(city.id), city);
         cityInput.value = '';
         cityResults.classList.add('hidden');
         renderCitiesChips();
     }
 
     function removeCity(id) {
-        state.selectedCities.delete(Number(id));
+        campaignState.selectedCities.delete(Number(id));
         renderCitiesChips();
     }
 
     function renderCitiesChips() {
         const wrap = document.getElementById('selected_cities_chips');
-        if (!state.selectedCities.size) {
+        if (!campaignState.selectedCities.size) {
             wrap.innerHTML = '<span class="text-xs text-slate-600 italic">Nenhum município adicionado ainda.</span>';
         } else {
-            wrap.innerHTML = [...state.selectedCities.values()].map(c => `
+            wrap.innerHTML = [...campaignState.selectedCities.values()].map(c => `
                 <span class="selected-tag">
                     ${escapeHtml(c.name)} - ${escapeHtml(c.uf)}
-                    <button type="button" onclick="removeCity(${c.id})">&times;</button>
+                    <button type="button" data-remove-city="${c.id}" aria-label="Remover ${escapeHtml(c.name)}">&times;</button>
                 </span>
             `).join('');
         }
-        document.getElementById('selected_cities_count').textContent = `${state.selectedCities.size} cidades`;
-        document.getElementById('loc_summary_badge').textContent = `${state.selectedCities.size} cidades`;
+        document.getElementById('selected_cities_count').textContent = `${campaignState.selectedCities.size} cidades`;
+        document.getElementById('loc_summary_badge').textContent = `${campaignState.selectedCities.size} cidades`;
     }
+
+    document.getElementById('selected_cities_chips').addEventListener('click', event => {
+        const button = event.target.closest('[data-remove-city]');
+        if (button) removeCity(button.dataset.removeCity);
+    });
 
     // 2. Controle de Nicho
     function setNicheMode(mode, element) {
-        state.nicheMode = mode;
+        campaignState.nicheMode = mode;
         document.querySelectorAll('[data-group="niche_mode"]').forEach(el => el.classList.remove('selected'));
         if (element) element.classList.add('selected');
 
@@ -767,8 +931,14 @@
 
         const badge = document.getElementById('niche_summary_badge');
         if (mode === 'auto') badge.textContent = 'Descobrir automaticamente';
-        else badge.textContent = `${state.selectedNiches.size} nichos`;
+        else badge.textContent = `${campaignState.selectedNiches.size} nichos`;
     }
+
+    document.querySelectorAll('input[name="niche_mode"]').forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.checked) setNicheMode(input.value, input.closest('[data-group="niche_mode"]'));
+        });
+    });
 
     async function loadPopularNiches() {
         try {
@@ -777,7 +947,7 @@
             if (!data.success) return;
             const wrap = document.getElementById('popular_niches_chips');
             wrap.innerHTML = (data.niches || []).map(n => `
-                <button type="button" class="preset-chip" onclick="addNiche('${escapeHtml(n.name)}')">
+                <button type="button" class="preset-chip" data-add-niche="${escapeHtml(n.name)}">
                     + ${escapeHtml(n.name)}
                 </button>
             `).join('');
@@ -789,12 +959,12 @@
     function addNiche(name) {
         name = String(name || '').trim();
         if (!name) return;
-        state.selectedNiches.add(name);
+        campaignState.selectedNiches.add(name);
         renderNichesChips();
     }
 
     function removeNiche(name) {
-        state.selectedNiches.delete(name);
+        campaignState.selectedNiches.delete(name);
         renderNichesChips();
     }
 
@@ -806,19 +976,34 @@
 
     function renderNichesChips() {
         const wrap = document.getElementById('selected_niches_chips');
-        if (!state.selectedNiches.size) {
+        if (!campaignState.selectedNiches.size) {
             wrap.innerHTML = '<span class="text-xs text-slate-600 italic">Nenhum nicho adicionado ainda.</span>';
         } else {
-            wrap.innerHTML = [...state.selectedNiches].map(n => `
+            wrap.innerHTML = [...campaignState.selectedNiches].map(n => `
                 <span class="selected-tag">
                     ${escapeHtml(n)}
-                    <button type="button" onclick="removeNiche('${escapeHtml(n)}')">&times;</button>
+                    <button type="button" data-remove-niche="${escapeHtml(n)}" aria-label="Remover ${escapeHtml(n)}">&times;</button>
                 </span>
             `).join('');
         }
-        document.getElementById('selected_niches_count').textContent = `${state.selectedNiches.size} nichos`;
-        document.getElementById('niche_summary_badge').textContent = `${state.selectedNiches.size} nichos`;
+        document.getElementById('selected_niches_count').textContent = `${campaignState.selectedNiches.size} nichos`;
+        document.getElementById('niche_summary_badge').textContent = `${campaignState.selectedNiches.size} nichos`;
     }
+
+    document.getElementById('popular_niches_chips').addEventListener('click', event => {
+        const button = event.target.closest('[data-add-niche]');
+        if (button) addNiche(button.dataset.addNiche);
+    });
+    document.getElementById('selected_niches_chips').addEventListener('click', event => {
+        const button = event.target.closest('[data-remove-niche]');
+        if (button) removeNiche(button.dataset.removeNiche);
+    });
+    document.getElementById('manual_niche_input').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addCustomNiche();
+        }
+    });
 
     // 3. Controle de Meta
     function setGoalValue(val, element) {
@@ -830,40 +1015,46 @@
 
         if (val === 'custom') {
             customWrap.classList.remove('hidden');
-            state.goalValue = Number(document.getElementById('custom_goal_input').value || 100);
-            badge.textContent = `${state.goalValue} leads qualificados`;
+            campaignState.goalValue = Number(document.getElementById('custom_goal_input').value || 100);
+            badge.textContent = `${campaignState.goalValue} leads qualificados`;
         } else {
             customWrap.classList.add('hidden');
-            state.goalValue = Number(val);
-            badge.textContent = `${state.goalValue} leads qualificados`;
+            campaignState.goalValue = Number(val);
+            badge.textContent = `${campaignState.goalValue} leads qualificados`;
         }
     }
 
+    document.querySelectorAll('input[name="goal_choice"]').forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.checked) setGoalValue(input.value, input.closest('[data-group="goal_mode"]'));
+        });
+    });
+
     document.getElementById('custom_goal_input')?.addEventListener('input', e => {
-        state.goalValue = Math.max(5, Math.min(2000, Number(e.target.value || 100)));
-        document.getElementById('meta_summary_badge').textContent = `${state.goalValue} leads qualificados`;
+        campaignState.goalValue = Math.max(5, Math.min(2000, Number(e.target.value || 100)));
+        document.getElementById('meta_summary_badge').textContent = `${campaignState.goalValue} leads qualificados`;
     });
 
     // Submissão da Campanha Inteligente
     async function startSmartCampaign() {
         // Validação no frontend antes de enviar
-        if (state.locMode === 'states' && !state.selectedStates.size) {
+        if (campaignState.locMode === 'states' && !campaignState.selectedStates.size) {
             return showAppToast('Selecione pelo menos um estado para a campanha.', 'error');
         }
-        if (state.locMode === 'cities' && !state.selectedCities.size) {
+        if (campaignState.locMode === 'cities' && !campaignState.selectedCities.size) {
             return showAppToast('Adicione pelo menos uma cidade para a campanha.', 'error');
         }
-        if (state.nicheMode === 'manual' && !state.selectedNiches.size) {
+        if (campaignState.nicheMode === 'manual' && !campaignState.selectedNiches.size) {
             return showAppToast('Adicione pelo menos um nicho para a campanha.', 'error');
         }
 
         const payload = {
-            location_mode: state.locMode,
-            states: [...state.selectedStates],
-            municipality_ids: [...state.selectedCities.keys()],
-            niche_mode: state.nicheMode,
-            niches: [...state.selectedNiches],
-            target_qualified_leads: state.goalValue,
+            location_mode: campaignState.locMode,
+            states: [...campaignState.selectedStates],
+            municipality_ids: [...campaignState.selectedCities.keys()],
+            niche_mode: campaignState.nicheMode,
+            niches: [...campaignState.selectedNiches],
+            target_qualified_leads: campaignState.goalValue,
             name: document.getElementById('adv_campaign_name').value.trim(),
             min_qualification_score: Number(document.getElementById('adv_min_score').value || 70),
             batch_size: Number(document.getElementById('adv_batch_size').value || 10),
@@ -892,7 +1083,7 @@
             }
 
             showAppToast('Busca iniciada. Acompanhe as consultas abaixo.');
-            state.activeCampaignId = data.campaign.campaign_id;
+            campaignState.activeCampaignId = data.campaign.campaign_id;
             updateMonitor(data.campaign);
             startPolling();
 
@@ -984,7 +1175,7 @@
     }
 
     async function handleCampaignAction(action) {
-        if (!state.activeCampaignId) return;
+        if (!campaignState.activeCampaignId) return;
         if (action === 'cancel') {
             const confirmed = await showAppConfirm({
                 title: 'Cancelar campanha?',
@@ -996,7 +1187,7 @@
         }
 
         try {
-            const res = await fetch(`/api/smart-campaigns/${state.activeCampaignId}/${action}`, { method: 'POST' });
+            const res = await fetch(`/api/smart-campaigns/${campaignState.activeCampaignId}/${action}`, { method: 'POST' });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.error || 'Ação falhou.');
             showAppToast(`Campanha ${action === 'pause' ? 'pausada' : action === 'resume' ? 'retomada' : 'cancelada'}.`);
@@ -1007,9 +1198,9 @@
     }
 
     async function fetchCampaignStatus() {
-        if (!state.activeCampaignId) return;
+        if (!campaignState.activeCampaignId) return;
         try {
-            const res = await fetch(`/api/smart-campaigns/${state.activeCampaignId}`);
+            const res = await fetch(`/api/smart-campaigns/${campaignState.activeCampaignId}`);
             const data = await res.json();
             if (data.success && data.campaign) {
                 updateMonitor(data.campaign);
@@ -1040,13 +1231,13 @@
 
     function startPolling() {
         stopPolling();
-        state.pollingTimer = setInterval(fetchCampaignStatus, 3000);
+        campaignState.pollingTimer = setInterval(fetchCampaignStatus, 3000);
     }
 
     function stopPolling() {
-        if (state.pollingTimer) {
-            clearInterval(state.pollingTimer);
-            state.pollingTimer = null;
+        if (campaignState.pollingTimer) {
+            clearInterval(campaignState.pollingTimer);
+            campaignState.pollingTimer = null;
         }
     }
 
@@ -1061,7 +1252,7 @@
             const res = await fetch('/api/smart-campaigns/active');
             const data = await res.json();
             if (data.success && data.campaign) {
-                state.activeCampaignId = data.campaign.campaign_id;
+                campaignState.activeCampaignId = data.campaign.campaign_id;
                 updateMonitor(data.campaign);
                 if (['running', 'pending'].includes(data.campaign.status)) {
                     startPolling();

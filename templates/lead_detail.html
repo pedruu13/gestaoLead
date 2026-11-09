@@ -1,8 +1,10 @@
 {% extends "layout.html" %}
 {% from "_components.html" import company_avatar, copy_button %}
 {% set active_page = 'crm' %}
+{% set latest_preview = previews[0] if previews else none %}
 {% block header_title %}Inteligência Comercial{% endblock %}
 {% block content %}
+{% set proposal_status_labels = {'draft':'Rascunho', 'awaiting_approval':'Aguardando aprovação', 'approved':'Aprovada', 'rejected':'Rejeitada', 'needs_review':'Revisão necessária', 'failed':'Falha'} %}
 <div class="lead-workspace">
     <!-- Topo do Lead: Informações Principais & Ações de Alto Nível -->
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between pb-4 border-b border-[#2A2F38]">
@@ -19,9 +21,89 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <button onclick="regenerarPitches()" class="rounded-xl border border-[#2A2F38] bg-[#181B20] hover:bg-[#20242B] px-4 py-2.5 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-2"><i class="fa-solid fa-arrows-rotate text-[#60A5FA]"></i> Regenerar pitches</button>
-            <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors inline-flex items-center gap-2 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> Studio de Prévias</a>
+            {% if previews %}
+            <a href="#visual-approach" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors inline-flex items-center gap-2 shadow-sm"><i class="fa-solid fa-image"></i> Revisar abordagem com prévia</a>
+            {% else %}
+            <button type="button" data-prepare-visual onclick="prepareVisualApproach(this)" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition-colors inline-flex items-center gap-2 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> Preparar abordagem com prévia</button>
+            {% endif %}
         </div>
     </div>
+
+    <section id="visual-approach" class="delivery-composer {{ 'is-ready' if latest_preview else 'is-empty' }}">
+        <header class="delivery-composer__header">
+            <div>
+                <span class="delivery-composer__eyebrow">Entrega comercial</span>
+                <h2>{% if latest_preview %}Prévia e abordagem prontas para revisão{% else %}Crie uma abordagem que já mostra o valor do site{% endif %}</h2>
+                <p>{% if latest_preview %}Revise o conjunto como o lead irá recebê-lo. A imagem e a mensagem são preparadas juntas; nada é enviado sem sua confirmação.{% else %}Gere uma demonstração personalizada, revise a mensagem e prepare os dois arquivos para o canal escolhido.{% endif %}</p>
+            </div>
+            <div class="delivery-progress" aria-label="Etapas da abordagem visual">
+                <span class="is-complete"><i>1</i>Conceito</span>
+                <span class="{{ 'is-complete' if latest_preview else '' }}"><i>2</i>Revisão</span>
+                <span class="{{ 'is-complete' if latest_preview and latest_preview.approval_status == 'approved' else '' }}"><i>3</i>Envio</span>
+            </div>
+        </header>
+
+        {% if latest_preview %}
+        <div class="delivery-composer__body">
+            <article class="delivery-preview-card">
+                <div class="delivery-preview-card__bar">
+                    <div><i></i><i></i><i></i></div>
+                    <span>Prévia para WhatsApp · 1080 × 1080</span>
+                    <span class="proposal-status proposal-status--{{ latest_preview.approval_status }}"><i></i>{{ proposal_status_labels.get(latest_preview.approval_status, latest_preview.approval_status) }}</span>
+                </div>
+                <a class="delivery-preview-card__artwork" href="{{ url_for('preview_document', preview_id=latest_preview.id) }}" target="_blank" rel="noopener" aria-label="Abrir demonstração em nova aba">
+                    <img src="{{ url_for('preview_image', preview_id=latest_preview.id, variant='share', inline=1) }}" alt="Prévia visual demonstrativa para {{ lead.nome }}">
+                    <span><i class="fa-solid fa-arrow-up-right-from-square"></i>Abrir demonstração</span>
+                </a>
+                <footer class="delivery-preview-card__footer">
+                    <div><strong>{{ lead.nome }}</strong><small>{{ latest_preview.config.art_direction.mood }} · Qualidade {{ latest_preview.validation.score or 0 }}/100</small></div>
+                    <div class="delivery-preview-card__tools">
+                        <a href="{{ url_for('preview_image', preview_id=latest_preview.id, variant='share') }}"><i class="fa-solid fa-download"></i>Baixar PNG</a>
+                        <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}"><i class="fa-solid fa-pen-ruler"></i>Editar site</a>
+                    </div>
+                </footer>
+            </article>
+
+            <article class="delivery-message-card">
+                <div class="delivery-message-card__heading">
+                    <div><span>Mensagem de primeiro contato</span><h3>Texto que acompanha a imagem</h3></div>
+                    <button type="button" onclick="copyVisualProposalMessage()" aria-label="Copiar mensagem"><i class="fa-regular fa-copy"></i><span>Copiar</span></button>
+                </div>
+                <div class="delivery-message-card__editor">
+                    <textarea id="visual-proposal-message" aria-label="Mensagem que acompanha a prévia">{{ latest_preview.message_text }}</textarea>
+                    <div><span id="visual-proposal-character-count">0 caracteres</span><span>Curta, clara e pronta para celular</span></div>
+                </div>
+                <button type="button" class="delivery-save" onclick="saveVisualProposalMessage()"><i class="fa-regular fa-floppy-disk"></i>Salvar alterações da mensagem</button>
+
+                <div class="delivery-readiness">
+                    <span class="delivery-readiness__title">Checklist antes do contato</span>
+                    <div><i class="fa-solid fa-check"></i><span><strong>Imagem validada</strong><small>Sem cortes ou elementos quebrados</small></span></div>
+                    <div><i class="fa-solid fa-check"></i><span><strong>Mensagem personalizada</strong><small>Menciona a prévia sem afirmar aprovação oficial</small></span></div>
+                    <div class="{{ 'is-complete' if latest_preview.approval_status == 'approved' else 'is-pending' }}"><i class="fa-solid {{ 'fa-check' if latest_preview.approval_status == 'approved' else 'fa-clock' }}"></i><span><strong>{{ 'Conjunto aprovado' if latest_preview.approval_status == 'approved' else 'Aguardando sua aprovação' }}</strong><small>{{ 'Pronto para preparar no canal' if latest_preview.approval_status == 'approved' else 'Revise e aprove antes de enviar' }}</small></span></div>
+                </div>
+            </article>
+        </div>
+
+        <footer class="delivery-action-dock">
+            <div class="delivery-action-dock__summary"><i class="fa-solid fa-shield-halved"></i><span><strong>Nenhum envio automático</strong><small>O CRM só registra depois da sua confirmação.</small></span></div>
+            {% if latest_preview.approval_status != 'approved' %}
+            <button type="button" class="delivery-action-dock__primary" onclick="approveAndPrepareVisualProposal()"><i class="fa-solid fa-shield-check"></i><span>Aprovar conjunto<small>Liberar preparação para envio</small></span></button>
+            {% else %}
+            <label class="delivery-channel">Canal<select id="visual-proposal-channel" aria-label="Canal para preparar a abordagem"><option value="WhatsApp">WhatsApp</option><option value="E-mail">E-mail</option><option value="Outro">Outro canal</option></select></label>
+            <button type="button" class="delivery-action-dock__primary" onclick="prepareVisualProposalChannel()" aria-label="Preparar no canal"><i class="fa-solid fa-paper-plane"></i><span>Preparar envio<small>Copiar mensagem + baixar imagem</small></span></button>
+            <button type="button" class="delivery-action-dock__confirm" onclick="confirmVisualProposalSent()" aria-label="Confirmar envio realizado"><i class="fa-solid fa-check-double"></i>Confirmar que enviei</button>
+            {% endif %}
+        </footer>
+        {% else %}
+        <div class="delivery-empty-state">
+            <div class="delivery-empty-state__visual"><span><i class="fa-solid fa-layer-group"></i></span><i class="fa-solid fa-plus"></i><span><i class="fa-regular fa-message"></i></span></div>
+            <div><h3>Imagem e mensagem criadas como um único pacote</h3><p>O sistema pesquisa o negócio, escolhe uma direção visual adequada ao segmento e gera os formatos para desktop, celular e WhatsApp.</p></div>
+            <div class="delivery-empty-state__facts"><span><strong>01</strong>Pesquisa do lead</span><span><strong>02</strong>Site demonstrativo</span><span><strong>03</strong>Mensagem comercial</span></div>
+            <div class="delivery-empty-state__actions"><button type="button" data-prepare-visual onclick="prepareVisualApproach(this)"><i class="fa-solid fa-wand-magic-sparkles"></i>Gerar abordagem completa</button><a href="{{ url_for('preview_studio', place_id=lead.place_id) }}"><i class="fa-solid fa-sliders"></i>Configurar manualmente</a></div>
+            <p id="visual-proposal-feedback" class="delivery-empty-state__feedback" role="status" aria-live="polite" hidden></p>
+        </div>
+        {% endif %}
+    </section>
 
     <!-- ESTÚDIO DE ABORDAGEM PRIORITÁRIO (Primeira Dobra) -->
     <div class="commercial-workbench grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
@@ -302,7 +384,114 @@ const placeId = {{ lead.place_id | tojson }};
 const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
 const emailAddress = {{ (lead.email or '') | tojson }};
 const recommendedMode = {{ lead.recommended_pitch_mode | tojson }};
+const latestPreviewId = {{ latest_preview.id if latest_preview else 'null' }};
+const latestPreviewShareUrl = {{ (url_for('preview_image', preview_id=latest_preview.id, variant='share') if latest_preview else '') | tojson }};
 let activeMode = pitchCopies[recommendedMode] ? recommendedMode : (pitchCopies.direta ? 'direta' : Object.keys(pitchCopies)[0] || 'direta');
+
+function updateVisualProposalCharacterCount() {
+    const editor = document.getElementById('visual-proposal-message');
+    const counter = document.getElementById('visual-proposal-character-count');
+    if (!editor || !counter) return;
+    const total = editor.value.trim().length;
+    counter.textContent = `${total} ${total === 1 ? 'caractere' : 'caracteres'}`;
+}
+
+document.getElementById('visual-proposal-message')?.addEventListener('input', updateVisualProposalCharacterCount);
+updateVisualProposalCharacterCount();
+
+async function prepareVisualApproach(button) {
+    const buttons = document.querySelectorAll('[data-prepare-visual]');
+    const feedback = document.getElementById('visual-proposal-feedback');
+    buttons.forEach(item => { item.disabled = true; item.dataset.original = item.innerHTML; item.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Pesquisando, renderizando e validando...'; });
+    if (feedback) {
+        feedback.hidden = false;
+        feedback.classList.remove('is-error');
+        feedback.textContent = 'Analisando o lead, montando o site e validando as imagens. Isso pode levar alguns segundos.';
+    }
+    try {
+        const response = await fetch(`/api/leads/${encodeURIComponent(placeId)}/previews`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({})
+        });
+        const data = await response.json();
+        if (!data.success) {
+            const reasons = Array.isArray(data.eligibility?.reasons) ? data.eligibility.reasons.join(' ') : '';
+            throw new Error([data.error || 'Não foi possível preparar a abordagem visual.', reasons].filter(Boolean).join(' '));
+        }
+        if (feedback) feedback.textContent = `Prévia validada com qualidade ${data.validation.score}/100. Abrindo a revisão...`;
+        showAppToast(`Abordagem visual preparada com qualidade ${data.validation.score}/100.`);
+        setTimeout(() => location.reload(), 700);
+    } catch (error) {
+        const message = `${error.message} Use “Configurar manualmente” para revisar os dados e continuar.`;
+        if (feedback) {
+            feedback.hidden = false;
+            feedback.classList.add('is-error');
+            feedback.textContent = message;
+        }
+        showAppToast(message, 'error');
+        buttons.forEach(item => { item.disabled = false; item.innerHTML = item.dataset.original; });
+    }
+}
+
+async function saveVisualProposalMessage(showFeedback = true) {
+    if (!latestPreviewId) return false;
+    const message = document.getElementById('visual-proposal-message').value.trim();
+    const response = await fetch(`/api/previews/${latestPreviewId}/message`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message})
+    });
+    const data = await response.json();
+    if (!data.success) {
+        showAppToast(data.error || 'Não foi possível salvar a mensagem.', 'error');
+        return false;
+    }
+    if (showFeedback) showAppToast('Mensagem da abordagem visual salva.');
+    return true;
+}
+
+async function copyVisualProposalMessage() {
+    const message = document.getElementById('visual-proposal-message').value.trim();
+    await navigator.clipboard.writeText(message);
+    showAppToast('Mensagem copiada. Baixe também a imagem para enviar o conjunto.');
+}
+
+async function approveAndPrepareVisualProposal() {
+    if (!latestPreviewId || !(await saveVisualProposalMessage(false))) return;
+    const response = await fetch(`/api/previews/${latestPreviewId}/approval`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({decision: 'approved', publish: false})
+    });
+    const data = await response.json();
+    if (!data.success) return showAppToast(data.error || 'Não foi possível aprovar a abordagem.', 'error');
+    showAppToast('Imagem e mensagem aprovadas. Nenhum envio foi realizado.');
+    setTimeout(() => location.reload(), 650);
+}
+
+async function prepareVisualProposalChannel() {
+    if (!latestPreviewId || !(await saveVisualProposalMessage(false))) return;
+    const message = document.getElementById('visual-proposal-message').value.trim();
+    const channel = document.getElementById('visual-proposal-channel').value;
+    await navigator.clipboard.writeText(message);
+    const download = document.createElement('a');
+    download.href = latestPreviewShareUrl; download.download = `proposta-visual-${latestPreviewId}-whatsapp.png`;
+    document.body.appendChild(download); download.click(); download.remove();
+    if (channel === 'WhatsApp' && whatsappBase) window.open(`${whatsappBase}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    if (channel === 'E-mail' && emailAddress) window.location.href = `mailto:${emailAddress}?subject=${encodeURIComponent('Proposta visual de site')}&body=${encodeURIComponent(message)}`;
+    showAppToast('Mensagem copiada e imagem baixada. Confirme o envio somente depois de realizá-lo no canal.');
+}
+
+async function confirmVisualProposalSent() {
+    if (!latestPreviewId) return;
+    const channel = document.getElementById('visual-proposal-channel').value;
+    const confirmed = await showAppConfirm({
+        title: 'Confirmar envio realizado?',
+        message: `Confirme somente se a mensagem e a imagem já foram enviadas por ${channel}.`,
+        confirmLabel: 'Sim, foi enviado'
+    });
+    if (!confirmed) return;
+    const response = await fetch(`/api/previews/${latestPreviewId}/sent`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({channel})
+    });
+    const data = await response.json();
+    showAppToast(data.success ? 'Envio confirmado e registrado no CRM.' : data.error, data.success ? 'success' : 'error');
+}
 
 function selectPitch(mode) {
     if (!pitchCopies[mode]) return;
