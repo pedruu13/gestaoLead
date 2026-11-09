@@ -150,10 +150,33 @@
         });
     }
 
+    async function copyText(value) {
+        try {
+            if (window.isSecureContext && navigator.clipboard) {
+                await navigator.clipboard.writeText(value);
+                return true;
+            }
+        } catch (error) {}
+        const previousFocus = document.activeElement;
+        const field = document.createElement('textarea');
+        field.value = value;
+        field.setAttribute('readonly', '');
+        field.style.cssText = 'position:fixed;left:-9999px;top:0';
+        document.body.appendChild(field);
+        field.select();
+        let copied = false;
+        try { copied = document.execCommand('copy'); } catch (error) {}
+        field.remove();
+        previousFocus?.focus({preventScroll: true});
+        if (!copied) showToast('Não foi possível copiar. Selecione o texto e copie manualmente.', 'warning');
+        return copied;
+    }
+    window.copyAppText = copyText;
+
     async function copyValue(button) {
         const value = button.dataset.copyValue || '';
         if (!value) return;
-        await navigator.clipboard.writeText(value);
+        if (!(await copyText(value))) return;
         button.classList.add('is-copied');
         button.setAttribute('aria-label', 'Copiado');
         showToast('Copiado para a área de transferência.');

@@ -29,7 +29,14 @@
         </div>
     </div>
 
-    <section id="visual-approach" class="delivery-composer {{ 'is-ready' if latest_preview else 'is-empty' }}">
+    <div class="approach-selector" role="group" aria-label="Escolha a abordagem">
+        <button type="button" data-approach="text" aria-pressed="true" onclick="selectApproach('text')"><strong>Só mensagem</strong><span>Edite e abra o contato. Não precisa gerar imagem.</span></button>
+        <button type="button" data-approach="image" aria-pressed="false" onclick="selectApproach('image')"><strong>Mensagem + imagem</strong><span>Prepare a prévia, revise e baixe para anexar.</span></button>
+    </div>
+    <style>
+    .approach-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.approach-selector button{text-align:left;padding:18px;border:1px solid #2A2F38;border-radius:12px;background:#181B20;color:#F1F5F9;min-height:84px}.approach-selector button[aria-pressed="true"]{border-color:#60A5FA;background:#1c2736}.approach-selector strong,.approach-selector span{display:block}.approach-selector span{font-size:13px;color:#94A3B8;margin-top:6px}.approach-selector button:focus-visible{outline:2px solid #60A5FA;outline-offset:3px}#visual-approach[hidden],#message-approach[hidden]{display:none!important}@media(max-width:600px){.approach-selector{grid-template-columns:1fr}}
+    </style>
+    <section id="visual-approach" hidden class="delivery-composer {{ 'is-ready' if latest_preview else 'is-empty' }}">
         <header class="delivery-composer__header">
             <div>
                 <span class="delivery-composer__eyebrow">Entrega comercial</span>
@@ -113,6 +120,9 @@
                 </a>
             </div>
 
+            {% if latest_preview.approval_status != 'approved' %}
+            <button type="button" class="delivery-action-dock__primary" onclick="approveAndPrepareVisualProposal()">Aprovar imagem e mensagem</button>
+            {% endif %}
             <div class="delivery-action-dock__controls flex items-center gap-2">
                 <label class="delivery-channel">Canal<select id="visual-proposal-channel" aria-label="Canal para preparar a abordagem"><option value="WhatsApp">WhatsApp</option><option value="E-mail">E-mail</option><option value="Outro">Outro canal</option></select></label>
                 <button type="button" class="delivery-action-dock__confirm" onclick="confirmVisualProposalSent()" aria-label="Confirmar envio realizado"><i class="fa-solid fa-check-double text-emerald-400"></i>Confirmar envio</button>
@@ -131,7 +141,7 @@
 
     <!-- ESTÚDIO DE ABORDAGEM PRIORITÁRIO (Primeira Dobra) -->
     <div class="commercial-workbench grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-        <section class="executive-panel message-studio rounded-2xl border border-[#2A2F38] bg-[#181B20] overflow-hidden">
+        <section id="message-approach" class="executive-panel message-studio rounded-2xl border border-[#2A2F38] bg-[#181B20] overflow-hidden">
             <div class="message-studio-header p-5 border-b border-[#2A2F38] bg-[#13161B] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <div class="flex items-center gap-2">
@@ -425,6 +435,7 @@ const whatsappBase = {{ (lead.whatsapp_link or '').split('?')[0] | tojson }};
 const emailAddress = {{ (lead.email or '') | tojson }};
 const recommendedMode = {{ lead.recommended_pitch_mode | tojson }};
 const latestPreviewId = {{ latest_preview.id if latest_preview else 'null' }};
+const latestPreviewApproved = {{ (latest_preview and latest_preview.approval_status == 'approved') | tojson }};
 const latestPreviewShareUrl = {{ (url_for('preview_image', preview_id=latest_preview.id, variant='share') if latest_preview else '') | tojson }};
 let activeMode = pitchCopies[recommendedMode] ? recommendedMode : (pitchCopies.direta ? 'direta' : Object.keys(pitchCopies)[0] || 'direta');
 
@@ -440,6 +451,7 @@ document.getElementById('visual-proposal-message')?.addEventListener('input', up
 updateVisualProposalCharacterCount();
 
 async function prepareVisualApproach(button) {
+    selectApproach('image');
     const buttons = document.querySelectorAll('[data-prepare-visual]');
     const feedback = document.getElementById('visual-proposal-feedback');
     buttons.forEach(item => { item.disabled = true; item.dataset.original = item.innerHTML; item.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Pesquisando, renderizando e validando...'; });
@@ -489,7 +501,7 @@ async function saveVisualProposalMessage(showFeedback = true) {
 
 async function copyVisualProposalMessage() {
     const message = document.getElementById('visual-proposal-message').value.trim();
-    await navigator.clipboard.writeText(message);
+    if (!(await copyAppText(message))) return;
     showAppToast('Mensagem copiada com sucesso!');
 }
 
@@ -522,15 +534,25 @@ function downloadVisualProposalImage() {
 }
 
 function prepareVisualProposalContact(event, link, includeImage) {
+    if (includeImage && !latestPreviewApproved) {
+        event.preventDefault();
+        showAppToast('Revise e aprove a imagem antes de preparar o envio.', 'warning');
+        return false;
+    }
     const messageInput = document.getElementById('visual-proposal-message');
-    const message = messageInput ? messageInput.value.trim() : '';
+    const message = includeImage ? (messageInput ? messageInput.value.trim() : '') : document.getElementById('pitch-editor').value.trim();
+    if (!message) {
+        event.preventDefault();
+        showAppToast('Escreva a mensagem antes de abrir o contato.', 'warning');
+        return false;
+    }
     const channelSelect = document.getElementById('visual-proposal-channel');
     const channel = channelSelect ? channelSelect.value : 'WhatsApp';
     const contactUrl = visualContactUrl(channel, message);
 
     if (message) {
         saveVisualProposalMessage(false).catch(() => {});
-        navigator.clipboard.writeText(message).catch(() => {});
+        copyAppText(message);
     }
 
     if (includeImage) {
@@ -563,24 +585,24 @@ function prepareVisualProposalContact(event, link, includeImage) {
 }
 
 function sendStudioWhatsApp(withImage) {
+    if (withImage) {
+        selectApproach('image');
+        document.getElementById('visual-approach').scrollIntoView({block: 'start'});
+        return false;
+    }
+    if (!whatsappBase) {
+        showAppToast('Este lead não possui um WhatsApp disponível.', 'warning');
+        return false;
+    }
     const editor = document.getElementById('pitch-editor');
     const text = editor ? editor.value.trim() : (pitchCopies[activeMode] || '');
     if (!text) {
         showAppToast('Por favor, selecione ou escreva uma mensagem antes de disparar.', 'warning');
         return false;
     }
-    navigator.clipboard.writeText(text).catch(() => {});
-    if (withImage) {
-        if (latestPreviewShareUrl) {
-            downloadVisualProposalImage();
-            showAppToast('Opção 2 (Com Imagem): Imagem baixada e texto copiado! No WhatsApp, cole o texto e anexe a imagem.', 'success');
-        } else {
-            showAppToast('Este lead ainda não possui imagem de prévia gerada. O WhatsApp será aberto apenas com a mensagem.', 'warning');
-        }
-    } else {
-        showAppToast('Opção 1 (Apenas Mensagem): Texto copiado e WhatsApp aberto! Envie diretamente no chat.', 'success');
-    }
-    const targetLink = withImage ? document.getElementById('whatsapp-action-image') : document.getElementById('whatsapp-action-text');
+    copyAppText(text);
+    showAppToast('WhatsApp preparado com o texto. Revise antes de enviar.');
+    const targetLink = document.getElementById('whatsapp-action-text');
     if (targetLink && whatsappBase) {
         targetLink.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
     }
@@ -618,6 +640,14 @@ function selectPitch(mode) {
         button.classList.toggle('bg-[#20242B]', isActive);
     });
     updateContactLinks();
+}
+
+function selectApproach(mode) {
+    const withImage = mode === 'image';
+    document.getElementById('visual-approach').hidden = !withImage;
+    document.getElementById('message-approach').hidden = withImage;
+    document.querySelectorAll('[data-approach]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.approach === mode)));
+    if (!withImage && activeMode === 'previa_visual') selectPitch(pitchCopies.recepcao ? 'recepcao' : 'direta');
 }
 
 function updateWordCounter(text) {
@@ -668,14 +698,14 @@ async function savePitch() {
 
 async function copyPitch() {
     const text = document.getElementById('pitch-editor').value;
-    await navigator.clipboard.writeText(text);
+    if (!(await copyAppText(text))) return;
     showAppToast('Texto copiado para a área de transferência.');
 }
 
 async function copyPitchMode(mode, button) {
     const text = pitchCopies[mode];
     if (!text) return showAppToast('Esta mensagem ainda não está disponível.', 'error');
-    await navigator.clipboard.writeText(text);
+    if (!(await copyAppText(text))) return;
     const original = button.innerHTML;
     button.innerHTML = '<i class="fa-solid fa-check text-[#22C55E]"></i>';
     showAppToast(`Abordagem ${mode} copiada com sucesso.`);
@@ -735,5 +765,6 @@ async function toggleDoNotContact() {
 }
 
 if (activeMode) selectPitch(activeMode);
+document.querySelectorAll('a[href="#visual-approach"]').forEach(link => link.addEventListener('click', () => selectApproach('image')));
 </script>
 {% endblock %}

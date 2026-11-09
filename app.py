@@ -1581,6 +1581,8 @@ def get_lead_by_id(place_id):
             lead[field_name] = json.loads(lead.get(field_name) or "{}")
         except (TypeError, json.JSONDecodeError):
             lead[field_name] = {}
+        if not isinstance(lead[field_name], dict):
+            lead[field_name] = {}
     try:
         lead["evidence"] = json.loads(lead.get("evidence_json") or "[]")
     except (TypeError, json.JSONDecodeError):
@@ -1653,9 +1655,13 @@ def get_preview_versions(place_id):
             ("research_json", "research", {}), ("art_direction_json", "art_direction", {}),
         ):
             try:
-                preview[target_key] = json.loads(preview.pop(source_key) or json.dumps(fallback))
+                preview[target_key] = json.loads(preview.pop(source_key, None) or json.dumps(fallback))
             except (TypeError, json.JSONDecodeError):
                 preview[target_key] = fallback
+            if not isinstance(preview[target_key], dict):
+                preview[target_key] = {}
+        if not isinstance(preview["config"].get("art_direction"), dict):
+            preview["config"]["art_direction"] = preview["art_direction"]
         previews.append(preview)
     return previews
 
@@ -1794,8 +1800,12 @@ def lead_detail(place_id):
     previews = get_preview_versions(place_id)
     if previews:
         lead["copies_pitch"]["previa_visual"] = previews[0].get("message_text") or previews[0]["config"].get("message_with_image", "")
-        lead["contact_strategy"] = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=True)
-        lead["recommended_pitch_mode"] = "previa_visual"
+    lead["contact_strategy"] = recommend_contact_strategy(lead_to_raw_data(lead), preview_available=False)
+    lead["recommended_pitch_mode"] = lead["contact_strategy"]["recommended_mode"]
+    fallback_pitches = generate_fallback_pitches(analyze_lead(lead_to_raw_data(lead)))
+    for mode, message in fallback_pitches.items():
+        if not isinstance(lead["copies_pitch"].get(mode), str) or not lead["copies_pitch"][mode].strip():
+            lead["copies_pitch"][mode] = message
     intelligence = lead.get("inteligencia_comercial") or analyze_lead(lead_to_raw_data(lead), preview_available=bool(previews))
     interactions = get_lead_interactions(place_id)
     return render_template("lead_detail.html", lead=lead, intelligence=intelligence, previews=previews, interactions=interactions)
