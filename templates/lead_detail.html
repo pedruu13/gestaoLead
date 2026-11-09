@@ -56,7 +56,7 @@
                     <span><i class="fa-solid fa-arrow-up-right-from-square"></i>Abrir demonstração</span>
                 </a>
                 <footer class="delivery-preview-card__footer">
-                    <div><strong>{{ lead.nome }}</strong><small>{{ latest_preview.config.art_direction.mood }} · Qualidade {{ latest_preview.validation.score or 0 }}/100</small></div>
+                    <div><strong>{{ lead.nome }}</strong><small>{{ ((latest_preview.config.get('art_direction') if latest_preview.config is mapping else {}) or latest_preview.get('art_direction') or {}).get('mood', 'Conceito visual') }} · Qualidade {{ (latest_preview.validation.get('score', 0) if latest_preview.validation is mapping else (latest_preview.validation.score if latest_preview.validation else 0)) }}/100</small></div>
                     <div class="delivery-preview-card__tools">
                         <a href="{{ url_for('preview_image', preview_id=latest_preview.id, variant='share') }}"><i class="fa-solid fa-download"></i>Baixar PNG</a>
                         <a href="{{ url_for('preview_studio', place_id=lead.place_id) }}"><i class="fa-solid fa-pen-ruler"></i>Editar site</a>
@@ -85,17 +85,38 @@
         </div>
 
         <footer class="delivery-action-dock">
-            <div class="delivery-action-dock__summary"><i class="fa-solid fa-shield-halved"></i><span><strong>Nenhum envio automático</strong><small>O CRM só registra depois da sua confirmação.</small></span></div>
-            {% if latest_preview.approval_status != 'approved' %}
-            <button type="button" class="delivery-action-dock__primary" onclick="approveAndPrepareVisualProposal()"><i class="fa-solid fa-shield-check"></i><span>Aprovar conjunto<small>Liberar preparação para envio</small></span></button>
-            {% else %}
-            <label class="delivery-channel">Canal<select id="visual-proposal-channel" aria-label="Canal para preparar a abordagem"><option value="WhatsApp">WhatsApp</option><option value="E-mail">E-mail</option><option value="Outro">Outro canal</option></select></label>
-            <div class="delivery-mode-grid" aria-label="Escolha como abordar o cliente">
-                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--message" onclick="return prepareVisualProposalContact(event, this, false)" aria-label="Abordar apenas com mensagem"><i class="fa-regular fa-message"></i><span>Abordar com mensagem<small>Abre o canal com o texto preparado</small></span></a>
-                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--image" onclick="return prepareVisualProposalContact(event, this, true)" aria-label="Abordar com mensagem e imagem"><i class="fa-regular fa-image"></i><span>Abordar com imagem<small>Baixa a prévia e abre o canal</small></span></a>
+            <div class="delivery-action-dock__summary">
+                <i class="fa-solid fa-paper-plane text-[#60A5FA]"></i>
+                <div>
+                    <strong class="text-xs text-white">Escolha como abordar o lead:</strong>
+                    <small class="text-[11px] text-slate-400">Duas opções disponíveis: envie somente o texto ou envie o texto acompanhado da imagem da prévia.</small>
+                </div>
             </div>
-            <button type="button" class="delivery-action-dock__confirm" onclick="confirmVisualProposalSent()" aria-label="Confirmar envio realizado"><i class="fa-solid fa-check-double"></i>Confirmar que enviei</button>
-            {% endif %}
+
+            <div class="delivery-mode-grid" aria-label="Escolha como abordar o cliente">
+                <!-- OPÇÃO 1: APENAS MENSAGEM -->
+                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--message" onclick="return prepareVisualProposalContact(event, this, false)" aria-label="Opção 1: Abordar apenas com mensagem">
+                    <i class="fa-regular fa-comment-dots text-emerald-400"></i>
+                    <div>
+                        <span><strong>Opção 1:</strong> Apenas Mensagem</span>
+                        <small>Abre o WhatsApp/canal com o texto (sem baixar imagem)</small>
+                    </div>
+                </a>
+
+                <!-- OPÇÃO 2: MENSAGEM + IMAGEM -->
+                <a href="#" target="_blank" rel="noopener" class="delivery-mode delivery-mode--image" onclick="return prepareVisualProposalContact(event, this, true)" aria-label="Opção 2: Abordar com mensagem e imagem">
+                    <i class="fa-regular fa-image text-blue-400"></i>
+                    <div>
+                        <span><strong>Opção 2:</strong> Mensagem + Imagem</span>
+                        <small>Baixa a imagem PNG e abre o WhatsApp com o texto</small>
+                    </div>
+                </a>
+            </div>
+
+            <div class="delivery-action-dock__controls flex items-center gap-2">
+                <label class="delivery-channel">Canal<select id="visual-proposal-channel" aria-label="Canal para preparar a abordagem"><option value="WhatsApp">WhatsApp</option><option value="E-mail">E-mail</option><option value="Outro">Outro canal</option></select></label>
+                <button type="button" class="delivery-action-dock__confirm" onclick="confirmVisualProposalSent()" aria-label="Confirmar envio realizado"><i class="fa-solid fa-check-double text-emerald-400"></i>Confirmar envio</button>
+            </div>
         </footer>
         {% else %}
         <div class="delivery-empty-state">
@@ -189,14 +210,30 @@
                     {% endfor %}
                 </div>
                 <textarea id="pitch-editor" class="mt-3 min-h-[160px] w-full rounded-xl border border-[#2A2F38] bg-[#181B20] p-4 text-xs leading-relaxed text-slate-200 outline-none focus:border-[#60A5FA] transition-colors"></textarea>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <button onclick="savePitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk text-[#60A5FA]"></i> Salvar edição</button>
-                    <button onclick="copyPitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-copy text-[#60A5FA]"></i> Copiar texto</button>
+                <div class="mt-4 pt-3 border-t border-[#2A2F38] flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="savePitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk text-[#60A5FA]"></i> Salvar edição</button>
+                        <button type="button" onclick="copyPitch()" class="rounded-xl border border-[#2A2F38] bg-[#20242B] hover:bg-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-copy text-[#60A5FA]"></i> Copiar texto</button>
+                    </div>
+
                     {% if lead.whatsapp_link and not lead.do_not_contact %}
-                    <a id="whatsapp-action" href="#" target="_blank" rel="noopener" class="rounded-xl bg-[#22C55E] hover:bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors inline-flex items-center gap-1.5 ml-auto shadow-sm"><i class="fa-brands fa-whatsapp"></i> Disparar WhatsApp</a>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- OPÇÃO 1: APENAS MENSAGEM -->
+                        <a id="whatsapp-action-text" href="#" target="_blank" rel="noopener" onclick="return sendStudioWhatsApp(false)" class="rounded-xl bg-[#22C55E] hover:bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-all inline-flex items-center gap-2 shadow-sm" title="Abre o WhatsApp com o texto da mensagem selecionada (sem imagem)">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                            <span>Opção 1: WhatsApp (Apenas Mensagem)</span>
+                        </a>
+
+                        <!-- OPÇÃO 2: MENSAGEM + IMAGEM -->
+                        <a id="whatsapp-action-image" href="#" target="_blank" rel="noopener" onclick="return sendStudioWhatsApp(true)" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-all inline-flex items-center gap-2 shadow-sm" title="Baixa a imagem da demonstração e abre o WhatsApp com o texto pronto">
+                            <i class="fa-solid fa-image text-sm"></i>
+                            <span>Opção 2: WhatsApp (Mensagem + Imagem)</span>
+                        </a>
+                    </div>
                     {% endif %}
+
                     {% if lead.email and not lead.do_not_contact %}
-                    <a id="email-action" href="#" class="rounded-xl bg-[#3B82F6] hover:bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-envelope"></i> Enviar E-mail</a>
+                    <a id="email-action" href="#" class="rounded-xl bg-[#20242B] hover:bg-[#2A2F38] border border-[#2A2F38] px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors inline-flex items-center gap-1.5"><i class="fa-solid fa-envelope text-[#60A5FA]"></i> Enviar E-mail</a>
                     {% endif %}
                 </div>
                 {% if lead.do_not_contact %}
@@ -453,7 +490,7 @@ async function saveVisualProposalMessage(showFeedback = true) {
 async function copyVisualProposalMessage() {
     const message = document.getElementById('visual-proposal-message').value.trim();
     await navigator.clipboard.writeText(message);
-    showAppToast('Mensagem copiada. Baixe também a imagem para enviar o conjunto.');
+    showAppToast('Mensagem copiada com sucesso!');
 }
 
 async function approveAndPrepareVisualProposal() {
@@ -485,33 +522,68 @@ function downloadVisualProposalImage() {
 }
 
 function prepareVisualProposalContact(event, link, includeImage) {
-    if (!latestPreviewId) {
-        event.preventDefault();
-        showAppToast('Gere e aprove a prévia antes de preparar esta abordagem.', 'error');
-        return false;
-    }
-    const message = document.getElementById('visual-proposal-message').value.trim();
-    const channel = document.getElementById('visual-proposal-channel').value;
+    const messageInput = document.getElementById('visual-proposal-message');
+    const message = messageInput ? messageInput.value.trim() : '';
+    const channelSelect = document.getElementById('visual-proposal-channel');
+    const channel = channelSelect ? channelSelect.value : 'WhatsApp';
     const contactUrl = visualContactUrl(channel, message);
-    saveVisualProposalMessage(false).catch(() => {});
-    navigator.clipboard.writeText(message).catch(() => {});
-    if (includeImage) downloadVisualProposalImage();
+
+    if (message) {
+        saveVisualProposalMessage(false).catch(() => {});
+        navigator.clipboard.writeText(message).catch(() => {});
+    }
+
+    if (includeImage) {
+        if (latestPreviewShareUrl) {
+            downloadVisualProposalImage();
+        } else {
+            showAppToast('Imagem da prévia ainda não disponível para download.', 'warning');
+        }
+    }
+
     if (!contactUrl) {
         event.preventDefault();
         showAppToast(
             includeImage
-                ? 'Mensagem copiada e imagem baixada. Este lead não possui um WhatsApp ou e-mail válido para abrir automaticamente.'
-                : 'Mensagem copiada. Este lead não possui um WhatsApp ou e-mail válido para abrir automaticamente.',
+                ? 'Opção 2 selecionada: Imagem baixada e texto copiado. Configure o canal para abrir automaticamente.'
+                : 'Opção 1 selecionada: Texto copiado. Configure o canal para abrir automaticamente.',
             'warning'
         );
         return false;
     }
+
     link.href = contactUrl;
     showAppToast(
         includeImage
-            ? 'Imagem baixada e mensagem copiada. No canal, anexe a imagem antes de enviar.'
-            : 'Mensagem copiada e canal aberto. Revise antes de enviar.'
+            ? 'Opção 2 (Com Imagem): Imagem baixada e texto copiado! No WhatsApp, cole o texto e anexe a imagem baixada.'
+            : 'Opção 1 (Apenas Mensagem): Texto copiado e WhatsApp aberto! Envie diretamente no chat.',
+        'success'
     );
+    return true;
+}
+
+function sendStudioWhatsApp(withImage) {
+    const editor = document.getElementById('pitch-editor');
+    const text = editor ? editor.value.trim() : (pitchCopies[activeMode] || '');
+    if (!text) {
+        showAppToast('Por favor, selecione ou escreva uma mensagem antes de disparar.', 'warning');
+        return false;
+    }
+    navigator.clipboard.writeText(text).catch(() => {});
+    if (withImage) {
+        if (latestPreviewShareUrl) {
+            downloadVisualProposalImage();
+            showAppToast('Opção 2 (Com Imagem): Imagem baixada e texto copiado! No WhatsApp, cole o texto e anexe a imagem.', 'success');
+        } else {
+            showAppToast('Este lead ainda não possui imagem de prévia gerada. O WhatsApp será aberto apenas com a mensagem.', 'warning');
+        }
+    } else {
+        showAppToast('Opção 1 (Apenas Mensagem): Texto copiado e WhatsApp aberto! Envie diretamente no chat.', 'success');
+    }
+    const targetLink = withImage ? document.getElementById('whatsapp-action-image') : document.getElementById('whatsapp-action-text');
+    if (targetLink && whatsappBase) {
+        targetLink.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
+    }
     return true;
 }
 
@@ -563,6 +635,10 @@ function updateContactLinks() {
     updateWordCounter(text);
     const link = document.getElementById('whatsapp-action');
     if (link && whatsappBase) link.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
+    const linkText = document.getElementById('whatsapp-action-text');
+    if (linkText && whatsappBase) linkText.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
+    const linkImg = document.getElementById('whatsapp-action-image');
+    if (linkImg && whatsappBase) linkImg.href = `${whatsappBase}?text=${encodeURIComponent(text)}`;
     const emailLink = document.getElementById('email-action');
     if (emailLink && emailAddress) {
         const lines = text.split('\n');

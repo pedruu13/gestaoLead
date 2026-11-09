@@ -24,7 +24,7 @@
 
     <div class="proposal-workspace">
         <aside class="proposal-editor">
-            <div class="proposal-section-title"><div><span>01</span><h2>Direção de arte</h2></div><small>{{ initial_config.art_direction.mood }}</small></div>
+            <div class="proposal-section-title"><div><span>01</span><h2>Direção de arte</h2></div><small>{{ ((initial_config.get('art_direction') if initial_config is mapping else {}) or {}).get('mood', 'Direção de arte') }}</small></div>
             <div class="proposal-fields">
                 <label>Composição
                     <select id="template">
@@ -117,9 +117,9 @@
                 </section>
 
                 <section class="proposal-review-card">
-                    <div class="proposal-card-heading"><div><span>Pesquisa</span><h2>Fontes e confiança</h2></div><strong>{{ initial_config.research.confidence }}</strong></div>
+                    <div class="proposal-card-heading"><div><span>Pesquisa</span><h2>Fontes e confiança</h2></div><strong>{{ ((initial_config.get('research') if initial_config is mapping else {}) or {}).get('confidence', 'Média') }}</strong></div>
                     <div class="proposal-source-list">
-                        {% for source in initial_config.research.sources[:5] %}
+                        {% for source in ((initial_config.get('research') if initial_config is mapping else {}) or {}).get('sources', [])[:5] %}
                         <div><span>{{ source.label }}</span><strong>{{ source.value }}</strong><small>{{ source.source }} · {{ source.confidence }}</small></div>
                         {% else %}<p class="proposal-muted">Poucos dados públicos disponíveis. Revise o conteúdo manualmente.</p>{% endfor %}
                     </div>
@@ -143,7 +143,7 @@
         <div class="proposal-section-title"><div><span>03</span><h2>Histórico de versões</h2></div><small>{{ previews|length }} versão(ões)</small></div>
         <div class="proposal-history-list">
             {% for preview in previews %}
-            <button onclick="openVersion({{ preview.id }}, {{ preview.config | tojson | forceescape }})"><span>v{{ preview.version }}</span><strong>{{ preview.config.art_direction.mood or preview.config.template }}</strong><small>{{ preview.created_at }} · {{ preview.approval_status | replace('_', ' ') }}</small></button>
+            <button onclick="openVersion({{ preview.id }}, {{ preview.config | tojson | forceescape }})"><span>v{{ preview.version }}</span><strong>{{ ((preview.config.get('art_direction') if preview.config is mapping else {}) or preview.get('art_direction') or {}).get('mood', (preview.config.get('template') if preview.config is mapping else 'Versão')) }}</strong><small>{{ preview.created_at }} · {{ preview.approval_status | replace('_', ' ') }}</small></button>
             {% endfor %}
         </div>
     </section>
