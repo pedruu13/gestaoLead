@@ -322,6 +322,9 @@ def build_preview_config(lead, overrides=None, evidence=None):
         services = list(profile["services"])
         services_origin = "sugerido"
     authorization = clean_text(overrides.get("asset_authorization"), 30).casefold()
+    category_label = research["category"].lower() if research.get("category") else "serviços"
+    location_suffix = f" em {research['location']}" if research.get("location") else ""
+    default_subheadline = f"Conceito de site para organizar a apresentação de {category_label}, destacar informações úteis e criar um caminho direto para contato{location_suffix}."
     config = {
         "name": clean_text(overrides.get("name") or research["name"], 90),
         "segment": research["segment"],
@@ -330,7 +333,7 @@ def build_preview_config(lead, overrides=None, evidence=None):
         "template": direction["template"],
         "variant": direction["variant"],
         "headline": clean_text(overrides.get("headline") or profile["headline"], 150),
-        "subheadline": clean_text(overrides.get("subheadline") or f"Conceito de site para organizar a apresentação de {research['category'].lower() if research['category'] else 'serviços'}, destacar informações úteis e criar um caminho direto para contato{f' em {research['location']}' if research['location'] else ''}.", 280),
+        "subheadline": clean_text(overrides.get("subheadline") or default_subheadline, 280),
         "cta": clean_text(overrides.get("cta") or profile["cta"], 45),
         "services": services[:6] or list(profile["services"]),
         "service_details": list(profile["details"]),
