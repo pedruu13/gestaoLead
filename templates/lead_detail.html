@@ -340,7 +340,7 @@
     </section>
 
     <!-- Composição Transparente do Score -->
-    {% if lead.score_breakdown and lead.score_breakdown.dimensions %}
+    {% if lead.score_breakdown is mapping and lead.score_breakdown.dimensions is mapping and lead.score_breakdown.dimensions %}
     <section class="executive-panel rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5 md:p-6">
         <div class="mb-4">
             <span class="text-[10px] font-black uppercase tracking-wider text-[#60A5FA]">Composição do Score</span>

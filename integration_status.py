@@ -36,8 +36,11 @@ def gemini_status(database, key):
     if not row:
         return result
     status, model, message, checked_at = row
-    stale = datetime.now(timezone.utc) - datetime.fromisoformat(checked_at) > timedelta(hours=24)
+    try:
+        stale = datetime.now(timezone.utc) - datetime.fromisoformat(checked_at) > timedelta(hours=24)
+    except (ValueError, TypeError):
+        stale = True
     labels = {"ok": "Funcionando no último teste", "error": "Falha no último teste"}
     result.update(status="stale" if stale else status, model=model, message=message,
-                  checked_at=checked_at, label="Teste antigo · verificar novamente" if stale else labels[status])
+                  checked_at=checked_at, label="Teste antigo · verificar novamente" if stale else labels.get(status, "Status desconhecido"))
     return result

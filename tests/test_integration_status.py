@@ -49,3 +49,16 @@ class IntegrationStatusTests(unittest.TestCase):
         self.assertEqual(502, response.status_code)
         self.assertEqual('ok', response.get_json()['status']['status'])
         self.assertNotIn('private-key-data', response.get_data(as_text=True))
+
+    def test_unknown_status_and_invalid_date_handled_safely(self):
+        record_check(self.database, 'key-unknown', 'unrecognized_code', 'Custom message', 'model-x')
+        state = gemini_status(self.database, 'key-unknown')
+        self.assertEqual('unrecognized_code', state['status'])
+        self.assertEqual('Status desconhecido', state['label'])
+
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.execute('UPDATE integration_checks SET checked_at=? WHERE provider="gemini"',
+                               ('invalid-date-string',))
+        stale_state = gemini_status(self.database, 'key-unknown')
+        self.assertEqual('stale', stale_state['status'])
+        self.assertEqual('Teste antigo · verificar novamente', stale_state['label'])

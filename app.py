@@ -674,9 +674,13 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
             lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
         except (TypeError, json.JSONDecodeError):
             lead["site_opportunity_reasons"] = site_assessment["reasons"]
+        if not isinstance(lead["site_opportunity_reasons"], list):
+            lead["site_opportunity_reasons"] = site_assessment["reasons"]
         try:
             stored_scoring = json.loads(lead.get("score_breakdown") or "{}")
         except (TypeError, json.JSONDecodeError):
+            stored_scoring = {}
+        if not isinstance(stored_scoring, dict):
             stored_scoring = {}
         scoring = calcular_score_lead(
             lead, configured_weights=configured_weights,
@@ -692,14 +696,12 @@ def load_leads(status_scope=None, limit=None, offset=0, filters=None):
         lead["data_quality_issues"] = data_quality["issues"]
         lead["data_confidence"] = data_quality["confidence"]
     for lead in leads:
-        try:
-            lead["copies_pitch"] = json.loads(lead.get("copies_pitch") or "{}")
-        except (TypeError, json.JSONDecodeError):
-            lead["copies_pitch"] = {}
-        for field_name in ("inteligencia_comercial", "qualidade_pitch"):
+        for field_name in ("copies_pitch", "inteligencia_comercial", "qualidade_pitch"):
             try:
                 lead[field_name] = json.loads(lead.get(field_name) or "{}")
             except (TypeError, json.JSONDecodeError):
+                lead[field_name] = {}
+            if not isinstance(lead[field_name], dict):
                 lead[field_name] = {}
         preview_available = bool(lead.get("latest_preview_id"))
         if preview_available and lead.get("latest_preview_message"):
@@ -1598,6 +1600,8 @@ def get_lead_by_id(place_id):
     try:
         lead["site_opportunity_reasons"] = json.loads(lead.get("site_opportunity_reasons") or "[]")
     except (TypeError, json.JSONDecodeError):
+        lead["site_opportunity_reasons"] = site_assessment["reasons"]
+    if not isinstance(lead["site_opportunity_reasons"], list):
         lead["site_opportunity_reasons"] = site_assessment["reasons"]
     scoring = calcular_score_lead(
         lead, configured_weights=load_config().get("lead_score_weights"),

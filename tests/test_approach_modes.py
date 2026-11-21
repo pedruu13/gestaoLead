@@ -52,6 +52,60 @@ class ApproachModesTests(unittest.TestCase):
                 self.assertEqual(200, response.status_code)
                 self.assertIn('Só mensagem', response.get_data(as_text=True))
 
+    def test_load_leads_defensive_json_handling(self):
+        test_cases = [
+            ('valid_dict', '{"direta":"olá"}', '{"contact_strategy":{"recommended_mode":"direta"}}', '{"approved":true}', '{"performance_adjustment":5}', '["revisão"]'),
+            ('null_values', None, None, None, None, None),
+            ('invalid_json', '{not a json', 'invalid{', 'bad}', 'corrupt', 'broken'),
+            ('lists_where_dicts_expected', '["a","b"]', '[1, 2]', '[true]', '[0]', '{"not":"a list"}'),
+            ('numbers_and_strings', '123', '"plain_string"', '45.6', '789', '"not_a_list"'),
+        ]
+        for name, copies, intel, qual, score_bd, site_reasons in test_cases:
+            with self.subTest(case=name):
+                with closing(sqlite3.connect(application.DB_NAME)) as connection, connection:
+                    connection.execute(
+                        'UPDATE leads SET copies_pitch=?, inteligencia_comercial=?, qualidade_pitch=?, score_breakdown=?, site_opportunity_reasons=?',
+                        (copies, intel, qual, score_bd, site_reasons)
+                    )
+                leads = application.load_leads()
+                self.assertEqual(1, len(leads))
+                lead = leads[0]
+                self.assertIsInstance(lead['copies_pitch'], dict)
+                self.assertIsInstance(lead['inteligencia_comercial'], dict)
+                self.assertIsInstance(lead['qualidade_pitch'], dict)
+                self.assertIsInstance(lead['score_breakdown'], dict)
+                self.assertIsInstance(lead['site_opportunity_reasons'], list)
+                crm_response = self.client.get('/crm')
+                self.assertEqual(200, crm_response.status_code)
+
+    def test_lead_detail_dimensions_variations(self):
+        lead = application.get_lead_by_id('test-approach')
+        variations = [
+            ('missing_score_breakdown', None, False),
+            ('empty_dict', {}, False),
+            ('dimensions_as_dict', {"dimensions": {"exp": {"label": "Experiência", "score": 20, "max": 25, "evidence": "10 anos"}}}, True),
+            ('dimensions_as_number', {"dimensions": 42}, False),
+            ('dimensions_as_text', {"dimensions": "invalido"}, False),
+            ('dimensions_as_list', {"dimensions": [1, 2, 3]}, False),
+            ('dimensions_null', {"dimensions": None}, False),
+            ('dimensions_empty_dict', {"dimensions": {}}, False),
+        ]
+        with application.app.test_request_context('/leads/test-approach'):
+            template = application.app.jinja_env.get_template('lead_detail.html')
+            for name, breakdown_val, should_render_section in variations:
+                with self.subTest(variation=name):
+                    test_lead = dict(lead)
+                    test_lead['score_breakdown'] = breakdown_val
+                    html = template.render(
+                        lead=test_lead, intelligence={}, previews=[], interactions=[],
+                        proposal_status_labels={},
+                    )
+                    if should_render_section:
+                        self.assertIn('Composição do Score', html)
+                        self.assertIn('Experiência', html)
+                    else:
+                        self.assertNotIn('Evidências e pesos que geraram a pontuação', html)
+
     def test_message_default_does_not_switch_to_preview(self):
         self.add_preview()
         response = self.client.get('/leads/test-approach')
