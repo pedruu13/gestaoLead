@@ -1,0 +1,199 @@
+{% extends "layout.html" %}
+{% set active_page = "prospeccao" %}
+{% block header_title %}Preparação Comercial{% endblock %}
+
+{% block content %}
+<div class="prospeccao-page pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+    <!-- Top Cockpit Header -->
+    <div class="mb-8 p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-xl">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <i class="fa-solid fa-certificate text-[10px]"></i> Categoria A Auditada
+                    </span>
+                    <span class="text-xs text-slate-400">• 15 Oportunidades Reais de Alto Potencial</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Fila de Preparação Comercial</h1>
+                <p class="text-sm text-slate-400 mt-1 max-w-3xl">
+                    Pipeline exclusivo de prospecção para empresas auditadas com necessidade real de site, sem presença digital estruturada e com decisor e contato identificados.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="p-3 rounded-xl bg-[#1E232D] border border-[#2D3542] flex items-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-blue-400 text-lg"></i>
+                    <div class="text-xs">
+                        <p class="font-bold text-white">Disparo 100% Manual</p>
+                        <p class="text-slate-400 text-[11px]">Nenhuma mensagem é enviada automaticamente</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros por Status (Tabs) -->
+        <div class="mt-6 pt-6 border-t border-[#262C36] flex flex-wrap gap-2">
+            <a href="/prospeccao" 
+               class="px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 {% if active_filter == 'Todos' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30{% else %}bg-[#1C212B] text-slate-400 hover:text-white hover:bg-[#252B38]{% endif %}">
+                <span>Todos</span>
+                <span class="px-1.5 py-0.5 rounded-md text-[10px] {% if active_filter == 'Todos' %}bg-blue-700 text-white{% else %}bg-[#2A3140] text-slate-300{% endif %}">{{ counts['Todos'] }}</span>
+            </a>
+            {% for st in statuses %}
+            {% set badge_color = 'bg-[#1C212B] text-slate-400 hover:text-white hover:bg-[#252B38]' %}
+            {% if active_filter == st %}
+                {% if st == 'Pendente' %}{% set badge_color = 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' %}
+                {% elif st == 'Preparado' %}{% set badge_color = 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' %}
+                {% elif st == 'Aprovado' %}{% set badge_color = 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' %}
+                {% elif st == 'Enviado' %}{% set badge_color = 'bg-sky-600 text-white shadow-lg shadow-sky-600/30' %}
+                {% elif st == 'Respondido' %}{% set badge_color = 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' %}
+                {% endif %}
+            {% endif %}
+            <a href="/prospeccao?status={{ st }}" 
+               class="px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 {{ badge_color }}">
+                <span>{{ st }}</span>
+                <span class="px-1.5 py-0.5 rounded-md text-[10px] bg-black/20">{{ counts[st] }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Lista de Leads -->
+    <div class="grid grid-cols-1 gap-4">
+        {% if leads|length == 0 %}
+        <div class="p-12 text-center rounded-2xl bg-[#161A22] border border-[#262C36]">
+            <i class="fa-solid fa-filter-circle-xmark text-4xl text-slate-600 mb-3"></i>
+            <p class="text-base font-bold text-white">Nenhum lead com o status "{{ active_filter }}"</p>
+            <p class="text-xs text-slate-400 mt-1">Alterne o filtro acima para ver os outros leads da fila.</p>
+        </div>
+        {% endif %}
+
+        {% for lead in leads %}
+        <div class="p-5 rounded-2xl bg-[#161A22] border border-[#262C36] hover:border-slate-600 transition-all shadow-md">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                
+                <!-- Identificação e Localização -->
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow-inner
+                        {% if lead.score >= 80 %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400
+                        {% elif lead.score >= 70 %}bg-blue-500/10 border border-blue-500/30 text-blue-400
+                        {% else %}bg-amber-500/10 border border-amber-500/30 text-amber-400{% endif %}">
+                        {{ lead.score }}
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-lg font-bold text-white tracking-tight">{{ lead.nome }}</h2>
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#212733] text-slate-300 border border-[#2D3545]">
+                                {{ lead.nicho }}
+                            </span>
+                            <span class="text-xs text-slate-400 flex items-center gap-1">
+                                <i class="fa-solid fa-location-dot text-slate-500 text-[10px]"></i> {{ lead.cidade }}
+                            </span>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                            {% if lead.responsavel %}
+                            <span class="text-slate-300 font-medium">
+                                <i class="fa-solid fa-user-tie text-blue-400 mr-1 text-[11px]"></i>{{ lead.responsavel }}
+                            </span>
+                            {% endif %}
+                            <span><i class="fa-solid fa-phone text-slate-500 mr-1 text-[10px]"></i>{{ lead.telefone }}</span>
+                            <span><i class="fa-solid fa-star text-amber-400 mr-1 text-[10px]"></i>{{ lead.rating }} ({{ lead.reviews }} avaliações)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Atual e Ações -->
+                <div class="flex flex-wrap items-center gap-3 lg:justify-end">
+                    <!-- Badge Prévia Visual -->
+                    {% if lead.latest_preview %}
+                    <a href="/preview/{{ lead.latest_preview.id }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                       title="Visualizar Prévia v{{ lead.latest_preview.version }} (Qualidade {{ lead.latest_preview.validation.score }}/100)">
+                        <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+                        <span>Prévia v{{ lead.latest_preview.version }}</span>
+                    </a>
+                    {% endif %}
+
+                    <!-- Status Badge -->
+                    {% set st_bg = 'bg-slate-700/50 text-slate-300 border-slate-600' %}
+                    {% if lead.status == 'Pendente' %}{% set st_bg = 'bg-amber-500/10 text-amber-300 border-amber-500/30' %}
+                    {% elif lead.status == 'Preparado' %}{% set st_bg = 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30' %}
+                    {% elif lead.status == 'Aprovado' %}{% set st_bg = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' %}
+                    {% elif lead.status == 'Enviado' %}{% set st_bg = 'bg-sky-500/10 text-sky-300 border-sky-500/30' %}
+                    {% elif lead.status == 'Respondido' %}{% set st_bg = 'bg-purple-500/10 text-purple-300 border-purple-500/30' %}
+                    {% endif %}
+                    
+                    <span id="badge-status-{{ lead.lead_id }}" class="px-3 py-1 rounded-full text-xs font-bold border {{ st_bg }}">
+                        {{ lead.status }}
+                    </span>
+
+                    <!-- Quick Status Dropdown -->
+                    <select onchange="alterarStatus('{{ lead.lead_id }}', this.value)" 
+                            class="bg-[#1C212B] border border-[#2D3545] text-slate-300 text-xs rounded-xl px-2.5 py-1.5 outline-none font-medium cursor-pointer">
+                        {% for st in statuses %}
+                        <option value="{{ st }}" {% if lead.status == st %}selected{% endif %}>Mudar p/ {{ st }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- Abrir Ficha -->
+                    <a href="/prospeccao/{{ lead.lead_id }}" 
+                       class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-blue-600/20">
+                        <span>Ficha Completa</span>
+                        <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Resumo da Oportunidade e da Solução -->
+            <div class="mt-4 pt-4 border-t border-[#212733] grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36]">
+                    <p class="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation text-[11px]"></i> Oportunidade & Gargalo Atual:
+                    </p>
+                    <p class="text-slate-300 leading-relaxed">{{ lead.oportunidade_digital }}</p>
+                </div>
+                <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36]">
+                    <p class="font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-laptop-code text-[11px]"></i> Proposta Customizada:
+                    </p>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong class="text-white">{{ lead.proposta.tipo_solucao }}:</strong> {{ lead.proposta.headline }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+async function alterarStatus(leadId, newStatus) {
+    try {
+        const resp = await fetch(`/api/prospeccao/${leadId}/status`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: newStatus})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            if (window.showAppToast) {
+                showAppToast(`Status atualizado para "${newStatus}".`);
+            }
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            if (window.showAppToast) {
+                showAppToast(data.error || 'Erro ao atualizar status.', 'error');
+            } else {
+                alert('Erro ao atualizar status: ' + (data.error || 'Erro desconhecido'));
+            }
+        }
+    } catch (e) {
+        if (window.showAppToast) {
+            showAppToast('Falha na comunicação com o servidor.', 'error');
+        } else {
+            alert('Falha na requisição: ' + e.message);
+        }
+    }
+}
+</script>
+{% endblock %}

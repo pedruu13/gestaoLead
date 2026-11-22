@@ -22,6 +22,7 @@ from flask import Flask, render_template, request, jsonify, Response, session, r
 from markupsafe import escape
 from ai_provider import MODEL_CANDIDATES, first_available_response, generate_text
 from integration_status import gemini_status, record_check
+from browser_lock import acquire_browser_lock
 from commercial_intelligence import PITCH_PIPELINE_VERSION, analyze_lead, build_generation_prompt, clean_text, evaluate_pitches, generate_fallback_pitches, recommend_contact_strategy
 from preview_studio import (build_preview_config, capture_preview_png, generate_preview_assets,
                             render_preview_html, validate_preview_html)
@@ -29,7 +30,7 @@ from lead_scoring import DEFAULT_WEIGHTS, SCORE_VERSION, score_lead
 from conversion_intelligence import VALID_OUTCOMES, calculate_conversion_metrics, performance_adjustment
 from contact_quality import assess_phone, normalize_email, website_domain
 from discovery_engine import DiscoveryEngine, init_discovery_schema
-from discovery_sources import source_registry
+from discovery_sources import source_registry, tratar_consentimento_cookies
 from geographic_campaigns import (campaign_detail, claim_batch, claim_campaign_worker, complete_location,
                                   create_campaign, finalize_campaign_if_done, init_geographic_schema,
                                   interrupt_stale_campaign, list_campaigns, list_location_sets,
@@ -46,6 +47,18 @@ from niche_intelligence import NICHE_ENGINE_VERSION, build_candidate_pool, rank_
 from niche_research import discover_public_niches, research_market_samples
 from target_intelligence import MARKETS, TARGET_ENGINE_VERSION, build_research_plan, normalize, search_terms_for_niche
 from whatsapp_cloud import cloud_configured, send_approved_template
+from prospecting_preparation import (
+    init_prospecting_schema,
+    seed_prospecting_queue,
+    list_prospecting_queue,
+    get_prospecting_lead,
+    update_prospecting_status,
+    update_prospecting_content,
+    get_lead_preview_versions,
+    generate_prospecting_preview,
+    seed_category_a_previews,
+    VALID_STATUSES as PROSPECTING_STATUSES,
+)
 
 # NOTA: sync_playwright é importado DENTRO de extrator_worker para evitar
 # travamento quando o processo filho (spawn) reimporta este módulo.
@@ -61,6 +74,11 @@ env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(env_path)
 
 app = Flask(__name__)
+try:
+    from ai_workforce_api import ai_workforce_bp
+    app.register_blueprint(ai_workforce_bp)
+except ImportError:
+    pass
 flask_secret_key = os.environ.get("FLASK_SECRET_KEY", "").strip()
 if not flask_secret_key:
     raise RuntimeError("FLASK_SECRET_KEY não configurada. Defina uma chave estável no arquivo .env.")
@@ -482,6 +500,9 @@ def init_db():
     init_discovery_schema(conn)
     init_geographic_schema(conn)
     init_smart_campaigns_schema(conn)
+    init_prospecting_schema(conn)
+    if DB_NAME == "gestao_leads.db" and not app.config.get("TESTING"):
+        seed_prospecting_queue(conn)
     c.execute(
         """UPDATE search_runs SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP
            WHERE status = 'running'"""
@@ -833,24 +854,7 @@ def record_lead_discoveries(discoveries):
 def record_lead_discovery(place_id, niche, location, run_id, outcome):
     record_lead_discoveries([(place_id, niche, location, run_id, outcome)])
 
-def tratar_consentimento_cookies(page):
-    try:
-        seletores = [
-            'button:has-text("Aceitar tudo")',
-            'button:has-text("Accept all")',
-            'button:has-text("I agree")',
-            'form[action*="consent"] button',
-        ]
-        for seletor in seletores:
-            botao = page.locator(seletor).first
-            if botao.count() > 0 and botao.is_visible(timeout=2000):
-                botao.click(timeout=3000)
-                print("[WORKER] Tela de consentimento fechada.")
-                time.sleep(1)
-                return True
-    except Exception as e:
-        print(f"[WORKER] Sem tela de consentimento (ou falhou ao fechar): {e}")
-    return False
+# O tratamento de consentimento de cookies foi centralizado e reutilizado de discovery_sources.tratar_consentimento_cookies
 
 def pausa(min_s=1.0, max_s=2.5, config=None):
     if config:
@@ -878,12 +882,20 @@ def eh_celular_valido(numeros, region=None):
     digits = re.sub(r"\D", "", str(numeros or ""))
     if region is None:
         region = "us" if len(digits) == 11 and digits.startswith("1") else "br"
-    return assess_phone(numeros, region)["whatsapp_candidate"]
+    return bool(assess_phone(numeros, region)["mobile"])
 
-def formatar_whatsapp(numeros, copy_texto=""):
-    if not numeros: return ""
-    url = f"https://wa.me/{numeros}"
-    if copy_texto: url += f"?text={urllib.parse.quote(copy_texto)}"
+def formatar_whatsapp(numeros, copy_texto="", region=None):
+    if not numeros:
+        return ""
+    digits = re.sub(r"\D", "", str(numeros or ""))
+    if region is None:
+        region = "us" if len(digits) == 11 and digits.startswith("1") else "br"
+    assessment = assess_phone(numeros, region)
+    if not assessment["valid"] or not assessment["mobile"]:
+        return ""
+    url = f"https://wa.me/{assessment['digits']}"
+    if copy_texto:
+        url += f"?text={urllib.parse.quote(copy_texto)}"
     return url
 
 def normalizar_texto(texto, limite=900):
@@ -922,11 +934,13 @@ def classificar_potencial(potencial, minimo_prioridade=55):
         potencial = int(potencial or 0)
     except (TypeError, ValueError):
         potencial = 0
-    if potencial >= minimo_prioridade:
-        return "Prioridade"
-    if potencial >= 35:
-        return "Oportunidade secundária"
-    return "Exploração"
+    if potencial >= 80:
+        return "Alta prioridade"
+    if potencial >= 60:
+        return "Boa oportunidade"
+    if potencial >= 40:
+        return "Oportunidade moderada"
+    return "Baixa prioridade"
 
 
 def classificar_prazo_followup(value):
@@ -1569,6 +1583,91 @@ def crm_contatados():
 @app.route("/crm/descartados")
 def crm_descartados():
     return render_crm_view("discarded", "discarded")
+
+
+@app.route("/prospeccao")
+def prospeccao():
+    status_filter = request.args.get("status")
+    data = list_prospecting_queue(status_filter=status_filter, db_target=DB_NAME)
+    leads = data["leads"]
+    for l in leads:
+        prevs = get_lead_preview_versions(l["lead_id"], db_target=DB_NAME)
+        l["latest_preview"] = prevs[0] if prevs else None
+        l["previews_count"] = len(prevs)
+    return render_template(
+        "prospeccao.html",
+        leads=leads,
+        counts=data["counts"],
+        active_filter=data["active_filter"],
+        statuses=PROSPECTING_STATUSES,
+        active_page="prospeccao",
+    )
+
+
+@app.route("/prospeccao/<lead_id>")
+def prospeccao_ficha(lead_id):
+    lead = get_prospecting_lead(lead_id, db_target=DB_NAME)
+    if not lead:
+        return redirect(url_for("prospeccao"))
+    previews = get_lead_preview_versions(lead_id, db_target=DB_NAME)
+    if not previews:
+        generate_prospecting_preview(lead_id, db_target=DB_NAME)
+        previews = get_lead_preview_versions(lead_id, db_target=DB_NAME)
+    latest_preview = previews[0] if previews else None
+    return render_template(
+        "prospeccao_ficha.html",
+        lead=lead,
+        previews=previews,
+        latest_preview=latest_preview,
+        statuses=PROSPECTING_STATUSES,
+        active_page="prospeccao",
+    )
+
+
+@app.route("/api/prospeccao/<lead_id>/preview/generate", methods=["POST"])
+def api_prospeccao_preview_generate(lead_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = generate_prospecting_preview(lead_id, overrides=payload, db_target=DB_NAME)
+        return jsonify({"success": True, "preview": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/prospeccao/<lead_id>/previews", methods=["GET"])
+def api_prospeccao_previews(lead_id):
+    previews = get_lead_preview_versions(lead_id, db_target=DB_NAME)
+    return jsonify({"success": True, "previews": previews})
+
+
+@app.route("/api/prospeccao/<lead_id>/status", methods=["POST"])
+def api_prospeccao_status(lead_id):
+    payload = request.get_json(silent=True) or {}
+    new_status = payload.get("status")
+    notas = payload.get("notas")
+    if not new_status or new_status not in PROSPECTING_STATUSES:
+        return jsonify({"success": False, "error": "Status inválido ou não informado"}), 400
+    try:
+        success = update_prospecting_status(lead_id, new_status, notas=notas, db_target=DB_NAME)
+        if not success:
+            return jsonify({"success": False, "error": "Lead não localizado"}), 404
+        return jsonify({"success": True, "status": new_status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/prospeccao/<lead_id>/update", methods=["POST"])
+def api_prospeccao_update(lead_id):
+    payload = request.get_json(silent=True) or {}
+    if not payload:
+        return jsonify({"success": False, "error": "Dados não enviados"}), 400
+    try:
+        success = update_prospecting_content(lead_id, payload, db_target=DB_NAME)
+        if not success:
+            return jsonify({"success": False, "error": "Lead não localizado"}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 def get_lead_by_id(place_id):
@@ -2301,7 +2400,7 @@ def estatisticas():
     interessados = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Demonstrou interesse", "Reunião agendada", "Proposta enviada", "Contrato fechado"})
     reunioes = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Reunião agendada", "Proposta enviada", "Contrato fechado"})
     propostas = sum(1 for lead in leads if lead.get("commercial_outcome") in {"Proposta enviada", "Contrato fechado"})
-    qualificados = sum(1 for l in leads if l.get("faixa_potencial") == "Prioridade")
+    qualificados = sum(1 for l in leads if l.get("faixa_potencial") in ("Prioridade", "Alta prioridade", "Boa oportunidade"))
     descartados = sum(1 for l in leads if l.get("status") == "Descartado")
     novos = sum(1 for l in leads if l.get("status") in ("Novo", None, ""))
     sem_site = sum(
@@ -2961,7 +3060,16 @@ def modular_discovery_worker(data, config, publish_global=True, cancelled_callba
                 if save_lead_db(lead_data, place_id):
                     stats["salvos"] += 1
                     stats["fontes"][source_label] = stats["fontes"].get(source_label, 0) + 1
-                    range_key = {"Prioridade": "prioridade", "Oportunidade secundária": "oportunidade_secundaria", "Exploração": "exploracao"}[lead_data["Faixa Potencial"]]
+                    range_key_map = {
+                        "Alta prioridade": "prioridade",
+                        "Prioridade": "prioridade",
+                        "Boa oportunidade": "oportunidade_secundaria",
+                        "Oportunidade moderada": "oportunidade_secundaria",
+                        "Oportunidade secundária": "oportunidade_secundaria",
+                        "Baixa prioridade": "exploracao",
+                        "Exploração": "exploracao",
+                    }
+                    range_key = range_key_map.get(lead_data["Faixa Potencial"], "exploracao")
                     stats[range_key] += 1
                     if len(phone_key) >= 10:
                         existing_phones.add(phone_key)
@@ -3081,7 +3189,7 @@ def extrator_worker(data, config, queue):
         print(f"[WORKER] nichos={nichos}, bairros={bairros}")
         is_headless = config.get("headless", True)
         GRANDES_REDES = ["odontocompany","smart fit","smartfit","mcdonalds","boticario","cacau show","subway","sorridents","amorasaude","bluefit","pague menos","raia","drogasil","localiza","unidas","movida"]
-        with sync_playwright() as p:
+        with acquire_browser_lock(timeout=180, caller=f"extrator_worker:{search_run_id}"), sync_playwright() as p:
             args = [
                 "--disable-dev-shm-usage",
                 "--no-sandbox",
@@ -3392,9 +3500,9 @@ def extrator_worker(data, config, queue):
                                 "Score Breakdown": scoring,
                                 "Score Version": scoring["version"],
                             })
-                            if faixa_potencial == "Prioridade":
+                            if faixa_potencial in ("Alta prioridade", "Prioridade"):
                                 stats["prioridade"] += 1
-                            elif faixa_potencial == "Oportunidade secundária":
+                            elif faixa_potencial in ("Boa oportunidade", "Oportunidade moderada", "Oportunidade secundária"):
                                 stats["oportunidade_secundaria"] += 1
                             else:
                                 stats["exploracao"] += 1

@@ -32,6 +32,7 @@
         </div>
         <nav class="gl-nav" aria-label="Área comercial">
             <span class="gl-nav-label">Operação</span>
+            <a href="/prospeccao" class="gl-nav-item" {% if active_page == 'prospeccao' %}aria-current="page"{% endif %}>{{ icon('sparkles', 'w-4 h-4') }}<span>Preparação Comercial</span></a>
             <a href="/crm" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %}>{{ icon('send', 'w-4 h-4') }}<span>A abordar</span></a>
             <a href="/crm/contatados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %}>{{ icon('messages', 'w-4 h-4') }}<span>Contatados</span></a>
             <a href="/crm/descartados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %}>{{ icon('ban', 'w-4 h-4') }}<span>Descartados</span></a>
@@ -71,6 +72,7 @@
             <div class="command-palette__body">
                 <span id="command-title">Navegação rápida</span>
                 <a href="/" data-command-item><strong>Nova prospecção</strong><small>Definir região, nicho e meta</small><kbd>N</kbd></a>
+                <a href="/prospeccao" data-command-item><strong>Preparação Comercial</strong><small>Fila de abordagem e briefings dos Top Leads</small><kbd>G P</kbd></a>
                 <a href="/crm" data-command-item><strong>Leads para abordar</strong><small>Abrir fila comercial</small><kbd>G A</kbd></a>
                 <a href="/crm/contatados" data-command-item><strong>Contatados</strong><small>Acompanhar conversas e retornos</small><kbd>G C</kbd></a>
                 <a href="/estatisticas" data-command-item><strong>Performance</strong><small>Ver métricas reais da operação</small><kbd>G P</kbd></a>

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from html import escape
 
+from browser_lock import acquire_browser_lock
 from commercial_intelligence import analyze_lead, clean_text
 
 
@@ -169,6 +170,22 @@ SEGMENT_PROFILES = {
         "section_title": "Objetividade técnica para decisões que não podem esperar.", "mood": "mecânico, preciso e enérgico",
         "heading_font": "'Arial Narrow', 'Franklin Gothic Medium', Arial, sans-serif", "body_font": "Arial, sans-serif",
     },
+    "marcenaria": {
+        "template": "portfolio", "primary": "#8b5a2b", "surface": "#f8f5f0", "ink": "#1e1b18",
+        "headline": "Móveis sob medida com acabamento refinado e projetos pensados para durar.", "cta": "Solicitar orçamento de ambiente",
+        "services": ["Ambientes residenciais sob medida", "Mobiliário corporativo e comercial", "Projetos em parceria com arquitetos"],
+        "details": ["Mobiliário planejado com precisão milimétrica, ferragens de alta durabilidade e acabamento impecável.", "Soluções funcionais que valorizam a identidade e a produtividade da sua empresa.", "Atendimento dedicado para executar projetos de arquitetura e design de interiores."],
+        "section_title": "Espaços planejados que transformam a rotina.", "mood": "arquitetônico, acolhedor e artesanal",
+        "heading_font": "Georgia, 'Times New Roman', serif", "body_font": "Arial, sans-serif",
+    },
+    "pilates": {
+        "template": "care", "primary": "#3d6350", "surface": "#f4f7f5", "ink": "#1b2921",
+        "headline": "Saúde postural, movimento consciente e alívio de dores com acompanhamento individual.", "cta": "Agendar aula experimental",
+        "services": ["Pilates clínico e postural", "Reabilitação e alívio de dores na coluna", "Aulas personalizadas em turmas reduzidas"],
+        "details": ["Exercícios guiados com foco na biomecânica correta, fortalecimento do core e flexibilidade.", "Fisioterapia aplicada e exercícios terapêuticos com avaliação individual prévia.", "Estúdio completo com aparelhos clássicos e acompanhamento de instrutores especializados."],
+        "section_title": "Um caminho seguro para viver sem dor e com mais disposição.", "mood": "revitalizante, sereno e preciso",
+        "heading_font": "'Trebuchet MS', Arial, sans-serif", "body_font": "Arial, sans-serif",
+    },
 }
 
 DEFAULT_PROFILE = {
@@ -192,6 +209,8 @@ VISITOR_COPY = {
     "educação": ("Novos caminhos começam com aprendizado.", "Conheça a proposta de ensino e tire suas dúvidas sobre o próximo passo."),
     "automotivo": ("O próximo passo para cuidar do seu carro.", "Descreva o que seu veículo precisa e converse sobre atendimento e orçamento."),
     "gastronomia": ("Um convite para a próxima visita.", "Converse com a equipe para consultar informações e planejar sua visita."),
+    "marcenaria": ("Seu próximo ambiente planejado começa aqui.", "Envie a planta ou medidas do seu espaço e converse com a equipe sobre o seu projeto."),
+    "pilates": ("Seu bem-estar e saúde postural começam com uma avaliação.", "Conheça o estúdio, os horários disponíveis e converse sobre sua aula experimental."),
 }
 
 ALLOWED_TEMPLATES = set(REFERENCE_SETS)
@@ -213,6 +232,8 @@ SEGMENT_ALIASES = {
     "imobiliário": ("imobiliária", "corretor", "imóveis", "imobiliário"),
     "educação": ("escola", "curso", "colégio", "idiomas", "educação"),
     "automotivo": ("oficina", "auto center", "mecânica", "automotivo", "funilaria"),
+    "marcenaria": ("marcenaria", "marceneiro", "móveis sob medida", "móveis planejados", "moveis sob medida", "moveis planejados"),
+    "pilates": ("pilates", "studio de pilates", "fisioterapia postural"),
 }
 
 
@@ -327,8 +348,8 @@ def build_art_direction(research, overrides=None):
         "primary": safe_color(overrides.get("primary"), profile["primary"]),
         "surface": safe_color(overrides.get("surface"), profile["surface"]),
         "ink": safe_color(overrides.get("ink"), profile["ink"]),
-        "heading_font": profile["heading_font"],
-        "body_font": profile["body_font"],
+        "heading_font": overrides.get("heading_font") or profile["heading_font"],
+        "body_font": overrides.get("body_font") or profile["body_font"],
         "hero_layout": hero_layout,
         "visual_motif": visual_motif,
         "button_style": button_style,
@@ -491,6 +512,8 @@ def render_preview_html(config):
     radius = "999px" if direction.get("button_style") == "pill" else "4px"
     visual_radius = "30px 8px 30px 8px" if template == "care" else "2px"
     accent_text = "#ffffff" if contrast_ratio(config["primary"], "#ffffff") >= 4.5 else "#111111"
+    whatsapp_url = escape(str(config.get("whatsapp_url") or "#contato"))
+    whatsapp_target = ' target="_blank" rel="noopener noreferrer"' if config.get("whatsapp_url") else ""
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{data['name']} — demonstração</title><style>
 :root{{--primary:{data['primary']};--surface:{data['surface']};--ink:{data['ink']};--line:color-mix(in srgb,var(--ink) 16%,transparent);--heading:{heading_font};--body:{body_font}}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--surface);color:var(--ink);font-family:var(--body)}}a{{color:inherit;text-decoration:none}}.shell{{min-height:100vh;overflow:hidden}}.notice{{padding:9px 5vw;background:var(--ink);color:white;text-align:center;font:700 10px/1.4 var(--body);letter-spacing:.13em;text-transform:uppercase}}header{{display:flex;align-items:center;justify-content:space-between;padding:24px 6vw;border-bottom:1px solid var(--line)}}.brand{{font:800 22px/1 var(--heading);letter-spacing:-.035em}}nav{{display:flex;gap:28px;font:700 11px/1 var(--body);text-transform:uppercase;letter-spacing:.1em}}.button{{display:inline-flex;align-items:center;justify-content:center;padding:15px 22px;border:1px solid transparent;border-radius:{radius};background:var(--primary);color:white;font:800 11px/1 var(--body);text-transform:uppercase;letter-spacing:.09em}}
 .hero{{display:grid;grid-template-columns:1.05fr .95fr;gap:6vw;align-items:center;padding:72px 6vw 82px;min-height:650px}}.hero-copy{{position:relative;z-index:2}}.eyebrow{{color:var(--primary);font:900 10px/1.4 var(--body);text-transform:uppercase;letter-spacing:.2em}}h1,h2,h3{{font-family:var(--heading)}}h1{{font-size:clamp(47px,6.2vw,90px);line-height:.96;letter-spacing:-.055em;margin:24px 0 28px;max-width:950px}}.hero-copy>p{{font:400 clamp(16px,1.7vw,20px)/1.65 var(--body);max-width:670px;opacity:.74;margin:0 0 34px}}.visual{{min-height:480px;border-radius:{visual_radius};background:var(--ink);color:white;padding:28px;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:space-between;box-shadow:24px 28px 0 color-mix(in srgb,var(--primary) 20%,transparent)}}.visual.no-photo{{background-image:linear-gradient(145deg,color-mix(in srgb,var(--primary) 76%,var(--ink)),var(--ink));position:relative;overflow:hidden}}.visual.no-photo:before,.visual.no-photo:after{{content:"";position:absolute;border:1px solid rgba(255,255,255,.2);border-radius:50%}}.visual.no-photo:before{{width:420px;height:420px;right:-170px;bottom:-170px}}.visual.no-photo:after{{width:180px;height:180px;left:17%;top:24%;background:rgba(255,255,255,.04)}}.visual-top{{display:flex;justify-content:space-between;align-items:center;font:800 10px/1 var(--body);text-transform:uppercase;letter-spacing:.13em;position:relative;z-index:1}}.logo{{display:block;max-width:150px;max-height:70px;object-fit:contain;background:white;padding:8px}}.wordmark{{display:grid;place-items:center;width:64px;height:64px;border:1px solid rgba(255,255,255,.38);font:900 24px/1 var(--body)}}.visual-caption{{position:relative;z-index:1}}.visual-caption small{{font:700 9px/1.3 var(--body);letter-spacing:.1em;text-transform:uppercase;opacity:.65}}.visual-caption p{{font:700 13px/1.5 var(--body);max-width:280px;margin:8px 0 0}}
@@ -499,7 +522,7 @@ def render_preview_html(config):
 {_template_css()}
 .button,.contact{{color:{accent_text}}}.theme-care .visual.no-photo{{border-radius:24px}}.theme-technical .eyebrow,.service span{{color:var(--ink)}}.contact .button{{color:#111111}}
 .visual-menu{{position:relative;z-index:1;margin:40px 0}}.visual-menu small{{font:600 10px/1.5 var(--body);letter-spacing:.16em;text-transform:uppercase;opacity:.7}}.visual-menu h2{{font-size:clamp(26px,3.2vw,48px);line-height:1.1;margin:14px 0 28px;overflow-wrap:anywhere}}.visual-menu ul{{list-style:none;padding:0;margin:0}}.visual-menu li{{display:flex;gap:18px;padding:14px 0;border-top:1px solid rgba(255,255,255,.25);font:500 15px/1.4 var(--body)}}.visual-menu li span{{opacity:.5;font-size:11px}}.visual.no-photo:after{{display:none}}
-</style></head><body class="theme-{template} variant-{variant}"><div class="shell"><div class="notice">{data['disclaimer']}</div><header><a class="brand" href="#">{data['name']}</a><nav><a href="#servicos">Serviços</a><a href="#conceito">Atendimento</a><a href="#contato">Contato</a></nav><a class="button" href="#contato">{data['cta']}</a></header><main>{hero}{signature}<section class="services-wrap" id="servicos"><span class="section-note">{suggested_note}</span><div class="section-head"><h2>{data['section_title']}</h2><p>Consulte a equipe para confirmar serviços, disponibilidade e condições de atendimento.</p></div><div class="services">{cards}</div></section><section class="context" id="conceito"><span>Vamos conversar</span><p>{data['subheadline']}</p></section><section class="contact" id="contato"><h2>{data['cta']}</h2><a class="button" href="#">Entrar em contato</a></section></main><footer><strong>{data['name']}</strong><span>{data['location'] or 'Localização a confirmar'} · Demonstração não oficial</span></footer></div></body></html>"""
+</style></head><body class="theme-{template} variant-{variant}"><div class="shell"><div class="notice">{data['disclaimer']}</div><header><a class="brand" href="#">{data['name']}</a><nav><a href="#servicos">Serviços</a><a href="#conceito">Atendimento</a><a href="#contato">Contato</a></nav><a class="button" href="{whatsapp_url}"{whatsapp_target}>{data['cta']}</a></header><main>{hero}{signature}<section class="services-wrap" id="servicos"><span class="section-note">{suggested_note}</span><div class="section-head"><h2>{data['section_title']}</h2><p>Consulte a equipe para confirmar serviços, disponibilidade e condições de atendimento.</p></div><div class="services">{cards}</div></section><section class="context" id="conceito"><span>Vamos conversar</span><p>{data['subheadline']}</p></section><section class="contact" id="contato"><h2>{data['cta']}</h2><a class="button" href="{whatsapp_url}"{whatsapp_target}>Conversar no WhatsApp</a></section></main><footer><strong>{data['name']}</strong><span>{data['location'] or 'Localização a confirmar'} · Demonstração não oficial</span></footer></div></body></html>"""
 
 
 def _hex_rgb(value):
@@ -586,7 +609,7 @@ def generate_preview_assets(html, output_dir, preview_key, static_report=None):
     report["warnings"] = list(report.get("warnings", []))
     report["render_checks"] = {}
     console_errors = []
-    with sync_playwright() as playwright:
+    with acquire_browser_lock(timeout=60, caller="generate_preview_assets"), sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
             for variant, viewport, full_page in (
@@ -631,7 +654,7 @@ def capture_preview_png(html, destination, width=1440, height=1100):
     from playwright.sync_api import sync_playwright
 
     os.makedirs(os.path.dirname(destination), exist_ok=True)
-    with sync_playwright() as playwright:
+    with acquire_browser_lock(timeout=60, caller="capture_preview_png"), sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
             page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)

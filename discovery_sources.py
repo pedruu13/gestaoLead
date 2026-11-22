@@ -7,6 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from browser_lock import acquire_browser_lock
 from target_intelligence import normalize, search_terms_for_niche
 
 
@@ -28,6 +29,99 @@ def _request_json(url, method="GET", payload=None, headers=None, timeout=20):
     except urllib.error.HTTPError as error:
         details = error.read().decode("utf-8", errors="replace")[:500]
         raise RuntimeError(f"HTTP {error.code}: {details}") from error
+
+
+def _clean_external_url(url):
+    """
+    Desempacota URLs externas de redirecionamentos do Google Maps (ex: google.com/url?q=...).
+    """
+    if not url:
+        return ""
+    url = str(url).strip()
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.netloc.endswith("google.com"):
+            params = urllib.parse.parse_qs(parsed.query)
+            target = params.get("url", params.get("q", [url]))[0]
+            if target.startswith(("http://", "https://")):
+                return target
+    except Exception:
+        pass
+    return url if url.startswith(("http://", "https://")) else ""
+
+
+def extract_rating_and_reviews_safely(full_text, phone=""):
+    """
+    Extrai nota e quantidade de avaliações do Google Maps sem confundir
+    o DDD do telefone (ex: (41), (31), (19), (48)) com a quantidade de reviews.
+    """
+    text = str(full_text or "")
+    if phone:
+        text = text.replace(phone, " ")
+    # Mascara números de telefone brasileiros com ou sem DDD em parênteses
+    text = re.sub(r"(?:\+55\s*)?(?:\(?[1-9]{2}\)?\s*)?(?:9?\d{4})[-\s]?\d{4}", " ", text)
+    # Remove qualquer DDD isolado entre parênteses
+    text = re.sub(r"\([1-9]{2}\)", " ", text)
+
+    rating = 0.0
+    reviews = 0
+
+    # 1. Caso A: nota seguida diretamente de parênteses com reviews: ex: "4,8 ★ (120)" ou "5.0 (15)"
+    m_combo = re.search(r"([1-5][,\.][0-9])\s*(?:★|estrelas?|\*|\s)?\s*\(([\d\.]+)\)", text, re.I)
+    if m_combo:
+        try:
+            rating = float(m_combo.group(1).replace(",", "."))
+            reviews = int(m_combo.group(2).replace(".", ""))
+            return rating, reviews
+        except Exception:
+            pass
+
+    # 2. Caso B: avaliações explícitas com a palavra avaliações/reviews: ex: "140 avaliações"
+    m_explicit_rev = re.search(r"([\d\.]+)\s*(?:avaliaç(?:ão|ões|oes)|reviews?)", text, re.I)
+    if m_explicit_rev:
+        try:
+            reviews = int(m_explicit_rev.group(1).replace(".", ""))
+        except Exception:
+            pass
+
+    # 3. Caso C: nota isolada: ex: "4.8 ★" ou "5,0 estrelas" ou número de nota decimal
+    m_isolated_rat = re.search(r"\b([1-5][,\.][0-9])\b", text)
+    if m_isolated_rat:
+        try:
+            rating = float(m_isolated_rat.group(1).replace(",", "."))
+        except Exception:
+            pass
+
+    return rating, reviews
+
+
+def tratar_consentimento_cookies(page):
+    """
+    Fecha janelas modais de consentimento de cookies (GDPR/LGPD) do Google Maps
+    em ambientes locais ou instâncias de nuvem.
+    """
+    try:
+        seletores = [
+            'button:has-text("Aceitar tudo")',
+            'button:has-text("Accept all")',
+            'button:has-text("I agree")',
+            'button:has-text("Concordo")',
+            'form[action*="consent"] button',
+            'button[aria-label*="Aceitar" i]',
+            'button[aria-label*="Accept" i]',
+        ]
+        for seletor in seletores:
+            botao = page.locator(seletor).first
+            if botao.count() > 0 and botao.is_visible(timeout=1500):
+                botao.click(timeout=2500)
+                try:
+                    page.wait_for_timeout(500)
+                except Exception:
+                    pass
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def stable_cache_key(source, payload):
@@ -145,25 +239,47 @@ class GoogleMapsSource(DiscoverySource):
             website = site_btn.get_attribute("href") if site_btn.count() else ""
 
             full_text = " ".join(lines)
-            rating = 0.0
-            reviews = 0
-            m_rating = re.search(r"(\d[,\.]\d)\s*(?:estrelas|\u2605|\*|\()?", full_text)
-            if m_rating:
-                try:
-                    rating = float(m_rating.group(1).replace(",", "."))
-                except Exception:
-                    pass
-            m_reviews = re.search(r"\(([\d\.]+)\)", full_text)
-            if m_reviews:
-                try:
-                    reviews = int(m_reviews.group(1).replace(".", ""))
-                except Exception:
-                    pass
-
             phone = ""
             m_phone = re.search(r"(?:\+55\s*)?(?:\(?([1-9]{2})\)?\s*)?(?:9?\d{4})[-\s]?\d{4}", full_text)
             if m_phone:
                 phone = m_phone.group(0).strip()
+
+            rating = 0.0
+            reviews = 0
+
+            # 1. Tentar seletores específicos no DOM do card
+            try:
+                star_el = card.locator("span.MW4etd, span[aria-label*='estrela' i], span[aria-label*='star' i]").first
+                if star_el.count():
+                    aria = star_el.get_attribute("aria-label") or ""
+                    st_text = star_el.inner_text() or ""
+                    m_star = re.search(r"(\d[,\.]\d)", aria or st_text)
+                    if m_star:
+                        rating = float(m_star.group(1).replace(",", "."))
+                    m_aria_rev = re.search(r"(\d[\d\.]*)\s*(?:avaliaç|review)", aria, re.I)
+                    if m_aria_rev:
+                        reviews = int(m_aria_rev.group(1).replace(".", ""))
+            except Exception:
+                pass
+
+            try:
+                if not reviews:
+                    rev_el = card.locator("span.UY7F9, [aria-label*='avaliaç' i], [aria-label*='review' i]").first
+                    if rev_el.count():
+                        rev_text = rev_el.get_attribute("aria-label") or rev_el.inner_text() or ""
+                        m_rev_el = re.search(r"\(?(\d[\d\.]*)\)?\s*(?:avaliaç|review|\))?", rev_text, re.I)
+                        if m_rev_el:
+                            reviews = int(m_rev_el.group(1).replace(".", ""))
+            except Exception:
+                pass
+
+            # 2. Fallback seguro por regex sem confundir DDD com avaliações
+            if not rating or not reviews:
+                f_rat, f_rev = extract_rating_and_reviews_safely(full_text, phone)
+                if not rating:
+                    rating = f_rat
+                if not reviews:
+                    reviews = f_rev
 
             category = niche
             address = location
@@ -200,6 +316,127 @@ class GoogleMapsSource(DiscoverySource):
         except Exception:
             return None
 
+    def _extract_detail_panel(self, page, base_candidate=None):
+        """
+        Extrai informações detalhadas diretamente do painel aberto da empresa no Google Maps
+        (h1, telefone, website externo, endereço completo, categoria e status).
+        """
+        candidate = dict(base_candidate or {})
+
+        # 1. Nome no H1 do painel lateral
+        try:
+            h1 = page.locator("h1").first
+            if h1.count():
+                name = (h1.inner_text() or "").strip()
+                if name and "Resultado" not in name and "Google Maps" not in name:
+                    candidate["name"] = name
+        except Exception:
+            pass
+
+        # 2. Telefone no botão de contato do painel
+        try:
+            tel_el = page.locator("button[data-item-id^='phone'], [data-tooltip*='telefone' i], [data-tooltip*='phone' i]").first
+            if tel_el.count():
+                aria = tel_el.get_attribute("aria-label") or ""
+                text = tel_el.inner_text() or ""
+                raw_phone = aria or text
+                raw_phone = re.sub(r"^(?:telefone|phone|ligar|call):\s*", "", raw_phone, flags=re.I).strip()
+                if raw_phone:
+                    candidate["phone"] = raw_phone
+        except Exception:
+            pass
+
+        # 3. Website no botão de autoridade ou link de website
+        try:
+            link_el = page.locator("a[data-item-id='authority'], a[data-tooltip*='website' i], a[data-tooltip*='site' i], a[aria-label*='website' i], a[aria-label*='site' i]").first
+            if link_el.count():
+                href = link_el.get_attribute("href") or ""
+                clean_href = _clean_external_url(href)
+                if clean_href:
+                    candidate["website"] = clean_href
+        except Exception:
+            pass
+
+        # 4. Endereço completo no botão de endereço do painel
+        try:
+            end_el = page.locator("button[data-item-id='address'], [data-item-id*='address'], [data-tooltip*='endereço' i], [data-tooltip*='address' i]").first
+            if end_el.count():
+                aria = end_el.get_attribute("aria-label") or ""
+                text = end_el.inner_text() or ""
+                raw_addr = aria or text
+                raw_addr = re.sub(r"^(?:endereço|endereco|address):\s*", "", raw_addr, flags=re.I).strip()
+                if len(raw_addr) > 5:
+                    candidate["address"] = raw_addr
+        except Exception:
+            pass
+
+        # 5. Categoria mais refinada
+        try:
+            cat_el = page.locator("button[jsaction*='pane.rating.category'], span[jsaction*='pane.rating.category'], button[data-item-id='address'] + div button, div.fontBodyMedium button").first
+            if cat_el.count():
+                cat_text = (cat_el.inner_text() or "").strip()
+                if cat_text and len(cat_text) > 2:
+                    candidate["category"] = cat_text
+        except Exception:
+            pass
+
+        # 6. Avaliação e Reviews (se o card não tiver capturado)
+        if not candidate.get("rating") or not candidate.get("reviews"):
+            try:
+                cand_rating = candidate.get("rating") or 0.0
+                cand_reviews = candidate.get("reviews") or 0
+
+                # Seletores dedicados do painel
+                if not cand_rating:
+                    for sel in ("span[aria-label*='estrela' i]", "div.F7nice span[aria-hidden='true']", "span.ceNzKf"):
+                        el = page.locator(sel).first
+                        if el.count():
+                            m_rat = re.search(r"(\d[,\.]\d)", el.get_attribute("aria-label") or el.inner_text() or "")
+                            if m_rat:
+                                cand_rating = float(m_rat.group(1).replace(",", "."))
+                                break
+
+                if not cand_reviews:
+                    for sel in ("button[jsaction*='pane.reviewChart']", "span[aria-label*='avaliaç' i]", "button:has-text('avaliaç')"):
+                        el = page.locator(sel).first
+                        if el.count():
+                            m_rev = re.search(r"([\d\.]+)\s*(?:avaliaç|review)", el.get_attribute("aria-label") or el.inner_text() or "", re.I)
+                            if m_rev:
+                                cand_reviews = int(m_rev.group(1).replace(".", ""))
+                                break
+
+                # Fallback seguro sobre texto completo
+                if not cand_rating or not cand_reviews:
+                    full_text = page.locator("div[role='main'], div.m6QErb, body").first.inner_text() or ""
+                    f_rat, f_rev = extract_rating_and_reviews_safely(full_text, candidate.get("phone") or "")
+                    if not cand_rating:
+                        cand_rating = f_rat
+                    if not cand_reviews:
+                        cand_reviews = f_rev
+
+                candidate["rating"] = cand_rating
+                candidate["reviews"] = cand_reviews
+            except Exception:
+                pass
+
+        # 7. Status de funcionamento
+        try:
+            page_text = page.locator("div[role='main'], body").first.inner_text().casefold()
+            is_closed = any(pattern in page_text for pattern in (
+                "fechado permanentemente", "fechada permanentemente",
+                "permanentemente fechado", "permanentemente fechada",
+                "permanently closed", "fechado temporariamente",
+                "fechada temporariamente", "temporarily closed",
+            ))
+            if is_closed:
+                candidate["business_status"] = "CLOSED_PERMANENTLY"
+            elif candidate.get("business_status") in ("", "UNKNOWN"):
+                candidate["business_status"] = "OPERATIONAL"
+        except Exception:
+            pass
+
+        return candidate
+
     def search(self, niche, location, region, page_token=None, page_size=20, request_budget=None):
         if not self.configured():
             return {"candidates": [], "next_page_token": "", "requests": 0}
@@ -219,45 +456,71 @@ class GoogleMapsSource(DiscoverySource):
         errors = []
 
         try:
-            with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(
-                    headless=self.headless,
-                    args=["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-software-rasterizer"],
-                )
-                context = browser.new_context(locale="pt-BR", viewport={"width": 1280, "height": 800})
-                page = context.new_page()
-                page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
+            with acquire_browser_lock(timeout=180, caller=f"GoogleMapsSource:{niche}@{location}"):
+                with sync_playwright() as playwright:
+                    browser = playwright.chromium.launch(
+                        headless=self.headless,
+                        args=["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-software-rasterizer"],
+                    )
+                    context = browser.new_context(locale="pt-BR", viewport={"width": 1280, "height": 800})
+                    page = context.new_page()
+                    page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_())
 
-                for term in terms:
-                    requests_count += 1
-                    query = f"{term} em {location}" if region == "br" else f"{term} in {location}"
-                    url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
-                    try:
-                        page.goto(url, wait_until="domcontentloaded", timeout=12000)
-                        page.wait_for_selector("div.Nv2PK, [role='feed']", timeout=7000)
-                        containers = page.locator("div.Nv2PK")
-                        stagnant_rounds = 0
-                        for scroll_round in range(5):
-                            previous_total = len(candidates)
-                            for card_index in range(containers.count()):
-                                candidate = self._parse_card(containers.nth(card_index), niche, location)
-                                if candidate and candidate["source_id"] not in seen_ids:
-                                    seen_ids.add(candidate["source_id"])
-                                    candidates.append(candidate)
+                    for term in terms:
+                        requests_count += 1
+                        query = f"{term} em {location}" if region == "br" else f"{term} in {location}"
+                        url = f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+                        try:
+                            page.goto(url, wait_until="domcontentloaded", timeout=12000)
+                            tratar_consentimento_cookies(page)
+                            page.wait_for_selector("div.Nv2PK, [role='feed']", timeout=7000)
+                            containers = page.locator("div.Nv2PK")
+                            stagnant_rounds = 0
+                            card_candidates = []
+                            for scroll_round in range(5):
+                                previous_total = len(card_candidates)
+                                for card_index in range(containers.count()):
+                                    candidate = self._parse_card(containers.nth(card_index), niche, location)
+                                    if candidate and candidate["source_id"] not in seen_ids:
+                                        seen_ids.add(candidate["source_id"])
+                                        card_candidates.append(candidate)
+                                    if len(card_candidates) >= int(page_size):
+                                        break
+                                stagnant_rounds = stagnant_rounds + 1 if len(card_candidates) == previous_total else 0
+                                feed = page.locator("[role='feed']").first
+                                if len(card_candidates) >= int(page_size) or stagnant_rounds >= 2 or not feed.count():
+                                    break
+                                feed.evaluate("element => element.scrollBy(0, element.clientHeight)")
+                                page.wait_for_timeout(700)
+
+                            # Enriquecimento abrindo o painel de detalhes para cada candidato coletado
+                            for base_cand in card_candidates:
+                                final_cand = base_cand
+                                detail_url = base_cand.get("source_url")
+                                if detail_url and detail_url.startswith("http"):
+                                    try:
+                                        page.goto(detail_url, wait_until="domcontentloaded", timeout=9000)
+                                        tratar_consentimento_cookies(page)
+                                        try:
+                                            page.wait_for_selector(
+                                                "h1, button[data-item-id^='phone'], a[data-item-id='authority']",
+                                                timeout=3000,
+                                            )
+                                        except Exception:
+                                            pass
+                                        final_cand = self._extract_detail_panel(page, base_cand)
+                                    except Exception as detail_err:
+                                        errors.append(f"DetailNavError:{type(detail_err).__name__}")
+                                candidates.append(final_cand)
                                 if len(candidates) >= int(page_size):
                                     break
-                            stagnant_rounds = stagnant_rounds + 1 if len(candidates) == previous_total else 0
-                            feed = page.locator("[role='feed']").first
-                            if len(candidates) >= int(page_size) or stagnant_rounds >= 2 or not feed.count():
+
+                            if len(candidates) >= int(page_size):
                                 break
-                            feed.evaluate("element => element.scrollBy(0, element.clientHeight)")
-                            page.wait_for_timeout(700)
-                        if len(candidates) >= int(page_size):
-                            break
-                    except Exception as err:
-                        errors.append(type(err).__name__)
-                        print(f"[GoogleMapsSource] Falha na busca de '{query}': {err}")
-                browser.close()
+                        except Exception as err:
+                            errors.append(type(err).__name__)
+                            print(f"[GoogleMapsSource] Falha na busca de '{query}': {err}")
+                    browser.close()
         except Exception as error:
             raise RuntimeError("Não foi possível executar o navegador da busca Google Maps.") from error
 

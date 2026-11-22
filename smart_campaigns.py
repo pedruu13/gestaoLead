@@ -31,6 +31,49 @@ DEFAULT_AUTO_NICHES = [
     "Móveis Planejados",
 ]
 
+AUTO_NICHE_PROFILES = {
+    "Clínica de Estética": {
+        "reason": "Ticket médio elevado, alta demanda de captação no Google e forte dependência de redes sociais sem landing page de conversão.",
+        "ticket_tier": "Alto",
+        "category": "Saúde & Beleza",
+    },
+    "Odontologia": {
+        "reason": "Procedimentos de alto valor agregado (implantes, próteses e alinhadores) com busca ativa por credibilidade e agendamento.",
+        "ticket_tier": "Alto",
+        "category": "Saúde",
+    },
+    "Advocacia": {
+        "reason": "Exige autoridade institucional no Google e captação qualificada para causas de valor substancial.",
+        "ticket_tier": "Alto",
+        "category": "Serviços Jurídicos",
+    },
+    "Energia Solar": {
+        "reason": "Projetos de engenharia de alto ticket com ciclo de venda consultivo que exige landing page com cálculo de economia.",
+        "ticket_tier": "Muito Alto",
+        "category": "Engenharia & Sustentabilidade",
+    },
+    "Arquitetura": {
+        "reason": "Projetos de médio e alto padrão onde o site funciona como portfólio decisivo para fechar contratos.",
+        "ticket_tier": "Alto",
+        "category": "Design & Projetos",
+    },
+    "Móveis Planejados": {
+        "reason": "Vendas sob medida de alto ticket onde a ausência de site próprio prejudica a percepção de acabamento e segurança.",
+        "ticket_tier": "Alto",
+        "category": "Interiores & Construção",
+    },
+    "Imobiliária": {
+        "reason": "Transações de alto valor onde a ausência de catálogo próprio e landing page gera perda massiva de clientes.",
+        "ticket_tier": "Alto",
+        "category": "Mercado Imobiliário",
+    },
+    "Dermatologia": {
+        "reason": "Consultas e procedimentos particulares com alta demanda por agendamento rápido e autoridade médica.",
+        "ticket_tier": "Alto",
+        "category": "Saúde Especializada",
+    },
+}
+
 EXPLORATORY_LOCATION_SEEDS = [
     ("SP", "São Paulo"), ("MG", "Belo Horizonte"), ("PR", "Curitiba"),
     ("BA", "Salvador"), ("GO", "Goiânia"), ("PE", "Recife"),
@@ -116,6 +159,29 @@ def resolve_auto_niches(db_name, limit=4):
         connection.close()
 
 
+def explain_auto_niches(db_name, limit=4):
+    """
+    Retorna os nichos recomendados acompanhados da justificativa de negócio,
+    nível de ticket e categoria.
+    """
+    niches, is_exploratory = resolve_auto_niches(db_name, limit=limit)
+    explained = []
+    for niche in niches:
+        profile = AUTO_NICHE_PROFILES.get(niche, {
+            "reason": "Segmento comercial de alto valor agregado com necessidade de captação ativa de clientes e autoridade online.",
+            "ticket_tier": "Alto",
+            "category": "Serviços Especializados",
+        })
+        explained.append({
+            "name": niche,
+            "reason": profile["reason"],
+            "ticket_tier": profile["ticket_tier"],
+            "category": profile["category"],
+            "is_exploratory": is_exploratory,
+        })
+    return explained
+
+
 def resolve_auto_locations(db_name, limit=30):
     """
     Seleciona municípios promissores e balanceados do Brasil.
@@ -199,6 +265,15 @@ def resolve_auto_locations(db_name, limit=30):
                 selected.append(municipality)
                 if len(selected) >= limit:
                     break
+
+        seed_names = {name for _, name in EXPLORATORY_LOCATION_SEEDS}
+        for item in selected:
+            if not item.get("reason"):
+                if item.get("name") in seed_names:
+                    item["reason"] = f"Polo econômico e regional ({item['uf']}) com alta densidade de serviços e comércio de alto padrão."
+                else:
+                    item["reason"] = f"Município polo ({item['uf']}) com oportunidade de expansão comercial e baixa saturação de prospecção."
+
         return selected, True
     finally:
         connection.close()
@@ -288,6 +363,12 @@ def create_smart_campaign(db_name, payload):
     campaign_id = uuid.uuid4().hex
     queries_planned = max(3, len(niches) * 3)
 
+    niche_reasons = [f"{n}: {AUTO_NICHE_PROFILES.get(n, {}).get('reason', 'alta demanda')}" for n in niches]
+    location_reasons = [f"{loc['name']} ({loc['uf']}): {loc.get('reason', 'polo regional')}" for loc in locations[:5]]
+    meta_metodologia = (
+        f"Nichos recomendados: {'; '.join(niche_reasons)} | Polos prioritários: {'; '.join(location_reasons)}"
+    )
+
     connection = _connect(db_name)
     try:
         connection.execute(
@@ -295,8 +376,8 @@ def create_smart_campaign(db_name, payload):
             (campaign_id, name, mode, niches_json, selection_json, filters_json, status,
              batch_size, concurrency, total_municipalities, target_qualified_leads,
              min_qualification_score, detailed_status, location_mode, niche_mode,
-             is_exploratory, niches_count)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 'preparando', ?, ?, ?, ?)""",
+             is_exploratory, niches_count, meta_metodologia)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, 'preparando', ?, ?, ?, ?, ?)""",
             (
                 campaign_id,
                 name,
@@ -313,6 +394,7 @@ def create_smart_campaign(db_name, payload):
                 niche_mode,
                 1 if is_exploratory else 0,
                 len(niches),
+                meta_metodologia,
             ),
         )
 

@@ -2,6 +2,7 @@ import re
 import time
 import urllib.parse
 
+from browser_lock import acquire_browser_lock
 from target_intelligence import MARKETS, has_own_site, search_terms_for_niche
 
 
@@ -39,7 +40,7 @@ def probe_google_maps(plan, headless=True, sample_per_pair=3, progress=None, can
     def time_exhausted():
         return time.monotonic() - started_at >= max_seconds
 
-    with sync_playwright() as playwright:
+    with acquire_browser_lock(timeout=90, caller="probe_google_maps"), sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=headless, args=["--disable-dev-shm-usage", "--no-sandbox", "--disable-gpu", "--disable-setuid-sandbox", "--disable-software-rasterizer"])
         context = browser.new_context(locale=MARKETS[plan[0]["region"]]["locale"], viewport={"width": 1280, "height": 800})
         page = context.new_page()

@@ -29,3 +29,5 @@ Thumbs.db
 *.db
 *.sqlite3
 config.json
+scratch/
+

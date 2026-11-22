@@ -4,7 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from contact_quality import assess_phone, normalize_email, website_domain
+from contact_quality import assess_phone, normalize_email, website_domain, validate_phone_city_compatibility
 from target_intelligence import normalize
 
 
@@ -56,6 +56,11 @@ def validate_candidate(candidate, region="br", corroborating_sources=1, inspect_
     address = str(candidate.get("address") or candidate.get("location") or "").strip()
     status = str(candidate.get("business_status") or "").upper()
     phone = assess_phone(candidate.get("phone"), region)
+    phone_compat = validate_phone_city_compatibility(
+        candidate.get("phone"),
+        address or candidate.get("location") or "",
+        region=region
+    )
     email = normalize_email(candidate.get("email"))
     website = inspect_website(candidate.get("website"), name) if inspect_site else {"present": bool(candidate.get("website")), "status": "nao_verificado", "working": False, "belongs": False, "reason": "Site ainda não verificado."}
     activity_signals = []
@@ -96,6 +101,8 @@ def validate_candidate(candidate, region="br", corroborating_sources=1, inspect_
     ]
     if activity_signals:
         evidence.append({"type": "atividade", "value": ", ".join(activity_signals), "source": candidate.get("source"), "confidence": "CONFIRMADO", "source_url": candidate.get("source_url", "")})
+    if not phone_compat.get("compatible") and phone_compat.get("warning"):
+        evidence.append({"type": "alerta_contato", "value": phone_compat["warning"], "source": candidate.get("source"), "confidence": "ALERTA", "source_url": candidate.get("source_url", "")})
     for record in candidate.get("source_records") or []:
         evidence.append({
             "type": "origem",
@@ -108,6 +115,6 @@ def validate_candidate(candidate, region="br", corroborating_sources=1, inspect_
         "valid_business": valid_business, "validation_status": validation_status,
         "validation_reason": reason, "site_confidence": site_confidence,
         "site": website, "site_opportunity_status": opportunity,
-        "phone": phone, "email": email, "activity_signals": activity_signals,
+        "phone": phone, "phone_compatibility": phone_compat, "email": email, "activity_signals": activity_signals,
         "evidence": evidence,
     }
