@@ -65,7 +65,8 @@ class TestProspectingPreparation(unittest.TestCase):
         expected_columns = [
             "lead_id", "nome", "categoria", "nicho", "cidade", "telefone", "whatsapp_link",
             "score", "status", "oportunidade_digital", "proposta_json", "mensagem_whatsapp",
-            "briefing_visual_json", "evidencias_json", "notas_operador"
+            "briefing_visual_json", "evidencias_json", "notas_operador",
+            "mensagem_etapa1", "mensagem_etapa2", "variacoes_etapa1_json", "etapa_ativa"
         ]
         for col in expected_columns:
             self.assertIn(col, columns, f"Coluna {col} deve estar presente na tabela")
@@ -345,6 +346,80 @@ class TestProspectingPreparation(unittest.TestCase):
             self.assertIn(f"/preview/{preview_id}".encode("utf-8"), resp_ficha.data)
             self.assertIn(b"id=\"preview-iframe\"", resp_ficha.data)
 
+
+
+    def test_two_step_approach_rules_and_data(self):
+        """Valida que todos os 15 leads de Categoria A cumprem as regras da abordagem em duas etapas."""
+        import re
+        leads = get_category_a_leads_data()
+        self.assertEqual(len(leads), 15)
+
+        for lead in leads:
+            lead_id = lead["lead_id"]
+
+            # Regras da Etapa 1
+            msg1 = lead.get("mensagem_etapa1") or ""
+            self.assertTrue(len(msg1) > 15, f"{lead_id}: mensagem_etapa1 deve existir e ter conteúdo")
+            # Máximo de 2 frases (desconsiderando pontos em abreviações como Dra., Dr., etc.)
+            clean_msg1 = re.sub(r"\b(Dra|Dr|Sr|Sra|Av|R)\.", r"\1", msg1, flags=re.IGNORECASE)
+            frases1 = [f for f in re.split(r"[.?!]+(?:\s+|$)", clean_msg1.strip()) if f]
+            self.assertLessEqual(len(frases1), 2, f"{lead_id}: mensagem_etapa1 deve ter no máximo 2 frases (encontradas {len(frases1)})")
+            # Sem links na Etapa 1
+            self.assertNotIn("http://", msg1.lower(), f"{lead_id}: Etapa 1 não deve conter link")
+            self.assertNotIn("https://", msg1.lower(), f"{lead_id}: Etapa 1 não deve conter link")
+            self.assertNotIn("www.", msg1.lower(), f"{lead_id}: Etapa 1 não deve conter link")
+
+            # Variações da Etapa 1
+            variacoes = lead.get("variacoes_etapa1") or []
+            self.assertEqual(len(variacoes), 3, f"{lead_id}: deve conter exatamente 3 variações de Etapa 1")
+            for i, v in enumerate(variacoes):
+                clean_v = re.sub(r"\b(Dra|Dr|Sr|Sra|Av|R)\.", r"\1", v, flags=re.IGNORECASE)
+                frases_v = [f for f in re.split(r"[.?!]+(?:\s+|$)", clean_v.strip()) if f]
+                self.assertLessEqual(len(frases_v), 2, f"{lead_id}: variação {i+1} deve ter no máximo 2 frases (encontradas {len(frases_v)} em '{v}')")
+                self.assertNotIn("http://", v.lower())
+                self.assertNotIn("https://", v.lower())
+
+            # Regras da Etapa 2
+            msg2 = lead.get("mensagem_etapa2") or ""
+            self.assertTrue(len(msg2) > 50, f"{lead_id}: mensagem_etapa2 deve ter corpo consultivo substantivo")
+            self.assertTrue(any(term in msg2.lower() for term in ["prévia", "demonstração", "modelo"]),
+                            f"{lead_id}: Etapa 2 deve oferecer a prévia/demonstração")
+
+        # Teste de persistência e atualização via update_prospecting_content
+        seed_prospecting_queue(self.temp_db_path)
+        sample_lead_id = "lead-marcenaria-sua-casa-contagem"
+        custom_m1 = "Olá, tudo bem? Falo com o responsável da marcenaria?"
+        custom_m2 = "Olá! Desenhamos uma prévia de catálogo online. Posso enviar o link?"
+
+        ok = update_prospecting_content(sample_lead_id, {
+            "mensagem_etapa1": custom_m1,
+            "mensagem_etapa2": custom_m2,
+            "etapa_ativa": 2
+        }, db_target=self.temp_db_path)
+        self.assertTrue(ok)
+
+        saved = get_prospecting_lead(sample_lead_id, db_target=self.temp_db_path)
+        self.assertEqual(saved["mensagem_etapa1"], custom_m1)
+        self.assertEqual(saved["mensagem_etapa2"], custom_m2)
+        self.assertEqual(saved["etapa_ativa"], 2)
+
+        # Teste de atualização via endpoint Flask API
+        with app.app_context():
+            resp = self.client.post(
+                f"/api/prospeccao/{sample_lead_id}/update",
+                data=json.dumps({
+                    "mensagem_etapa1": "Nova frase 1? Nova frase 2.",
+                    "etapa_ativa": 1
+                }),
+                content_type="application/json"
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertTrue(resp.get_json()["success"])
+
+            ficha_resp = self.client.get(f"/prospeccao/{sample_lead_id}")
+            self.assertEqual(ficha_resp.status_code, 200)
+            self.assertIn(b"Etapa 1: Contato", ficha_resp.data)
+            self.assertIn(b"Etapa 2: Pr", ficha_resp.data.replace(b"\xc3\xa9", b"e"))
 
 
 if __name__ == "__main__":

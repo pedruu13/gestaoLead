@@ -94,6 +94,18 @@ def init_prospecting_schema(db_target=DB_NAME):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_prospecting_status ON commercial_prospecting_queue(status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_prospecting_lead_id ON commercial_prospecting_queue(lead_id)")
 
+    # Migração idempotente para colunas da abordagem em 2 etapas
+    for col, tipo in [
+        ("mensagem_etapa1", "TEXT"),
+        ("mensagem_etapa2", "TEXT"),
+        ("variacoes_etapa1_json", "TEXT DEFAULT '[]'"),
+        ("etapa_ativa", "INTEGER DEFAULT 1"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE commercial_prospecting_queue ADD COLUMN {col} {tipo}")
+        except sqlite3.OperationalError:
+            pass
+
     # Garante a existência da tabela preview_versions para versionamento histórico de layouts
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS preview_versions
@@ -156,7 +168,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Substituição do domínio amador do Canva por um site profissional próprio (.com.br), transmitindo autoridade médica imediata e aumentando a taxa de fechamento de pacientes particulares."
             },
-            "mensagem_whatsapp": "Olá, Dra. Francielle, tudo bem? Acompanhei o trabalho da Euphoria Estética em Limeira na parte de hidrolipoclasia e harmonização. Notei que hoje vocês apresentam os tratamentos pelo link do Canva. Desenhamos uma estrutura de página com domínio próprio (.com.br) voltada para transmitir autoridade clínica e agendar avaliações direto no seu WhatsApp. Posso te enviar uma prévia visual de como ficaria para a clínica?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Francielle ou com a responsável pelo atendimento da Euphoria Estética em Limeira?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Francielle ou com a responsável pelo atendimento da Euphoria Estética em Limeira?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Francielle ou com a responsável pelo atendimento da Euphoria Estética em Limeira?",
+                "Olá, bom dia! É da clínica Euphoria Estética na Rua Ceará, gostaria de falar com a responsável pelos agendamentos?",
+                "Olá, tudo bem? Quem responde pela parte de novos atendimentos da Euphoria Estética por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Analisamos a presença online de clínicas de estética em Limeira e notamos a qualidade dos procedimentos da Euphoria, mas que a divulgação hoje é feita por um link do Canva. Para procedimentos de estética avançada e harmonização, um site institucional próprio (.com.br) transmite muito mais segurança e autoridade para atrair pacientes particulares. Preparamos uma demonstração visual de página clínica para a Euphoria. Posso lhe enviar o link da prévia para você avaliar sem compromisso?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#B76E79",
@@ -206,7 +226,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Apresentação detalhada da capacitação biomédica, filtrando pacientes que buscam procedimentos particulares de alto padrão e dispensando explicações repetitivas no WhatsApp."
             },
-            "mensagem_whatsapp": "Olá, Dra. Rafaelle, tudo bem? Vi o destaque do seu consultório de estética integrativa no Centro de Indaiatuba, especialmente os protocolos de bioestimuladores e harmonização. Notei que você não possui uma página própria apresentando os tratamentos. Estruturamos um modelo de landing page para apresentar seus procedimentos e receber pacientes já qualificados no seu WhatsApp. Posso te mostrar uma prévia rápida?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Rafaelle ou com o atendimento do consultório em Indaiatuba?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Rafaelle ou com o atendimento do consultório em Indaiatuba?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Rafaelle ou com o atendimento do consultório em Indaiatuba?",
+                "Olá, bom dia! É do consultório da Dra. Rafaelle Lúcia na Rua Humaitá, gostaria de confirmar se falo com a responsável.",
+                "Olá! Quem responde pelos agendamentos e contato institucional da clínica da Dra. Rafaelle por aqui?"
+],
+            "mensagem_etapa2": "Sou da PH DIGITAL e desenvolvemos páginas profissionais para profissionais da saúde e estética. Pensei em uma apresentação online que ajude a reunir os procedimentos de harmonização e facilite o agendamento de consultas do consultório em Indaiatuba. Preparei uma demonstração visual dessa proposta e gostaria de apresentar a vocês.",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#2D5A52",
@@ -254,7 +282,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Posicionamento da clínica no topo das pesquisas de Indaiatuba no Google, conferindo autoridade condizente com a localização nobre na avenida."
             },
-            "mensagem_whatsapp": "Olá, Dra. Sarah, tudo bem? Acompanho a excelência da Amabille Estética na Av. Fábio Roberto Barnabé em Indaiatuba. Seu trabalho em harmonização orofacial e rinomodelação tem alto valor e merece um endereço web (.com.br) próprio para respaldar essa autoridade e facilitar novos agendamentos particulares. Posso te apresentar uma proposta visual rápida sem compromisso?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Sarah ou com a responsável pelo atendimento da Amabille Estética?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Sarah ou com a responsável pelo atendimento da Amabille Estética?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Sarah ou com a responsável pelo atendimento da Amabille Estética?",
+                "Olá, boa tarde! É da clínica Amabille na Av. Fábio Roberto Barnabé, gostaria de falar com a administração.",
+                "Olá, tudo bem? Quem responde pelo setor de agendamentos e novos pacientes da Amabille por aqui?"
+],
+            "mensagem_etapa2": "Sou da PH DIGITAL e desenvolvemos páginas profissionais para clínicas de estética. Pensei em uma estrutura online que ajude a apresentar os tratamentos da Amabille Estética de forma clara para quem busca atendimento em Indaiatuba. Preparei uma demonstração visual desse modelo e gostaria de apresentar a vocês.",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#C87D65",
@@ -302,7 +338,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Presença online profissional estruturada com SEO local para indexar no Google de Indaiatuba e direcionar contatos qualificados diretamente para o WhatsApp do consultório."
             },
-            "mensagem_whatsapp": "Olá, Dra. Daniela, tudo bem? Encontrei seu consultório de harmonização na Rua Sete de Setembro em Indaiatuba com excelentes avaliações. Notei que você ainda não possui um site próprio para posicionar seu nome nas buscas do Google da cidade. Preparamos uma estrutura de página pensada para captar pacientes locais interessados em harmonização facial. Posso compartilhar o conceito com você?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Daniela Andrade ou com a recepção do consultório em Indaiatuba?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Daniela Andrade ou com a recepção do consultório em Indaiatuba?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Daniela Andrade ou com a recepção do consultório em Indaiatuba?",
+                "Olá, bom dia! É do consultório da Dra. Daniela na Rua Sete de Setembro, gostaria de falar com a responsável.",
+                "Olá! Quem cuida dos atendimentos e novos agendamentos do consultório da Dra. Daniela por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Vimos as ótimas avaliações do seu consultório na Vila Sfeir em Indaiatuba na área de harmonização facial e corporal. Identificamos que o consultório ainda não possui um site próprio nas buscas do Google na região, onde muitos pacientes pesquisam por tratamentos estéticos. Montamos uma demonstração de página de autoridade clínica para o seu consultório. Posso compartilhar o link com você para avaliar?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#6B2D5C",
@@ -350,7 +394,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Desmistificação do tratamento de canal e valorização da harmonização facial, gerando confiança para pacientes com dores agudas ou que buscam estética dental avançada."
             },
-            "mensagem_whatsapp": "Olá, Dra. Bruna, tudo bem? Vi seu consultório na Vila Cristovam em Limeira e a união entre endodontia especializada e harmonização facial. Esse tipo de tratamento de alta precisão converte muito melhor quando o paciente encontra uma página própria explicando a tecnologia e os resultados. Desenhamos uma prévia de site para o seu consultório. Teria 2 minutos para dar uma olhada?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Bruna Madeira ou com a recepção do consultório em Limeira?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Bruna Madeira ou com a recepção do consultório em Limeira?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Bruna Madeira ou com a recepção do consultório em Limeira?",
+                "Olá, bom dia! É do consultório odontológico da Dra. Bruna na Rua Sergipe, gostaria de falar com a responsável.",
+                "Olá! Quem coordena os agendamentos e o atendimento do consultório da Dra. Bruna por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Vimos a atuação do seu consultório na Vila Cristovam em Limeira, unindo endodontia especializada e harmonização facial. Procedimentos odontológicos de alta precisão convertem muito melhor quando o paciente encontra uma página própria explicando a segurança e a tecnologia do consultório. Desenhamos uma prévia demonstrativa de site para o consultório. Teria um minuto para ver como ficou?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#0F2B48",
@@ -398,7 +450,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Captação ativa de pacientes particulares na região sul de Curitiba que pesquisam por implantes e ortodontia no Google, reduzindo a dependência de convênios."
             },
-            "mensagem_whatsapp": "Olá, equipe do CMO Odontológico, tudo bem? Acompanhei a estrutura da clínica na Izaac Ferreira da Cruz no Sítio Cercado. Vocês possuem uma clínica completa com ótimos horários, mas ainda dependem apenas do Instagram. Criamos um modelo de portal institucional com agendamento direto para potencializar a captação de implantes e ortodontia. Posso enviar a prévia para o responsável?",
+            "mensagem_whatsapp": "Olá, tudo bem? Gostaria de falar com o responsável pela administração ou atendimento do CMO Odontologia no Sítio Cercado.",
+            "mensagem_etapa1": "Olá, tudo bem? Gostaria de falar com o responsável pela administração ou atendimento do CMO Odontologia no Sítio Cercado.",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Gostaria de falar com o responsável pela administração ou atendimento do CMO Odontologia no Sítio Cercado.",
+                "Olá, bom dia! É da clínica CMO Odontologia na Rua Izaac Ferreira da Cruz, este canal fala com a coordenação?",
+                "Olá! Quem responde pela parte de captação de novos pacientes e gestão do CMO Odontologia por aqui?"
+],
+            "mensagem_etapa2": "Sou da PH DIGITAL e desenvolvemos sites profissionais para clínicas odontológicas. Pensei em um portal que ajude a apresentar as especialidades de atendimento e facilite o agendamento de consultas do CMO no Sítio Cercado. Preparei uma demonstração visual dessa estrutura e gostaria de apresentar a vocês.",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#114B5F",
@@ -446,7 +506,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Apresentação visual de qualidade de alto padrão com formulário direto para solicitação de medição, acelerando o fechamento de contratos de R$ 10.000 a R$ 40.000."
             },
-            "mensagem_whatsapp": "Olá, pessoal da Marcenaria Sua Casa, tudo bem? Vi a fábrica de vocês no Bairro Inconfidentes em Contagem e os projetos de móveis planejados. Para fechar cozinhas e dormitórios de alto padrão, um catálogo digital onde o cliente navega pelos ambientes e pede medição no imóvel faz toda a diferença. Montamos uma prévia de catálogo web para vocês. Posso te enviar o link para avaliar?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Sua Casa em Contagem?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Sua Casa em Contagem?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Sua Casa em Contagem?",
+                "Olá, bom dia! É da fábrica da Marcenaria Sua Casa no Bairro Inconfidentes, gostaria de falar com o responsável comercial.",
+                "Olá, tudo bem? Quem responde pelos orçamentos de móveis sob medida da Marcenaria Sua Casa por aqui?"
+],
+            "mensagem_etapa2": "Sou da PH DIGITAL e desenvolvemos sites profissionais para marcenarias e fabricantes de móveis sob medida. Pensei em um catálogo online por ambientes que ajude a apresentar os projetos de móveis planejados e facilite pedidos de orçamento em Contagem. Preparei uma demonstração visual desse formato e gostaria de apresentar a vocês.",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#8B5A2B",
@@ -494,7 +562,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Canal profissional para arquitetos e clientes finais enviarem plantas em PDF/DWG diretamente para a equipe técnica orçar com agilidade."
             },
-            "mensagem_whatsapp": "Olá, equipe da Linear Móveis, tudo bem? Conheci o trabalho da marcenaria em Palhoça e a qualidade dos projetos sob medida. Na Grande Florianópolis, construtoras e arquitetos buscam fábricas estruturadas pelo Google. Desenvolvemos uma proposta de catálogo institucional para valorizar a fábrica e gerar orçamentos corporativos e residenciais. Posso te apresentar o projeto?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com o responsável pelos projetos e orçamentos da Linear Móveis em Palhoça?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com o responsável pelos projetos e orçamentos da Linear Móveis em Palhoça?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com o responsável pelos projetos e orçamentos da Linear Móveis em Palhoça?",
+                "Olá, bom dia! É da marcenaria Linear Móveis na Rua Maria Basílio, gostaria de falar com o responsável comercial.",
+                "Olá! Quem coordena o atendimento a clientes e arquitetos da Linear Móveis por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Vimos a estrutura fabril da Linear Móveis em Palhoça e a qualidade dos projetos executados na Grande Florianópolis. Muitas construtoras, arquitetos e proprietários buscam fábricas consolidadas pelo Google e precisam de um canal formal para envio de plantas. Criamos uma demonstração de catálogo institucional para a Linear Móveis. Posso te enviar o link da proposta para você dar uma olhada?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#2E3440",
@@ -542,7 +618,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Filtro inicial de orçamentos por tipo de ambiente e estilo de acabamento, acelerando o fechamento com clientes de condomínios fechados da região."
             },
-            "mensagem_whatsapp": "Olá, equipe S12 Design, tudo bem? Acompanhei os móveis sob medida que vocês produzem em Palhoça e o excelente acabamento dos ambientes. Montamos uma prévia de landing page moderna focada em valorizar esse design e facilitar o envio de plantas e orçamentos direto para o seu WhatsApp. Posso te mandar uma demonstração?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com o responsável pelo atendimento e orçamentos da S12 Design em Palhoça?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com o responsável pelo atendimento e orçamentos da S12 Design em Palhoça?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com o responsável pelo atendimento e orçamentos da S12 Design em Palhoça?",
+                "Olá, boa tarde! É do studio S12 Design no Bairro Rio Grande, gostaria de falar com a administração.",
+                "Olá! Quem cuida dos orçamentos de projetos sob medida da S12 Design por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Acompanhamos o padrão de acabamento dos ambientes sob medida que a S12 Design produz em Palhoça. Notamos que vocês recebem clientes principalmente pelo Instagram, sem uma página estruturada que valorize o design e qualifique os pedidos de orçamento por ambiente. Preparamos uma demonstração visual de site pensada para o estúdio de vocês. Teria interesse em ver o link da prévia?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#18181B",
@@ -590,7 +674,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Foco na dor do cliente de marcenaria (medo de atraso na entrega), destacando compromisso de prazo e acabamento impecável."
             },
-            "mensagem_whatsapp": "Olá, pessoal da Marcenaria Americana, tudo bem? Vi os trabalhos de móveis planejados de vocês aqui na cidade. Quem busca marcenaria em Americana e região no Google hoje não encontra um catálogo oficial da empresa. Montamos uma estrutura web rápida para expor seus móveis entregues e receber pedidos de medição. Teria interesse em ver a prévia?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Americana?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Americana?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com o responsável pelos orçamentos da Marcenaria Americana?",
+                "Olá, bom dia! É da Marcenaria Americana na Rua Antônio Fornaziero, gostaria de falar com o responsável pela empresa.",
+                "Olá! Quem responde pelos novos pedidos e visitas técnicas de móveis planejados por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Vimos o trabalho de móveis planejados de vocês em Americana e o histórico de entregas na região. Clientes que procuram marcenaria de confiança no Google muitas vezes não encontram um catálogo oficial com os ambientes prontos e solicitação de orçamento. Criamos uma demonstração visual de site para a Marcenaria Americana. Posso te enviar o link da prévia para você conhecer sem compromisso?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#1E3A8A",
@@ -638,7 +730,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Foco na aula experimental como isca de alta conversão, gerando fluxo constante de novas matrículas recorrentes."
             },
-            "mensagem_whatsapp": "Olá, Dra. Camila, tudo bem? Acompanhei o trabalho do seu Studio de Pilates no Bairro Diamante/Barreiro. Para quem procura alívio de dores e condicionamento no Barreiro, ter uma página apresentando seu espaço e permitindo agendar a primeira aula experimental aumenta muito as matrículas. Criamos um modelo visual para o estúdio. Posso te enviar para conhecer?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Camila ou com a coordenação do Studio de Pilates no Barreiro?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Camila ou com a coordenação do Studio de Pilates no Barreiro?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Camila ou com a coordenação do Studio de Pilates no Barreiro?",
+                "Olá, bom dia! É do Studio Camila Nascimento na Rua Madre Paulina, gostaria de confirmar se este é o contato da responsável.",
+                "Olá! Quem coordena as novas turmas e o atendimento de alunas de pilates por aqui?"
+],
+            "mensagem_etapa2": "Sou da PH DIGITAL e desenvolvemos páginas profissionais para estúdios de pilates e fisioterapia. Pensei em uma apresentação online que ajude a mostrar as modalidades do Studio Camila Nascimento e facilite o agendamento de aulas no Barreiro. Preparei uma demonstração visual dessa página e gostaria de apresentar a vocês.",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#556B2F",
@@ -686,7 +786,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Estratégia de precificação e atração de alunos particulares que valorizam atendimento personalizado e garantem previsibilidade financeira para o estúdio."
             },
-            "mensagem_whatsapp": "Olá, equipe da UP Fisio no Barreiro, tudo bem? Vi a estrutura de pilates e fisioterapia de vocês na Rua Aparecida Feitosa Furtado. Sabemos que depender de repasses de aplicativos de academia reduz a margem. Ter uma página própria para converter alunos no plano particular integral faz toda a diferença. Desenhamos uma landing page voltada para isso. Posso te mostrar?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a coordenação ou responsável pelo atendimento da UP Fisio no Barreiro?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a coordenação ou responsável pelo atendimento da UP Fisio no Barreiro?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a coordenação ou responsável pelo atendimento da UP Fisio no Barreiro?",
+                "Olá, bom dia! É da UP Fisio na Rua Aparecida Feitosa Furtado, gostaria de falar com o responsável pelo espaço.",
+                "Olá! Quem responde pela parte de matrículas e gestão do estúdio de pilates por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Analisamos clínicas de reabilitação e pilates no Barreiro e conhecemos a estrutura da UP Fisio na Rua Aparecida Feitosa Furtado. Notamos que vocês atendem aplicativos corporativos, mas ainda não possuem um site institucional focado em captar alunos particulares para planos semestrais e anuais no Google. Criamos uma demonstração visual de página para a clínica. Posso te enviar o link para você conhecer?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#5B21B6",
@@ -734,7 +842,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Exibição clara das vagas nos horários de pico, gerando senso de urgência para fechamento imediato da aula teste."
             },
-            "mensagem_whatsapp": "Olá, Déborah, tudo bem? Vi a movimentação e a dedicação do seu estúdio de pilates no Miramar/Barreiro. Como você atende em dois turnos, ter uma página que mostre os horários e permita às novas alunas agendarem uma aula teste economiza muito tempo no WhatsApp. Desenhamos um modelo exclusivo para o seu estúdio. Posso te enviar para dar uma olhada?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Déborah ou com a responsável pelo Studio de Pilates no Miramar?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Déborah ou com a responsável pelo Studio de Pilates no Miramar?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Déborah ou com a responsável pelo Studio de Pilates no Miramar?",
+                "Olá, bom dia! É do Studio de Pilates na Rua Eridano no Barreiro, gostaria de falar com a Déborah.",
+                "Olá, tudo bem? Quem cuida das novas matrículas e horários do estúdio por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Vimos o estúdio de pilates de vocês no Bairro Miramar em Belo Horizonte e o atendimento em dois turnos. Como muitas alunas buscam horários de manhã ou à noite, ter uma página que mostre as turmas e permita solicitar uma aula teste poupa muito tempo de explicação no WhatsApp. Desenhamos uma demonstração visual exclusiva para o estúdio. Posso te enviar o link para dar uma olhada?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#9D5C63",
@@ -782,7 +898,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Foco terapêutico na dor do paciente, posicionando Tiago Magno como autoridade médica em coluna no Barreiro."
             },
-            "mensagem_whatsapp": "Olá, Tiago, tudo bem? Encontrei seu estúdio de pilates no Brasil Industrial/Barreiro e o foco no tratamento de coluna. Pacientes com dor crônica buscam muita informação antes de agendar. Uma página explicativa focada em reabilitação de coluna transmite a confiança que eles precisam para marcar. Preparamos uma demonstração pensada para o seu método. Posso compartilhar?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com o Dr. Tiago Magno ou com a recepção do estúdio de pilates no Barreiro?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com o Dr. Tiago Magno ou com a recepção do estúdio de pilates no Barreiro?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com o Dr. Tiago Magno ou com a recepção do estúdio de pilates no Barreiro?",
+                "Olá, bom dia! É do estúdio na Rua José Balbino Vieira no Brasil Industrial, gostaria de falar com o Tiago.",
+                "Olá! Quem responde pelos agendamentos de avaliações posturais e pilates por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Encontramos seu estúdio no Brasil Industrial no Barreiro e o trabalho especializado em reabilitação da coluna e postura. Pacientes com dor crônica costumam pesquisar muito antes de agendar e uma página própria detalhando a metodologia transmite a tranquilidade necessária para marcarem uma consulta. Preparamos uma demonstração visual pensada para o seu estúdio. Gostaria de receber o link para conhecer?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#1E40AF",
@@ -830,7 +954,15 @@ def get_category_a_leads_data():
                 ],
                 "diferencial_conversao": "Eliminação do atrito do DDD 11, demonstrando que o consultório opera ativamente na cidade com endereço físico e atendimento regular."
             },
-            "mensagem_whatsapp": "Olá, Dra. Fernanda, tudo bem? Acompanhei seu trabalho impecável em harmonização facial na Vila Magalhães em Indaiatuba. Para fortalecer sua presença na cidade e passar total segurança aos pacientes locais, uma landing page profissional voltada para Indaiatuba faz toda a diferença. Estruturamos uma prévia de página para seu consultório. Posso te enviar para conhecer?",
+            "mensagem_whatsapp": "Olá, tudo bem? Falo com a Dra. Fernanda Oliveira ou com a recepção do consultório em Indaiatuba?",
+            "mensagem_etapa1": "Olá, tudo bem? Falo com a Dra. Fernanda Oliveira ou com a recepção do consultório em Indaiatuba?",
+            "variacoes_etapa1": [
+                "Olá, tudo bem? Falo com a Dra. Fernanda Oliveira ou com a recepção do consultório em Indaiatuba?",
+                "Olá, boa tarde! É do consultório da Dra. Fernanda na Rua Leonor de Barros, gostaria de confirmar se falo com a responsável.",
+                "Olá! Quem cuida dos atendimentos e consultas de harmonização facial da Dra. Fernanda por aqui?"
+],
+            "mensagem_etapa2": "Olá! Sou da PH DIGITAL. Acompanhamos o padrão do seu consultório de harmonização facial na Vila Magalhães em Indaiatuba. Como o seu contato utiliza DDD 11, ter uma página própria (.com.br) destacando o endereço físico e os procedimentos em Indaiatuba elimina qualquer desconfiança de pacientes locais e fortalece a captação na cidade. Criamos uma prévia demonstrativa de landing page para o seu consultório. Posso te enviar o link para você avaliar?",
+            "etapa_ativa": 1,
             "briefing_visual": {
                 "paleta_cores": {
                     "primaria": "#1C1917",
@@ -870,43 +1002,58 @@ def seed_prospecting_queue(db_target=DB_NAME):
         proposta_str = json.dumps(lead["proposta"], ensure_ascii=False)
         briefing_str = json.dumps(lead["briefing_visual"], ensure_ascii=False)
         evidencias_str = json.dumps(lead["evidencias"], ensure_ascii=False)
-        
+        variacoes_str = json.dumps(lead.get("variacoes_etapa1", []), ensure_ascii=False)
+        msg_etapa1 = lead.get("mensagem_etapa1") or lead.get("mensagem_whatsapp") or ""
+        msg_etapa2 = lead.get("mensagem_etapa2") or ""
+        etapa_ativa = lead.get("etapa_ativa") or 1
+
         # Verificar se já existe
-        row = cursor.execute("SELECT id, status, notas_operador FROM commercial_prospecting_queue WHERE lead_id = ?", (lead["lead_id"],)).fetchone()
+        row = cursor.execute("SELECT id, status, notas_operador, mensagem_etapa1, mensagem_etapa2 FROM commercial_prospecting_queue WHERE lead_id = ?", (lead["lead_id"],)).fetchone()
         if not row:
             cursor.execute(
                 """INSERT INTO commercial_prospecting_queue (
                     lead_id, nome, categoria, nicho, cidade, bairro, endereco, responsavel,
                     telefone, whatsapp_link, canal_atual, website, rating, reviews, score,
                     status, oportunidade_digital, proposta_json, mensagem_whatsapp,
-                    briefing_visual_json, evidencias_json, notas_operador
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    briefing_visual_json, evidencias_json, notas_operador,
+                    mensagem_etapa1, mensagem_etapa2, variacoes_etapa1_json, etapa_ativa
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     lead["lead_id"], lead["nome"], lead["categoria"], lead["nicho"],
                     lead["cidade"], lead["bairro"], lead["endereco"], lead["responsavel"],
                     lead["telefone"], wa_link, lead["canal_atual"], lead["website"],
                     lead["rating"], lead["reviews"], lead["score"], lead["status"],
-                    lead["oportunidade_digital"], proposta_str, lead["mensagem_whatsapp"],
-                    briefing_str, evidencias_str, ""
+                    lead["oportunidade_digital"], proposta_str, msg_etapa1,
+                    briefing_str, evidencias_str, "",
+                    msg_etapa1, msg_etapa2, variacoes_str, etapa_ativa
                 )
             )
             seeded_count += 1
         else:
-            # Preserva status e notas existentes, atualiza dados da proposta
+            # Preserva status e notas existentes, atualiza dados da proposta e preenche etapas se vazias
+            db_dict = _row_to_dict(row, cursor)
+            atual_msg1 = db_dict.get("mensagem_etapa1") if db_dict.get("mensagem_etapa1") else msg_etapa1
+            atual_msg2 = db_dict.get("mensagem_etapa2") if db_dict.get("mensagem_etapa2") else msg_etapa2
+
             cursor.execute(
                 """UPDATE commercial_prospecting_queue
                    SET nome = ?, categoria = ?, nicho = ?, cidade = ?, bairro = ?,
                        endereco = ?, responsavel = ?, telefone = ?, whatsapp_link = ?,
                        canal_atual = ?, website = ?, rating = ?, reviews = ?, score = ?,
                        oportunidade_digital = ?, proposta_json = ?,
-                       briefing_visual_json = ?, evidencias_json = ?, updated_at = CURRENT_TIMESTAMP
+                       briefing_visual_json = ?, evidencias_json = ?,
+                       mensagem_etapa1 = ?, mensagem_etapa2 = ?,
+                       variacoes_etapa1_json = ?,
+                       updated_at = CURRENT_TIMESTAMP
                    WHERE lead_id = ?""",
                 (
                     lead["nome"], lead["categoria"], lead["nicho"], lead["cidade"], lead["bairro"],
                     lead["endereco"], lead["responsavel"], lead["telefone"], wa_link,
                     lead["canal_atual"], lead["website"], lead["rating"], lead["reviews"], lead["score"],
                     lead["oportunidade_digital"], proposta_str,
-                    briefing_str, evidencias_str, lead["lead_id"]
+                    briefing_str, evidencias_str,
+                    atual_msg1, atual_msg2, variacoes_str,
+                    lead["lead_id"]
                 )
             )
             updated_count += 1
@@ -960,6 +1107,14 @@ def list_prospecting_queue(status_filter=None, db_target=DB_NAME):
             lead_dict["evidencias"] = json.loads(lead_dict.get("evidencias_json") or "[]")
         except Exception:
             lead_dict["evidencias"] = []
+        try:
+            lead_dict["variacoes_etapa1"] = json.loads(lead_dict.get("variacoes_etapa1_json") or "[]")
+        except Exception:
+            lead_dict["variacoes_etapa1"] = []
+        if not lead_dict.get("mensagem_etapa1"):
+            lead_dict["mensagem_etapa1"] = lead_dict.get("mensagem_whatsapp") or ""
+        if not lead_dict.get("etapa_ativa"):
+            lead_dict["etapa_ativa"] = 1
         leads.append(lead_dict)
         
     if should_close:
@@ -992,6 +1147,14 @@ def get_prospecting_lead(lead_id, db_target=DB_NAME):
         lead_dict["evidencias"] = json.loads(lead_dict.get("evidencias_json") or "[]")
     except Exception:
         lead_dict["evidencias"] = []
+    try:
+        lead_dict["variacoes_etapa1"] = json.loads(lead_dict.get("variacoes_etapa1_json") or "[]")
+    except Exception:
+        lead_dict["variacoes_etapa1"] = []
+    if not lead_dict.get("mensagem_etapa1"):
+        lead_dict["mensagem_etapa1"] = lead_dict.get("mensagem_whatsapp") or ""
+    if not lead_dict.get("etapa_ativa"):
+        lead_dict["etapa_ativa"] = 1
     return lead_dict
 
 
@@ -1047,6 +1210,22 @@ def update_prospecting_content(lead_id, data, db_target=DB_NAME):
     if "mensagem_whatsapp" in data:
         updates.append("mensagem_whatsapp = ?")
         params.append(data["mensagem_whatsapp"])
+
+    if "mensagem_etapa1" in data:
+        updates.append("mensagem_etapa1 = ?")
+        params.append(data["mensagem_etapa1"])
+
+    if "mensagem_etapa2" in data:
+        updates.append("mensagem_etapa2 = ?")
+        params.append(data["mensagem_etapa2"])
+
+    if "variacoes_etapa1" in data:
+        updates.append("variacoes_etapa1_json = ?")
+        params.append(json.dumps(data["variacoes_etapa1"], ensure_ascii=False))
+
+    if "etapa_ativa" in data:
+        updates.append("etapa_ativa = ?")
+        params.append(int(data["etapa_ativa"]))
         
     if "oportunidade_digital" in data:
         updates.append("oportunidade_digital = ?")

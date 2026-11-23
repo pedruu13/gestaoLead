@@ -39,6 +39,71 @@ jobs:
             APP_PATH="${ORACLE_APP_PATH:-/home/ubuntu/gestaoLead}"
             SERVICE="${ORACLE_SERVICE:-gestaolead}"
             cd "$APP_PATH"
+
+            # =========================================================================
+            # BACKUP PRÉ-DEPLOY CONSISTENTE DO BANCO SQLITE DE PRODUÇÃO
+            # =========================================================================
+            DB_FILE="gestao_leads.db"
+            BACKUP_DIR="backups"
+            TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+            BACKUP_FILE="${BACKUP_DIR}/pre-deploy-${TIMESTAMP}.db"
+
+            mkdir -p "$BACKUP_DIR"
+
+            if [ ! -f "$DB_FILE" ]; then
+              echo "::error::Banco SQLite de produção ($DB_FILE) não encontrado. Abortando deploy."
+              exit 1
+            fi
+
+            if [ -e "$BACKUP_FILE" ]; then
+              echo "::error::Arquivo de backup já existente ($BACKUP_FILE). Abortando para evitar sobrescrita."
+              exit 1
+            fi
+
+            echo "==> Iniciando backup pré-deploy consistente em $BACKUP_FILE..."
+            python3 -c "
+              import sqlite3, sys
+              db_src = sys.argv[1]
+              db_dst = sys.argv[2]
+              try:
+                  src = sqlite3.connect(f'file:{db_src}?mode=ro', uri=True)
+                  dst = sqlite3.connect(db_dst)
+                  with dst:
+                      src.backup(dst, pages=100)
+                  dst.close()
+                  src.close()
+              except Exception as exc:
+                  print(f'::error::Falha ao executar backup SQLite online: {exc}', file=sys.stderr)
+                  sys.exit(1)
+            " "$DB_FILE" "$BACKUP_FILE"
+
+            if [ ! -s "$BACKUP_FILE" ]; then
+              echo "::error::Backup pré-deploy falhou: arquivo não existe ou tem tamanho zero."
+              exit 1
+            fi
+
+            echo "==> Validando integridade do backup SQLite pré-deploy..."
+            python3 -c "
+              import sqlite3, sys
+              backup_path = sys.argv[1]
+              try:
+                  conn = sqlite3.connect(f'file:{backup_path}?mode=ro', uri=True)
+                  cur = conn.cursor()
+                  res = cur.execute('PRAGMA integrity_check;').fetchall()
+                  conn.close()
+                  if res != [('ok',)]:
+                      print(f'::error::Integridade do banco comprometida: {res}', file=sys.stderr)
+                      sys.exit(1)
+              except Exception as exc:
+                  print(f'::error::Falha ao abrir e verificar integridade do backup: {exc}', file=sys.stderr)
+                  sys.exit(1)
+            " "$BACKUP_FILE"
+
+            echo "==> Backup pré-deploy concluído e validado com sucesso: $BACKUP_FILE"
+
+            # =========================================================================
+            # ATUALIZAÇÃO DA APLICAÇÃO
+            # =========================================================================
             git pull --ff-only origin main
             python3 -m pip install -r requirements.txt
             python3 -m playwright install --with-deps chromium

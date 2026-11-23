@@ -22,11 +22,13 @@ regeneration_status.json
 regeneration_status.json.tmp
 backups/
 artifacts/
+cloudflare_pages_phdigital/
 
 # OS
 .DS_Store
 Thumbs.db
 *.db
+*.db-*
 *.sqlite3
 config.json
 scratch/
