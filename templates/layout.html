@@ -9,85 +9,253 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']}}}};</script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r7') }}">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gl: {
+                            bg: '#0F1115',
+                            card: '#181B20',
+                            border: '#2A2F38',
+                            text: '#F1F5F9',
+                            muted: '#94A3B8',
+                            subtle: '#64748B',
+                            accent: '#60A5FA',
+                            accentHover: '#3B82F6',
+                            success: '#10B981',
+                            warning: '#F59E0B',
+                            danger: '#EF4444'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r8') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css', v='20261109-r8') }}">
 </head>
 <body class="gl-app">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
     <div id="mobile-overlay" class="gl-mobile-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
+
+    <!-- Sidebar Principal Recolhível (Ref: Profitize Dashboard Sidebar) -->
     <aside id="sidebar" class="gl-sidebar" aria-label="Navegação principal">
         <div class="gl-brand-row">
-            <a href="/" class="gl-brand" aria-label="GestãoLead — início">
-                <span class="gl-brand-mark">{{ icon('crosshair', 'w-5 h-5') }}</span>
-                <span class="gl-brand-copy"><strong>GestãoLead</strong><small>Prospecção comercial</small></span>
+            <a href="/" class="gl-brand" aria-label="GestãoLead — Início">
+                <span class="gl-brand-mark">{{ icon('crosshair', 'w-4 h-4') }}</span>
+                <span class="gl-brand-copy">
+                    <strong>GestãoLead</strong>
+                    <small>Prospecção B2B</small>
+                </span>
             </a>
-            <button id="sidebar-collapse" type="button" class="gl-icon-button gl-collapse-button" onclick="toggleSidebarCollapse()" aria-label="Recolher menu" data-tooltip="Recolher menu">{{ icon('chevron-down', 'w-4 h-4') }}</button>
-            <button type="button" class="gl-icon-button gl-mobile-close" onclick="toggleSidebar()" aria-label="Fechar menu">{{ icon('x', 'w-4 h-4') }}</button>
+            <button id="sidebar-collapse" type="button" class="gl-icon-button gl-collapse-button" onclick="toggleSidebarCollapse()" aria-label="Recolher menu" data-tooltip="Recolher menu">
+                {{ icon('chevron-down', 'w-4 h-4') }}
+            </button>
+            <button type="button" class="gl-icon-button gl-mobile-close" onclick="toggleSidebar()" aria-label="Fechar menu">
+                {{ icon('x', 'w-4 h-4') }}
+            </button>
         </div>
+
         <div class="gl-nav-primary">
-            <a href="/" class="gl-new-search {% if active_page == 'search' %}is-active{% endif %}">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova prospecção</span><kbd>N</kbd></a>
+            <a href="/" class="gl-new-search {% if active_page == 'search' %}is-active{% endif %}">
+                {{ icon('scan-search', 'w-4 h-4') }}
+                <span>Nova prospecção</span>
+                <kbd class="gl-kbd">N</kbd>
+            </a>
         </div>
+
         <nav class="gl-nav" aria-label="Área comercial">
             <span class="gl-nav-label">Operação</span>
-            <a href="/prospeccao" class="gl-nav-item" {% if active_page == 'prospeccao' %}aria-current="page"{% endif %}>{{ icon('sparkles', 'w-4 h-4') }}<span>Preparação Comercial</span></a>
-            <a href="/crm" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %}>{{ icon('send', 'w-4 h-4') }}<span>A abordar</span></a>
-            <a href="/crm/contatados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %}>{{ icon('messages', 'w-4 h-4') }}<span>Contatados</span></a>
-            <a href="/crm/descartados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %}>{{ icon('ban', 'w-4 h-4') }}<span>Descartados</span></a>
+            <a href="/prospeccao" class="gl-nav-item" {% if active_page == 'prospeccao' %}aria-current="page"{% endif %}>
+                {{ icon('sparkles', 'w-4 h-4') }}
+                <span>Preparação Comercial</span>
+            </a>
+            <a href="/crm" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'inbox' %}aria-current="page"{% endif %}>
+                {{ icon('send', 'w-4 h-4') }}
+                <span>A abordar</span>
+            </a>
+            <a href="/crm/contatados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'contacted' %}aria-current="page"{% endif %}>
+                {{ icon('messages', 'w-4 h-4') }}
+                <span>Contatados</span>
+            </a>
+            <a href="/crm/descartados" class="gl-nav-item" {% if active_page == 'crm' and crm_view == 'discarded' %}aria-current="page"{% endif %}>
+                {{ icon('ban', 'w-4 h-4') }}
+                <span>Descartados</span>
+            </a>
+
             <span class="gl-nav-label">Análise</span>
-            <a href="/estatisticas" class="gl-nav-item" {% if active_page == 'estatisticas' %}aria-current="page"{% endif %}>{{ icon('chart', 'w-4 h-4') }}<span>Performance</span></a>
+            <a href="/estatisticas" class="gl-nav-item" {% if active_page == 'estatisticas' %}aria-current="page"{% endif %}>
+                {{ icon('chart', 'w-4 h-4') }}
+                <span>Performance</span>
+            </a>
         </nav>
+
         <div class="gl-sidebar-footer">
-            <a href="/configuracoes" class="gl-nav-item" {% if active_page == 'configuracoes' %}aria-current="page"{% endif %}>{{ icon('sliders', 'w-4 h-4') }}<span>Configurações</span></a>
+            <a href="/configuracoes" class="gl-nav-item" {% if active_page == 'configuracoes' %}aria-current="page"{% endif %}>
+                {{ icon('sliders', 'w-4 h-4') }}
+                <span>Configurações</span>
+            </a>
             <div class="gl-user-card">
-                <span class="gl-avatar">{{ (session.get('user', 'PL')[:2]).upper() }}</span>
-                <span class="gl-user-copy"><strong>{{ session.get('user', 'Admin') }}</strong><small>PH Digital</small></span>
-                <a href="/logout" class="gl-logout" aria-label="Encerrar sessão" data-tooltip="Encerrar sessão">{{ icon('log-out', 'w-4 h-4') }}</a>
+                <span class="gl-fallback-avatar gl-avatar--sm">{{ (session.get('user', 'PL')[:2]).upper() }}</span>
+                <span class="gl-user-copy">
+                    <strong>{{ session.get('user', 'Admin') }}</strong>
+                    <small>PH Digital</small>
+                </span>
+                <a href="/logout" class="gl-logout" aria-label="Encerrar sessão" data-tooltip="Encerrar sessão">
+                    {{ icon('log-out', 'w-4 h-4') }}
+                </a>
             </div>
         </div>
     </aside>
+
+    <!-- Workspace & Topbar -->
     <div class="gl-workspace">
-        <!-- Fundo adaptado de Spell Light Rays: https://spell.sh/docs/light-rays -->
         <header class="gl-topbar">
-            <button type="button" class="gl-icon-button gl-menu-button" onclick="toggleSidebar()" aria-label="Abrir menu">{{ icon('menu', 'w-5 h-5') }}</button>
-            <div class="gl-page-heading"><span>GestãoLead</span><i>/</i><strong>{% block header_title %}{% endblock %}</strong></div>
-            <!-- Adaptado de Spell Keyboard Shortcuts: https://spell.sh/docs/keyboard-shortcuts e Uiverse Search Input: https://uiverse.io/mustafa7799/new-dolphin-33 -->
-            <button type="button" class="gl-global-search" data-command-open aria-label="Abrir busca global">
-                {{ icon('scan-search', 'w-4 h-4') }}<span>Buscar ou navegar</span><kbd>Ctrl K</kbd>
+            <button type="button" class="gl-icon-button gl-menu-button" onclick="toggleSidebar()" aria-label="Abrir menu">
+                {{ icon('menu', 'w-5 h-5') }}
             </button>
-            <div class="gl-topbar-actions"><span class="gl-system-status"><i></i>Operacional</span><a href="/" class="gl-topbar-cta">{{ icon('scan-search', 'w-4 h-4') }}<span>Nova busca</span></a></div>
+            <div class="gl-page-heading">
+                <span>GestãoLead</span>
+                <i>/</i>
+                <strong>{% block header_title %}{% endblock %}</strong>
+            </div>
+
+            <!-- Busca Global com KBD (Ref: Spell Keyboard Shortcuts) -->
+            <button type="button" class="gl-global-search" data-command-open aria-label="Abrir busca rápida">
+                {{ icon('scan-search', 'w-4 h-4') }}
+                <span>Buscar página ou ação</span>
+                <kbd class="gl-kbd">Ctrl K</kbd>
+            </button>
+
+            <div class="gl-topbar-actions">
+                <span class="gl-system-status">
+                    <i></i>Operacional
+                </span>
+                <a href="/" class="gl-rich-btn gl-rich-btn--secondary" style="height: 30px; font-size: 11px;">
+                    {{ icon('scan-search', 'w-3.5 h-3.5') }}
+                    <span>Nova busca</span>
+                </a>
+            </div>
         </header>
-        <main id="main-content" class="gl-main" tabindex="-1">{% block content %}{% endblock %}</main>
+
+        <main id="main-content" class="gl-main" tabindex="-1">
+            {% block content %}{% endblock %}
+        </main>
     </div>
-    <div id="app-toast" class="ui-toast gl-toast hidden" role="status" aria-live="polite" aria-atomic="true"><span id="app-toast-icon" class="gl-toast-icon" aria-hidden="true">✓</span><p id="app-toast-text"></p></div>
-    <div id="app-confirm" class="ui-modal gl-confirm hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-text">
-        <div class="ui-modal__panel gl-confirm-panel"><span class="gl-confirm-icon">{{ icon('shield-check', 'w-5 h-5') }}</span><div><h3 id="app-confirm-title"></h3><p id="app-confirm-text"></p></div><div class="gl-confirm-actions"><button id="app-confirm-cancel" type="button" class="ui-button ui-button--quiet">Voltar</button><button id="app-confirm-accept" type="button" class="ui-button ui-button--primary"></button></div></div>
+
+    <!-- Toast de Notificações -->
+    <div id="app-toast" class="gl-toast hidden" role="status" aria-live="polite">
+        <span id="app-toast-icon" class="gl-toast-icon" aria-hidden="true">✓</span>
+        <p id="app-toast-text"></p>
     </div>
-    <!-- Adaptado de Spell Keyboard Shortcuts: https://spell.sh/docs/keyboard-shortcuts -->
-    <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="command-title">
-        <div class="command-palette__panel">
-            <div class="command-palette__search">{{ icon('scan-search', 'w-5 h-5') }}<input id="command-input" type="search" placeholder="Buscar página ou ação" autocomplete="off"><kbd>Esc</kbd></div>
-            <div class="command-palette__body">
-                <span id="command-title">Navegação rápida</span>
-                <a href="/" data-command-item><strong>Nova prospecção</strong><small>Definir região, nicho e meta</small><kbd>N</kbd></a>
-                <a href="/prospeccao" data-command-item><strong>Preparação Comercial</strong><small>Fila de abordagem e briefings dos Top Leads</small><kbd>G P</kbd></a>
-                <a href="/crm" data-command-item><strong>Leads para abordar</strong><small>Abrir fila comercial</small><kbd>G A</kbd></a>
-                <a href="/crm/contatados" data-command-item><strong>Contatados</strong><small>Acompanhar conversas e retornos</small><kbd>G C</kbd></a>
-                <a href="/estatisticas" data-command-item><strong>Performance</strong><small>Ver métricas reais da operação</small><kbd>G P</kbd></a>
-                <a href="/configuracoes" data-command-item><strong>Configurações</strong><small>Integrações e preferências</small><kbd>G S</kbd></a>
+
+    <!-- Modal de Confirmação -->
+    <div id="app-confirm" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-describedby="app-confirm-text">
+        <div class="gl-confirm-panel w-full max-w-sm">
+            <div class="flex items-start gap-3">
+                <span class="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 grid place-items-center shrink-0">
+                    {{ icon('shield-check', 'w-5 h-5') }}
+                </span>
+                <div>
+                    <h3 id="app-confirm-title" class="text-sm font-bold text-white mb-1"></h3>
+                    <p id="app-confirm-text" class="text-xs text-slate-400 leading-relaxed"></p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button id="app-confirm-cancel" type="button" class="gl-rich-btn gl-rich-btn--secondary">Voltar</button>
+                <button id="app-confirm-accept" type="button" class="gl-rich-btn gl-rich-btn--primary">Confirmar</button>
             </div>
         </div>
     </div>
+
+    <!-- Command Palette (Ctrl+K) -->
+    <div id="command-palette" class="command-palette hidden" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="command-palette__panel">
+            <div class="command-palette__search">
+                {{ icon('scan-search', 'w-4 h-4 text-slate-400') }}
+                <input id="command-input" type="search" placeholder="Digite para buscar página ou ação..." autocomplete="off">
+                <kbd class="gl-kbd">Esc</kbd>
+            </div>
+            <div class="command-palette__body">
+                <span>Navegação Rápida</span>
+                <a href="/" data-command-item>
+                    <strong>Nova prospecção</strong>
+                    <small>Filtros de nicho e região</small>
+                    <kbd class="gl-kbd">N</kbd>
+                </a>
+                <a href="/prospeccao" data-command-item>
+                    <strong>Preparação Comercial</strong>
+                    <small>Fila de abordagem e briefings visuais</small>
+                    <kbd class="gl-kbd">P</kbd>
+                </a>
+                <a href="/crm" data-command-item>
+                    <strong>Leads a abordar</strong>
+                    <small>Pipeline comercial inbox</small>
+                    <kbd class="gl-kbd">A</kbd>
+                </a>
+                <a href="/crm/contatados" data-command-item>
+                    <strong>Contatados</strong>
+                    <small>Acompanhamento de conversas e retornos</small>
+                    <kbd class="gl-kbd">C</kbd>
+                </a>
+                <a href="/estatisticas" data-command-item>
+                    <strong>Performance</strong>
+                    <small>Métricas e conversões do funil</small>
+                    <kbd class="gl-kbd">E</kbd>
+                </a>
+                <a href="/configuracoes" data-command-item>
+                    <strong>Configurações</strong>
+                    <small>Parâmetros e integrações do sistema</small>
+                    <kbd class="gl-kbd">S</kbd>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const nativeFetch=window.fetch.bind(window);
-        window.fetch=(input,options={})=>{const method=String(options.method||'GET').toUpperCase();const url=typeof input==='string'?input:input.url;const sameOrigin=new URL(url,window.location.href).origin===window.location.origin;if(sameOrigin&&['POST','PUT','PATCH','DELETE'].includes(method)){const headers=new Headers(options.headers||{});headers.set('X-CSRF-Token',document.querySelector('meta[name="csrf-token"]').content);options={...options,headers};}return nativeFetch(input,options);};
-        document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('form[method="POST"],form[method="post"]').forEach(form=>{if(form.querySelector('input[name="csrf_token"]'))return;const input=document.createElement('input');input.type='hidden';input.name='csrf_token';input.value=document.querySelector('meta[name="csrf-token"]').content;form.appendChild(input);});if(localStorage.getItem('gestaolead:sidebar-collapsed')==='true')document.body.classList.add('sidebar-collapsed');});
-        function toggleSidebar(){const open=document.body.classList.toggle('sidebar-mobile-open');document.getElementById('mobile-overlay').setAttribute('aria-hidden',String(!open));}
-        function toggleSidebarCollapse(){const collapsed=document.body.classList.toggle('sidebar-collapsed');localStorage.setItem('gestaolead:sidebar-collapsed',String(collapsed));document.getElementById('sidebar-collapse').setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');}
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (input, options = {}) => {
+            const method = String(options.method || 'GET').toUpperCase();
+            const url = typeof input === 'string' ? input : input.url;
+            const sameOrigin = new URL(url, window.location.href).origin === window.location.origin;
+            if (sameOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+                const headers = new Headers(options.headers || {});
+                headers.set('X-CSRF-Token', document.querySelector('meta[name="csrf-token"]').content);
+                options = { ...options, headers };
+            }
+            return nativeFetch(input, options);
+        };
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(form => {
+                if (form.querySelector('input[name="csrf_token"]')) return;
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = document.querySelector('meta[name="csrf-token"]').content;
+                form.appendChild(input);
+            });
+            if (localStorage.getItem('gestaolead:sidebar-collapsed') === 'true') {
+                document.body.classList.add('sidebar-collapsed');
+            }
+        });
+        function toggleSidebar() {
+            const open = document.body.classList.toggle('sidebar-mobile-open');
+            document.getElementById('mobile-overlay').setAttribute('aria-hidden', String(!open));
+        }
+        function toggleSidebarCollapse() {
+            const collapsed = document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('gestaolead:sidebar-collapsed', String(collapsed));
+            document.getElementById('sidebar-collapse').setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Recolher menu');
+        }
     </script>
-    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261109-r8') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261123-v2') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

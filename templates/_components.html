@@ -1,22 +1,61 @@
 {% macro company_avatar(name, size='md') -%}
+{# Referência: Spell Fallback Avatar: https://spell.sh/docs/fallback-avatar #}
 {% set clean_name = (name or 'Empresa')|trim %}
 {% set words = clean_name.split() %}
 {% set initials = ((words[0][0] if words else 'E') ~ (words[1][0] if words|length > 1 else ''))|upper %}
-<span class="company-avatar company-avatar--{{ size }}" aria-hidden="true">{{ initials }}</span>
+<span class="gl-fallback-avatar company-avatar company-avatar--{{ size }}" aria-hidden="true">{{ initials }}</span>
 {%- endmacro %}
 
 {% macro copy_button(value, label='Copiar') -%}
-<!-- Adaptado de Spell Copy Button: https://spell.sh/docs/copy-button -->
-<button type="button" class="copy-button" data-copy-value="{{ value|e }}" aria-label="{{ label }}" data-tooltip="{{ label }}">
-    <span class="copy-button__idle"><i class="fa-regular fa-copy" aria-hidden="true"></i></span>
-    <span class="copy-button__done"><i class="fa-solid fa-check" aria-hidden="true"></i></span>
+{# Referência: Spell Copy Button: https://spell.sh/docs/copy-button #}
+<button type="button" class="gl-copy-btn copy-button" data-copy-value="{{ value|e }}" aria-label="{{ label }}" data-tooltip="{{ label }}">
+    <span class="copy-button__idle"><i class="fa-regular fa-copy text-xs" aria-hidden="true"></i></span>
+    <span class="copy-button__done"><i class="fa-solid fa-check text-xs" aria-hidden="true"></i></span>
 </button>
 {%- endmacro %}
 
-{% macro metric_item(label, value, detail='', tone='default') -%}
-<article class="metric-item metric-item--{{ tone }}">
-    <span class="metric-item__label">{{ label }}</span>
-    <strong class="metric-item__value" data-metric>{{ value }}</strong>
-    {% if detail %}<small class="metric-item__detail">{{ detail }}</small>{% endif %}
+{% macro rich_button(label, url='', icon_name='', kbd='', variant='secondary', type='button', onclick='', id='') -%}
+{# Referência: Spell Rich Button: https://spell.sh/docs/rich-button #}
+{% if url %}
+<a href="{{ url }}" class="gl-rich-btn gl-rich-btn--{{ variant }}" {% if id %}id="{{ id }}"{% endif %} {% if onclick %}onclick="{{ onclick }}"{% endif %}>
+    {% if icon_name %}<i class="{{ icon_name }}"></i>{% endif %}
+    <span>{{ label }}</span>
+    {% if kbd %}<kbd class="gl-kbd">{{ kbd }}</kbd>{% endif %}
+</a>
+{% else %}
+<button type="{{ type }}" class="gl-rich-btn gl-rich-btn--{{ variant }}" {% if id %}id="{{ id }}"{% endif %} {% if onclick %}onclick="{{ onclick }}"{% endif %}>
+    {% if icon_name %}<i class="{{ icon_name }}"></i>{% endif %}
+    <span>{{ label }}</span>
+    {% if kbd %}<kbd class="gl-kbd">{{ kbd }}</kbd>{% endif %}
+</button>
+{% endif %}
+{%- endmacro %}
+
+{% macro metric_item(label, value, detail='', tone='default', progress=75, period='30d') -%}
+{# Referência: Profitize Progress Metric Card: https://profitize.com.br/build/componentes/progress-metric-card #}
+<article class="gl-metric-card">
+    <div class="gl-metric-card__header">
+        <span class="gl-metric-card__label">{{ label }}</span>
+        <span class="gl-metric-card__period">{{ period }}</span>
+    </div>
+    <div class="gl-metric-card__body">
+        <strong class="gl-metric-card__value" data-metric>{{ value }}</strong>
+        {% if detail %}
+        <span class="gl-metric-card__badge gl-metric-card__badge--{% if tone == 'success' %}success{% elif tone == 'accent' %}accent{% else %}neutral{% endif %}">
+            {{ detail }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="gl-metric-card__progress">
+        <div class="gl-metric-card__progress-fill" style="width: {{ progress }}%;"></div>
+    </div>
 </article>
+{%- endmacro %}
+
+{% macro clean_switch(name, checked=false, id='', onchange='') -%}
+{# Referência: UIverse Clean Dark Switch: https://uiverse.io/gharsh11032000/old-horse-22 #}
+<label class="gl-switch">
+    <input type="checkbox" name="{{ name }}" {% if id %}id="{{ id }}"{% endif %} {% if checked %}checked{% endif %} {% if onchange %}onchange="{{ onchange }}"{% endif %}>
+    <span class="gl-switch__slider"></span>
+</label>
 {%- endmacro %}

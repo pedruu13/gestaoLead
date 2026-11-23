@@ -6,14 +6,14 @@
 <div class="prospeccao-page pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
     <!-- Top Cockpit Header -->
-    <div class="mb-8 p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-xl">
+    <div class="mb-8 p-6 rounded-2xl gl-card">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="gl-badge gl-badge--success">
                         <i class="fa-solid fa-certificate text-[10px]"></i> Categoria A Auditada
                     </span>
-                    <span class="text-xs text-slate-400">• 15 Oportunidades Reais de Alto Potencial</span>
+                    <span class="text-xs text-slate-400">&bull; 15 Oportunidades Reais de Alto Potencial</span>
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Fila de Preparação Comercial</h1>
                 <p class="text-sm text-slate-400 mt-1 max-w-3xl">
@@ -21,8 +21,8 @@
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-                <div class="p-3 rounded-xl bg-[#1E232D] border border-[#2D3542] flex items-center gap-3">
-                    <i class="fa-solid fa-shield-halved text-blue-400 text-lg"></i>
+                <div class="p-3 rounded-xl bg-[#131519] border border-[#2A2F38] flex items-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-[#60A5FA] text-lg"></i>
                     <div class="text-xs">
                         <p class="font-bold text-white">Disparo 100% Manual</p>
                         <p class="text-slate-400 text-[11px]">Nenhuma mensagem é enviada automaticamente</p>
@@ -32,26 +32,26 @@
         </div>
 
         <!-- Filtros por Status (Tabs) -->
-        <div class="mt-6 pt-6 border-t border-[#262C36] flex flex-wrap gap-2">
+        <div class="mt-6 pt-6 border-t border-[#2A2F38] flex flex-wrap gap-2">
             <a href="/prospeccao" 
-               class="px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 {% if active_filter == 'Todos' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30{% else %}bg-[#1C212B] text-slate-400 hover:text-white hover:bg-[#252B38]{% endif %}">
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 {% if active_filter == 'Todos' %}bg-[#60A5FA] text-[#0F1115] font-bold shadow-sm{% else %}bg-[#131519] text-slate-400 border border-[#2A2F38] hover:text-white hover:bg-[#181B20]{% endif %}">
                 <span>Todos</span>
-                <span class="px-1.5 py-0.5 rounded-md text-[10px] {% if active_filter == 'Todos' %}bg-blue-700 text-white{% else %}bg-[#2A3140] text-slate-300{% endif %}">{{ counts['Todos'] }}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] {% if active_filter == 'Todos' %}bg-[#0F1115]/20 text-[#0F1115] font-bold{% else %}bg-[#242A35] text-slate-300{% endif %}">{{ counts['Todos'] }}</span>
             </a>
             {% for st in statuses %}
-            {% set badge_color = 'bg-[#1C212B] text-slate-400 hover:text-white hover:bg-[#252B38]' %}
+            {% set badge_color = 'bg-[#131519] text-slate-400 border border-[#2A2F38] hover:text-white hover:bg-[#181B20]' %}
             {% if active_filter == st %}
-                {% if st == 'Pendente' %}{% set badge_color = 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' %}
-                {% elif st == 'Preparado' %}{% set badge_color = 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' %}
-                {% elif st == 'Aprovado' %}{% set badge_color = 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' %}
-                {% elif st == 'Enviado' %}{% set badge_color = 'bg-sky-600 text-white shadow-lg shadow-sky-600/30' %}
-                {% elif st == 'Respondido' %}{% set badge_color = 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' %}
+                {% if st == 'Pendente' %}{% set badge_color = 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold' %}
+                {% elif st == 'Preparado' %}{% set badge_color = 'bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold' %}
+                {% elif st == 'Aprovado' %}{% set badge_color = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold' %}
+                {% elif st == 'Enviado' %}{% set badge_color = 'bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold' %}
+                {% elif st == 'Respondido' %}{% set badge_color = 'bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold' %}
                 {% endif %}
             {% endif %}
             <a href="/prospeccao?status={{ st }}" 
-               class="px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 {{ badge_color }}">
+               class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 {{ badge_color }}">
                 <span>{{ st }}</span>
-                <span class="px-1.5 py-0.5 rounded-md text-[10px] bg-black/20">{{ counts[st] }}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] bg-black/20">{{ counts[st] }}</span>
             </a>
             {% endfor %}
         </div>

@@ -1,183 +1,195 @@
 {% extends "layout.html" %}
-{% from "_components.html" import metric_item %}
+{% from "_components.html" import metric_item, rich_button %}
 {% set active_page = "estatisticas" %}
-{% block header_title %}Performance & Inteligência de Mercado{% endblock %}
+{% block header_title %}Performance & Métricas da Operação{% endblock %}
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="analytics-page pb-12">
-    <header class="analytics-header">
-        <div><span>Visão comercial</span><h1>Operação em números</h1><p>Métricas reais da descoberta até o fechamento, sem estimativas inventadas.</p></div>
-        <!-- Adaptado de Spell Pop Button: https://spell.sh/docs/pop-button -->
-        <div class="analytics-header__actions"><span><i></i>Dados atualizados</span><a class="export-action" href="/export/csv"><i class="fa-solid fa-arrow-down"></i>Exportar CSV</a></div>
+<div class="analytics-page space-y-6 pb-12">
+    <!-- Header Executivo Clean Dark -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2F38]">
+        <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-[#60A5FA]">Inteligência Comercial</span>
+            <h1 class="text-2xl font-black text-white tracking-tight mt-0.5">Operação em Números</h1>
+            <p class="text-xs text-slate-400 mt-1">Métricas reais da prospecção ao fechamento, sem estimativas fictícias.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="gl-system-status"><i></i>Dados consolidados</span>
+            {{ rich_button('Exportar CSV', url='/export/csv', icon_name='fa-solid fa-arrow-down', variant='secondary') }}
+        </div>
     </header>
 
-    <!-- Adaptado de Profitize Progress Metric Card (Grátis): https://profitize.com.br/build/componentes/progress-metric-card -->
-    <section class="metrics-rail analytics-kpi-grid" aria-label="Indicadores comerciais">
-        {{ metric_item('Leads encontrados', total, (total - descartados)|string + ' ativos') }}
-        {{ metric_item('Qualificados', qualificados, 'fila Prioridade', 'accent') }}
-        {{ metric_item('Contatados', contato_feito, taxa_resposta|string + '% responderam') }}
-        {{ metric_item('Respostas', responderam, interessados|string + ' com interesse') }}
-        {{ metric_item('Reuniões', reunioes, 'resultado registrado') }}
-        {{ metric_item('Taxa de proposta', propostas, taxa_proposta|string + '% dos interessados') }}
-        {{ metric_item('Vendas', fechados, taxa_conversao_contato|string + '% após contato', 'success') }}
-        {{ metric_item('Sem site validado', sem_site, taxa_sem_site|string + '% da base', 'accent') }}
+    <!-- Indicadores Principais: Profitize Progress Metric Card & Spell Chart -->
+    <!-- Ref: https://profitize.com.br/build/componentes/progress-metric-card -->
+    <!-- Ref: https://profitize.com.br/build/componentes/indicator-chart -->
+    <!-- Ref: https://spell.sh/docs/chart -->
+    <!-- Ref: https://spell.sh/docs/spinner -->
+    <!-- Ref: https://spell.sh/docs/pop-button -->
+    <!-- Ref: https://uiverse.io/Itskrish01/wise-wombat-45 -->
+    <!-- Ref: https://uiverse.io/Shoh2008/clever-goose-73 -->
+    <section class="analytics-kpi-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Indicadores comerciais">
+        {{ metric_item('Leads encontrados', total, (total - descartados)|string + ' ativos', 'accent', 100, 'Total') }}
+        {{ metric_item('Qualificados', qualificados, 'Fila Prioritária', 'accent', 80, 'Top') }}
+        {{ metric_item('Contatados', contato_feito, taxa_resposta|string + '% responderam', 'neutral', 60, 'Funil') }}
+        {{ metric_item('Respostas', responderam, interessados|string + ' interessados', 'neutral', 45, 'Retorno') }}
+        {{ metric_item('Reuniões', reunioes, 'Agendadas', 'neutral', 30, 'Etapa 2') }}
+        {{ metric_item('Taxa de proposta', propostas, taxa_proposta|string + '% dos contatados', 'neutral', 20, 'Propostas') }}
+        {{ metric_item('Vendas', fechados, taxa_conversao_contato|string + '% conv.', 'success', 15, 'Fechado') }}
+        {{ metric_item('Sem site validado', sem_site, taxa_sem_site|string + '% da base', 'accent', 90, 'Oportunidade') }}
     </section>
 
-    <section class="rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5 shadow-xl md:p-6">
-        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <!-- Histórico de Campanhas -->
+    <section class="gl-card p-5 md:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Histórico de origem</span>
-                <h2 class="mt-1 text-lg font-black text-white">Campanhas de prospecção</h2>
-                <p class="mt-1 text-xs text-slate-500">Cada nova busca passa a guardar os filtros usados e os leads que trouxe.</p>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#60A5FA]">Histórico de Prospecção</span>
+                <h2 class="text-base font-bold text-white mt-0.5">Campanhas Executadas</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Filtros aplicados e leads capturados por varredura.</p>
             </div>
-            <a href="/" class="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-xs font-black text-blue-300">Nova campanha</a>
+            {{ rich_button('Nova Campanha', url='/', icon_name='fa-solid fa-plus', variant='primary') }}
         </div>
-        <div class="mt-5 grid gap-3 lg:grid-cols-2">
+        <div class="grid gap-3 lg:grid-cols-2">
             {% for run in search_runs %}
-            <article class="rounded-xl border border-[#2A2F38] bg-[#13161B] p-4">
+            <article class="p-3.5 rounded-xl bg-[#131519] border border-[#2A2F38]">
                 <div class="flex items-start justify-between gap-3">
-                    <div><strong class="text-sm text-white">{{ run.name }}</strong><p class="mt-1 text-[10px] text-slate-500">{{ run.started_at }} · {{ run.market | upper }}</p></div>
-                    <span class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase {% if run.status == 'completed' %}bg-emerald-500/10 text-emerald-300{% elif run.status == 'running' %}bg-blue-500/10 text-blue-300{% elif run.status == 'cancelled' %}bg-amber-500/10 text-amber-300{% else %}bg-rose-500/10 text-rose-300{% endif %}">{{ run.status }}</span>
+                    <div>
+                        <strong class="text-xs font-bold text-white block">{{ run.name }}</strong>
+                        <span class="text-[10px] text-slate-500 mt-0.5 block">{{ run.started_at }} &bull; {{ run.market | upper }}</span>
+                    </div>
+                    <span class="gl-badge {% if run.status == 'completed' %}gl-badge--success{% elif run.status == 'running' %}gl-badge--primary{% elif run.status == 'cancelled' %}gl-badge--warning{% else %}gl-badge--danger{% endif %}">
+                        {{ run.status }}
+                    </span>
                 </div>
-                <div class="mt-3 flex flex-wrap gap-2 text-[10px] text-slate-300">
-                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.lead_count }} leads</span>
-                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.niches | join(', ') }}</span>
-                    <span class="rounded-lg bg-[#111827] px-2 py-1">{{ run.locations | join(', ') }}</span>
+                <div class="mt-3 flex flex-wrap gap-1.5 text-[10px]">
+                    <span class="px-2 py-0.5 rounded bg-[#181B20] border border-[#2A2F38] text-slate-300 font-medium">{{ run.lead_count }} leads</span>
+                    <span class="px-2 py-0.5 rounded bg-[#181B20] border border-[#2A2F38] text-slate-300 font-medium">{{ run.niches | join(', ') }}</span>
+                    <span class="px-2 py-0.5 rounded bg-[#181B20] border border-[#2A2F38] text-slate-300 font-medium">{{ run.locations | join(', ') }}</span>
                 </div>
             </article>
             {% else %}
-            <div class="rounded-xl border border-dashed border-[#2A2F38] p-6 text-center text-xs text-slate-500 lg:col-span-2">As próximas buscas aparecerão aqui com origem, filtros e quantidade de leads.</div>
+            <div class="gl-empty-state lg:col-span-2 py-8">
+                <p class="text-xs text-slate-400">Nenhuma campanha anterior registrada.</p>
+            </div>
             {% endfor %}
         </div>
     </section>
 
+    <!-- Indicador e Motor de Descoberta -->
     <section class="grid gap-5 xl:grid-cols-3">
-        <div class="rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5 xl:col-span-2">
-            <span class="text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Motor de descoberta</span>
-            <h2 class="mt-1 text-lg font-black text-white">Uso, custo estimado e falhas por fonte</h2>
-            <p class="mt-1 text-xs text-slate-500">O valor é uma estimativa interna para controle; a cobrança real depende do provedor.</p>
-            <div class="mt-4 overflow-x-auto">
-                <table class="w-full text-left text-xs">
-                    <thead class="border-b border-[#2A2F38] text-[9px] uppercase tracking-wider text-slate-500">
-                        <tr><th class="px-3 py-2">Data</th><th class="px-3 py-2">Fonte</th><th class="px-3 py-2">Requisições</th><th class="px-3 py-2">Candidatos</th><th class="px-3 py-2">Erros</th><th class="px-3 py-2">Estimativa</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-[#20242B] text-slate-300">
-                        {% for usage in source_usage %}
-                        <tr><td class="px-3 py-2">{{ usage.usage_date }}</td><td class="px-3 py-2 font-bold text-white">{{ usage.source }}</td><td class="px-3 py-2">{{ usage.requests }}</td><td class="px-3 py-2">{{ usage.candidates }}</td><td class="px-3 py-2 {% if usage.errors %}text-rose-300{% endif %}">{{ usage.errors }}</td><td class="px-3 py-2">US$ {{ '%.4f'|format(usage.estimated_cost_micros / 1000000) }}</td></tr>
-                        {% else %}
-                        <tr><td colspan="6" class="px-3 py-5 text-center text-slate-500">Nenhuma consulta do novo motor foi executada ainda.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                {% for job in discovery_jobs[:6] %}
-                <div class="rounded-xl border border-[#2A2F38] bg-[#13161B] p-3">
-                    <div class="flex items-center justify-between gap-2"><span class="text-[10px] font-bold text-slate-500">{{ job.created_at }}</span><strong class="text-[10px] uppercase {% if job.status == 'completed' %}text-emerald-300{% elif job.status == 'interrupted' %}text-amber-300{% else %}text-blue-300{% endif %}">{{ job.status }}</strong></div>
-                    <p class="mt-2 text-xs text-slate-300">{{ job.stats.get('candidates', 0) }} candidatos · {{ job.stats.get('requests', 0) }} requisições · {{ job.stats.get('errors', 0) }} erros</p>
-                    {% if job.error %}<p class="mt-1 line-clamp-2 text-[10px] text-rose-300">{{ job.error }}</p>{% endif %}
-                    {% if job.status in ['interrupted', 'pending'] %}<button type="button" onclick="resumeDiscovery('{{ job.job_id }}', this)" class="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[9px] font-black uppercase text-amber-300">Retomar tarefa</button>{% endif %}
+        <div class="gl-card p-5 xl:col-span-2 flex flex-col justify-between">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#60A5FA]">Motor de Descoberta</span>
+                <h2 class="text-base font-bold text-white mt-0.5">Uso e Custos Estimados por Fonte</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Controle interno de requisições por provedor.</p>
+                <div class="mt-4 gl-table-container">
+                    <table class="gl-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Fonte</th>
+                                <th>Requisições</th>
+                                <th>Candidatos</th>
+                                <th>Erros</th>
+                                <th>Estimativa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in source_usage %}
+                            <tr>
+                                <td class="text-slate-400">{{ usage.usage_date }}</td>
+                                <td class="font-bold text-white">{{ usage.source }}</td>
+                                <td>{{ usage.requests }}</td>
+                                <td>{{ usage.candidates }}</td>
+                                <td class="{% if usage.errors %}text-rose-400 font-bold{% endif %}">{{ usage.errors }}</td>
+                                <td class="font-mono text-emerald-400">US$ {{ '%.4f'|format(usage.estimated_cost_micros / 1000000) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-slate-500 py-4">Nenhuma consulta executada ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                {% endfor %}
             </div>
         </div>
-        <div class="rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5">
-            <span class="text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Confiabilidade</span>
-            <h2 class="mt-1 text-lg font-black text-white">Validação individual</h2>
-            <div class="mt-4 space-y-3">
+
+        <div class="gl-card p-5">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-[#60A5FA]">Confiabilidade</span>
+            <h2 class="text-base font-bold text-white mt-0.5">Validação Individual</h2>
+            <div class="mt-4 space-y-2.5">
                 {% for status, count in validation_counts.items() %}
-                <div class="flex items-center justify-between rounded-xl border border-[#2A2F38] bg-[#13161B] px-4 py-3">
-                    <span class="text-xs text-slate-400">{{ status }}</span><strong class="text-lg text-white">{{ count }}</strong>
+                <div class="flex items-center justify-between p-3 rounded-xl bg-[#131519] border border-[#2A2F38]">
+                    <span class="text-xs text-slate-400">{{ status }}</span>
+                    <strong class="text-sm font-bold text-white">{{ count }}</strong>
                 </div>
                 {% endfor %}
             </div>
-            <p class="mt-4 text-[10px] leading-relaxed text-slate-500">“Não verificado” permanece visível para impedir que ausência de resultado seja tratada como ausência confirmada de site.</p>
         </div>
     </section>
 
-    <section class="rounded-2xl border border-[#2A2F38] bg-[#181B20] p-5 md:p-6">
-        <span class="text-[10px] font-black uppercase tracking-widest text-[#60A5FA]">Aprendizado comercial</span>
-        <h2 class="mt-1 text-lg font-black text-white">Conversão por nicho, local e origem</h2>
-        <p class="mt-1 text-xs text-slate-500">O motor só recalibra recomendações com pelo menos 10 contatos registrados no mesmo grupo.</p>
-        <div class="mt-4 overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead class="border-b border-[#2A2F38] text-[9px] uppercase tracking-wider text-slate-500"><tr><th class="px-3 py-2">Dimensão</th><th class="px-3 py-2">Grupo</th><th class="px-3 py-2">Amostra</th><th class="px-3 py-2">Resposta</th><th class="px-3 py-2">Interesse</th><th class="px-3 py-2">Fechamento</th><th class="px-3 py-2">Uso</th></tr></thead>
-                <tbody class="divide-y divide-[#20242B] text-slate-300">
-                    {% for row in conversion_rows %}
-                    <tr><td class="px-3 py-2">{{ row.dimension }}</td><td class="px-3 py-2 font-bold text-white">{{ row.value }}</td><td class="px-3 py-2">{{ row.contacted }}</td><td class="px-3 py-2">{{ row.response_rate }}%</td><td class="px-3 py-2">{{ row.interest_rate }}%</td><td class="px-3 py-2">{{ row.close_rate }}%</td><td class="px-3 py-2"><span class="rounded-full px-2 py-1 text-[9px] font-black {% if row.sufficient_sample %}bg-emerald-500/10 text-emerald-300{% else %}bg-amber-500/10 text-amber-300{% endif %}">{% if row.sufficient_sample %}calibra o score{% else %}amostra insuficiente{% endif %}</span></td></tr>
-                    {% else %}
-                    <tr><td colspan="7" class="px-3 py-5 text-center text-slate-500">Registre resultados comerciais nos leads para formar uma base real.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- Adaptado de Profitize Indicator Chart (Grátis): https://profitize.com.br/build/componentes/indicator-chart e Spell Chart: https://spell.sh/docs/chart -->
-    <!-- Grid de Gráficos 2x2 Alta Fidelidade -->
-    <div class="analytics-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Gráfico 1: Funil de Conversão Comercial -->
-        <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-2xl flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-6">
+    <!-- Grid de Gráficos (Ref: Profitize Indicator Chart & Spell Chart) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="gl-indicator-chart">
+            <div class="gl-indicator-chart__header">
                 <div>
-                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <h3 class="gl-indicator-chart__title flex items-center gap-2">
                         <i class="fa-solid fa-filter-circle-dollar text-[#60A5FA]"></i> Funil Comercial & Pipeline
                     </h3>
-                    <p class="text-[11px] text-slate-400 mt-1">Evolução dos leads ao longo das etapas de abordagem e fechamento.</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Evolução dos leads ao longo das etapas.</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">Volume Ativo</span>
+                <div class="gl-indicator-chart__period-tabs">
+                    <button class="gl-indicator-chart__tab is-active">30d</button>
+                    <button class="gl-indicator-chart__tab">Geral</button>
+                </div>
             </div>
-            <div class="relative h-72 w-full">
+            <div class="relative h-64 w-full">
                 <canvas id="chartFunil"></canvas>
             </div>
         </div>
 
-        <!-- Gráfico 2: Penetração de Mercado por Segmento -->
-        <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-2xl flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-6">
+        <div class="gl-indicator-chart">
+            <div class="gl-indicator-chart__header">
                 <div>
-                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-chart-pie text-[#60A5FA]"></i> Penetração por Segmento / Nicho
+                    <h3 class="gl-indicator-chart__title flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-[#60A5FA]"></i> Penetração por Segmento
                     </h3>
-                    <p class="text-[11px] text-slate-400 mt-1">Participação percentual de cada mercado prospectado na base.</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Distribuição percentual dos nichos.</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">Top Nichos</span>
+                <span class="gl-badge gl-badge--primary">Top Nichos</span>
             </div>
-            <div class="relative h-72 w-full flex items-center justify-center">
+            <div class="relative h-64 w-full flex items-center justify-center">
                 <canvas id="chartNicho"></canvas>
             </div>
         </div>
 
-        <!-- Gráfico 3: Matriz de Qualidade de Leads -->
-        <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-2xl flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-6">
+        <div class="gl-indicator-chart">
+            <div class="gl-indicator-chart__header">
                 <div>
-                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-shield-halved text-[#60A5FA]"></i> Matriz de Qualidade de Leads
+                    <h3 class="gl-indicator-chart__title flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-[#60A5FA]"></i> Qualidade dos Contatos
                     </h3>
-                    <p class="text-[11px] text-slate-400 mt-1">Comparativo de viabilidade técnica: Sem Site vs WhatsApp vs E-mail.</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Viabilidade: Sem Site vs WhatsApp vs E-mail.</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">Audit Pro</span>
+                <span class="gl-badge gl-badge--neutral">Auditoria</span>
             </div>
-            <div class="relative h-72 w-full">
+            <div class="relative h-64 w-full">
                 <canvas id="chartQualidade"></canvas>
             </div>
         </div>
 
-        <!-- Gráfico 4: Concentração Regional -->
-        <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-2xl flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-6">
+        <div class="gl-indicator-chart">
+            <div class="gl-indicator-chart__header">
                 <div>
-                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-location-crosshairs text-[#60A5FA]"></i> Densidade Regional / Bairros
+                    <h3 class="gl-indicator-chart__title flex items-center gap-2">
+                        <i class="fa-solid fa-location-crosshairs text-[#60A5FA]"></i> Densidade Regional
                     </h3>
-                    <p class="text-[11px] text-slate-400 mt-1">Concentração geográfica de empresas prospectadas por localidade.</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Concentração geográfica das empresas.</p>
                 </div>
-                <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[10px] font-bold">Geolocalização</span>
+                <span class="gl-badge gl-badge--neutral">Geolocalização</span>
             </div>
-            <div class="relative h-72 w-full">
+            <div class="relative h-64 w-full">
                 <canvas id="chartRegiao"></canvas>
             </div>
         </div>

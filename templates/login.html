@@ -4,142 +4,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entrar &bull; GestãoLead PRO Enterprise</title>
-    <!-- Tailwind CSS (CDN) -->
+    <title>Entrar &bull; GestãoLead</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        body {
-            font-family: Inter, sans-serif;
-            background: #0F1115;
-            color: #F1F5F9;
-        }
-        .bg-subtle-grid {
-            background-size: 36px 36px;
-            background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-        }
-    </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261109-r7') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261123-v2') }}">
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-subtle-grid antialiased">
+<body class="min-h-screen flex items-center justify-center p-4 bg-[#0F1115] text-[#F1F5F9] antialiased">
 
-    <div class="w-full max-w-md relative z-10">
-        <!-- Logo e Cabeçalho Superior Executivo -->
-        <div class="text-center mb-8">
-            <div class="app-logo-mark inline-flex items-center justify-center w-14 h-14 rounded-2xl text-white mb-4">
-                {{ icon('crosshair', 'w-7 h-7') }}
+    <div class="w-full max-w-sm">
+        <!-- Brand Header (Clean Dark) -->
+        <div class="text-center mb-7">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#60A5FA] text-[#0F1115] mb-3 shadow-sm">
+                {{ icon('crosshair', 'w-6 h-6') }}
             </div>
-            <h1 class="text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-                Gestão<span class="text-blue-400">Lead</span>
-                <span class="text-[9px] tracking-widest uppercase font-black bg-blue-500/20 text-cyan-300 border border-blue-500/30 px-2 py-0.5 rounded-md">PRO</span>
+            <h1 class="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5">
+                Gestão<span class="text-[#60A5FA]">Lead</span>
             </h1>
-            <p class="text-slate-400 text-xs mt-1.5 font-medium">Terminal Comercial & Inteligência de Prospecção</p>
+            <p class="text-slate-400 text-xs mt-1 font-medium">Terminal Comercial & Prospecção B2B</p>
         </div>
 
-        <!-- Card de Login Executivo -->
-        <div class="ui-panel rounded-3xl p-7 md:p-8">
-            
+        <!-- Card de Autenticação -->
+        <div class="gl-card p-6 md:p-7">
             {% if erro %}
-            <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start gap-3 text-xs leading-relaxed">
+            <div class="mb-5 p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-start gap-2.5 text-xs leading-relaxed">
                 {{ icon('alert', 'w-4 h-4 text-rose-400 mt-0.5 shrink-0') }}
                 <div>
-                    <span class="font-bold block text-rose-200">Acesso Recusado</span>
+                    <strong class="block text-rose-200">Acesso não autorizado</strong>
                     <span>{{ erro }}</span>
                 </div>
             </div>
             {% endif %}
 
-            <form method="POST" action="/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" class="space-y-5">
-                <div>
-                    <label for="username" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                        Usuário
-                    </label>
+            <form method="POST" action="/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="gl-label-input-group">
+                    <label for="username">Usuário</label>
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                             {{ icon('user', 'w-4 h-4') }}
                         </div>
                         <input type="text" id="username" name="username" required autofocus autocomplete="username"
-                            placeholder="Digite seu usuário"
-                            class="w-full bg-[#080B12] border border-[#1F2B44] rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all">
+                               placeholder="Seu nome de usuário"
+                               class="gl-input w-full pl-9">
                     </div>
                 </div>
 
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <label for="password" class="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                            Senha
-                        </label>
-                    </div>
+                <div class="gl-label-input-group">
+                    <label for="password">Senha</label>
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                             {{ icon('lock', 'w-4 h-4') }}
                         </div>
                         <input type="password" id="password" name="password" required autocomplete="current-password"
-                            placeholder="••••••••••••"
-                            class="w-full bg-[#080B12] border border-[#1F2B44] rounded-xl pl-10 pr-11 py-3 text-white placeholder-slate-600 text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all">
-                        <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-white transition-colors focus:outline-none" title="Exibir/Ocultar senha">
-                            <span id="eye-icon">{{ icon('eye', 'w-4 h-4') }}</span>
-                            <span id="eye-off-icon" class="hidden">{{ icon('eye-off', 'w-4 h-4') }}</span>
-                        </button>
+                               placeholder="Sua chave de acesso"
+                               class="gl-input w-full pl-9">
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between pt-1">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input type="checkbox" name="remember" checked
-                            class="w-4 h-4 rounded bg-[#080B12] border-[#1F2B44] text-blue-500 focus:ring-blue-500 cursor-pointer accent-blue-600">
-                        <span class="text-xs font-medium text-slate-400">Permanecer conectado (60 dias)</span>
-                    </label>
+                <div class="pt-2">
+                    <button type="submit" class="gl-rich-btn gl-rich-btn--primary w-full h-10 text-xs font-bold">
+                        <span>Acessar Painel</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
                 </div>
-
-                <button type="submit" id="submit-btn"
-                    class="ui-button ui-button--primary w-full mt-2 py-3.5 text-xs tracking-wider">
-                    {{ icon('log-in', 'w-4 h-4') }}
-                    <span>ENTRAR NO SISTEMA</span>
-                </button>
             </form>
 
-            <div class="mt-6 pt-5 border-t border-[#1E293B] flex items-center justify-center gap-2 text-xs text-slate-400">
-                {{ icon('shield-check', 'w-4 h-4 text-blue-300') }}
-                <span>Acesso Seguro com Criptografia</span>
+            <div class="mt-6 pt-5 border-t border-[#2A2F38] text-center">
+                <p class="text-[11px] text-slate-500">
+                    Ambiente seguro e monitorado &bull; PH Digital
+                </p>
             </div>
         </div>
-
-        <!-- Rodapé externo -->
-        <p class="text-center text-xs text-slate-400 mt-6 font-medium">
-            GestãoLead Enterprise &bull; Direção Executiva &copy; 2026
-        </p>
     </div>
 
-    <script src="{{ url_for('static', filename='js/ui-system.js', v='20261109-r8') }}"></script>
-    <script>
-        function togglePasswordVisibility() {
-            const pwd = document.getElementById('password');
-            const icon = document.getElementById('eye-icon');
-            const hiddenIcon = document.getElementById('eye-off-icon');
-            if (pwd.type === 'password') {
-                pwd.type = 'text';
-                icon.classList.add('hidden');
-                hiddenIcon.classList.remove('hidden');
-            } else {
-                pwd.type = 'password';
-                icon.classList.remove('hidden');
-                hiddenIcon.classList.add('hidden');
-            }
-        }
-
-        const form = document.querySelector('form');
-        const btn = document.getElementById('submit-btn');
-        form.addEventListener('submit', () => {
-            GestaoLeadUI.setButtonLoading(btn, true, 'Autenticando...');
-        });
-    </script>
+    <script src="/static/js/ui-system.js"></script>
 </body>
 </html>

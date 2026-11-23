@@ -200,15 +200,15 @@
                 {% if lead.do_not_contact %}
                 <span class="col-span-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-center text-xs font-black text-rose-300"><i class="fa-solid fa-ban mr-1.5"></i>Não contatar</span>
                 {% elif lead.whatsapp_link %}
-                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-brands fa-whatsapp mr-1.5"></i>Abordar</button>
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="gl-rich-btn gl-rich-btn--primary"><i class="fa-brands fa-whatsapp"></i><span>Abordar</span></button>
                 {% elif lead.email %}
-                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white"><i class="fa-solid fa-envelope mr-1.5"></i>Abordar</button>
+                <button type="button" onclick="abrirCentralContato(this)" data-place-id="{{ lead.place_id }}" class="gl-rich-btn gl-rich-btn--primary"><i class="fa-solid fa-envelope"></i><span>Abordar</span></button>
                 {% endif %}
-                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="rounded-xl border border-[#2A2F38] bg-[#181B20] px-3 py-2.5 text-center text-xs font-black text-slate-200"><i class="fa-solid fa-chart-simple mr-1.5 text-[#60A5FA]"></i>Detalhes</a>
+                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}" class="gl-rich-btn gl-rich-btn--secondary"><i class="fa-solid fa-chart-simple text-[#60A5FA]"></i><span>Detalhes</span></a>
                 {% if lead.latest_preview_id %}
-                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}#visual-approach" class="col-span-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 text-center text-xs font-black text-violet-300"><i class="fa-solid fa-image mr-1.5"></i>Revisar abordagem com prévia</a>
+                <a href="{{ url_for('lead_detail', place_id=lead.place_id) }}#visual-approach" class="col-span-2 gl-rich-btn gl-rich-btn--secondary text-blue-400 border-blue-500/30"><i class="fa-solid fa-image"></i><span>Revisar abordagem com prévia</span></a>
                 {% else %}
-                <button type="button" data-place-id="{{ lead.place_id }}" onclick="gerarPreviaRapida(this)" class="col-span-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 text-xs font-black text-violet-300"><i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i>Preparar abordagem com prévia</button>
+                <button type="button" data-place-id="{{ lead.place_id }}" onclick="gerarPreviaRapida(this)" class="col-span-2 gl-rich-btn gl-rich-btn--secondary text-blue-400 border-blue-500/30"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Preparar abordagem com prévia</span></button>
                 {% endif %}
             </div>
         </article>

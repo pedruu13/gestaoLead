@@ -26,7 +26,7 @@
     </div>
 
     <!-- Header da Empresa -->
-    <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-xl mb-6">
+    <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-xl mb-6">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div class="flex items-start gap-4">
                 <div class="w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black shrink-0 shadow-inner
@@ -39,7 +39,7 @@
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <h1 class="text-2xl font-black text-white tracking-tight">{{ lead.nome }}</h1>
-                        <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#212733] text-blue-300 border border-[#2D3545]">
+                        <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-[#20242B] text-blue-300 border border-[#2A2F38]">
                             {{ lead.nicho }}
                         </span>
                         <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -69,7 +69,7 @@
             <div class="flex items-center gap-3">
                 <label for="status_select" class="text-xs font-semibold text-slate-400">Alterar Status:</label>
                 <select id="status_select" onchange="atualizarStatus(this.value)" 
-                        class="bg-[#1C212B] border border-[#2D3545] text-white text-xs rounded-xl px-3 py-2 outline-none font-bold cursor-pointer">
+                        class="bg-[#13161B] border border-[#2A2F38] text-white text-xs rounded-xl px-3 py-2 outline-none font-bold cursor-pointer">
                     {% for st in statuses %}
                     <option value="{{ st }}" {% if lead.status == st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
@@ -85,23 +85,23 @@
         <div class="lg:col-span-7 space-y-6">
 
             <!-- 1. Oportunidade Digital & Gargalo Atual -->
-            <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-md">
+            <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-md">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         <i class="fa-solid fa-bullseye text-sm"></i>
                     </span>
                     <h2 class="text-base font-bold text-white tracking-tight">Oportunidade Digital Identificada</h2>
                 </div>
-                <div class="p-4 rounded-xl bg-[#1C212B] border border-[#262C36] text-xs text-slate-300 leading-relaxed space-y-3">
+                <div class="p-4 rounded-xl bg-[#13161B] border border-[#2A2F38] text-xs text-slate-300 leading-relaxed space-y-3">
                     <p class="text-sm font-medium text-white">{{ lead.oportunidade_digital }}</p>
-                    <div class="pt-2 border-t border-[#262C36] flex flex-wrap gap-4 text-[11px] text-slate-400">
+                    <div class="pt-2 border-t border-[#2A2F38] flex flex-wrap gap-4 text-[11px] text-slate-400">
                         <div><strong class="text-slate-300">Presença atual:</strong> {{ lead.canal_atual }}</div>
                     </div>
                 </div>
             </div>
 
             <!-- 2. Proposta de Site Personalizada -->
-            <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-md">
+            <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-md">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
                         <span class="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -117,7 +117,7 @@
                 <div class="space-y-4 text-xs">
                     <div>
                         <label class="block font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Headline Proposta:</label>
-                        <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36] text-white font-medium">
+                        <div class="p-3 rounded-xl bg-[#13161B] border border-[#2A2F38] text-white font-medium">
                             "{{ lead.proposta.headline }}"
                         </div>
                     </div>
@@ -125,7 +125,7 @@
                     {% if lead.proposta.secoes %}
                     <div>
                         <label class="block font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-2">Estrutura de Seções Recomendadas:</label>
-                        <div class="p-4 rounded-xl bg-[#1C212B] border border-[#262C36] space-y-2">
+                        <div class="p-4 rounded-xl bg-[#13161B] border border-[#2A2F38] space-y-2">
                             {% for sec in lead.proposta.secoes %}
                             <div class="flex items-start gap-2.5 text-slate-300">
                                 <i class="fa-solid fa-check text-emerald-400 text-[11px] mt-0.5 shrink-0"></i>
@@ -139,7 +139,7 @@
                     {% if lead.proposta.diferencial %}
                     <div>
                         <label class="block font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Diferencial Estratégico do Projeto:</label>
-                        <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36] text-slate-300">
+                        <div class="p-3 rounded-xl bg-[#13161B] border border-[#2A2F38] text-slate-300">
                             {{ lead.proposta.diferencial }}
                         </div>
                     </div>
@@ -148,7 +148,7 @@
             </div>
 
             <!-- 3. Briefing Visual para Prévia -->
-            <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-md">
+            <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-md">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
                         <i class="fa-solid fa-palette text-sm"></i>
@@ -168,7 +168,7 @@
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {% set cores_dict = lead.briefing_visual.paleta_cores or lead.briefing_visual.paleta or {} %}
                             {% for cor, val in cores_dict.items() %}
-                            <div class="p-2.5 rounded-xl bg-[#1C212B] border border-[#262C36] flex items-center gap-2.5">
+                            <div class="p-2.5 rounded-xl bg-[#13161B] border border-[#2A2F38] flex items-center gap-2.5">
                                 <span class="w-6 h-6 rounded-lg shrink-0 border border-white/20 shadow-sm" style="background-color: {{ val }};"></span>
                                 <div class="overflow-hidden">
                                     <p class="text-[10px] text-slate-400 capitalize truncate">{{ cor }}</p>
@@ -180,11 +180,11 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="p-3.5 rounded-xl bg-[#1C212B] border border-[#262C36]">
+                        <div class="p-3.5 rounded-xl bg-[#13161B] border border-[#2A2F38]">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tipografia Sugerida:</p>
                             <p class="text-white font-medium">{{ lead.briefing_visual.tipografia }}</p>
                         </div>
-                        <div class="p-3.5 rounded-xl bg-[#1C212B] border border-[#262C36]">
+                        <div class="p-3.5 rounded-xl bg-[#13161B] border border-[#2A2F38]">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tom de Voz:</p>
                             <p class="text-white font-medium">{{ lead.briefing_visual.tom_voz or lead.briefing_visual.tom_de_voz }}</p>
                         </div>
@@ -192,7 +192,7 @@
 
                     {% set ref_layout = lead.briefing_visual.layout_referencia or lead.briefing_visual.referencia_layout %}
                     {% if ref_layout %}
-                    <div class="p-3.5 rounded-xl bg-[#1C212B] border border-[#262C36]">
+                    <div class="p-3.5 rounded-xl bg-[#13161B] border border-[#2A2F38]">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Estrutura & Layout de Referência:</p>
                         <p class="text-slate-300">{{ ref_layout }}</p>
                     </div>
@@ -201,7 +201,7 @@
             </div>
 
             <!-- 4. Prévia Visual Interativa do Site (Preview Studio) -->
-            <div id="secao-previa" class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-xl">
+            <div id="secao-previa" class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-xl">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <div class="flex items-center gap-2">
                         <span class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -227,7 +227,7 @@
                     {% if previews and previews|length > 0 %}
                     <div class="flex items-center gap-2">
                         <span class="text-[11px] text-slate-400 font-semibold">Versão:</span>
-                        <div class="flex items-center gap-1 bg-[#1C212B] p-1 rounded-xl border border-[#2D3545]" id="version-tabs">
+                        <div class="flex items-center gap-1 bg-[#13161B] p-1 rounded-xl border border-[#2A2F38]" id="version-tabs">
                             {% for p in previews %}
                             <button type="button" onclick="selecionarVersaoPreview({{ p.id }}, {{ p.version }}, '{{ url_for('preview_document', preview_id=p.id) }}')"
                                     class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all {% if p.id == latest_preview.id %}bg-blue-600 text-white shadow{% else %}text-slate-400 hover:text-white{% endif %}"
@@ -241,9 +241,9 @@
                 </div>
 
                 <!-- Barra de Ferramentas da Prévia -->
-                <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36] flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div class="p-3 rounded-xl bg-[#13161B] border border-[#2A2F38] flex flex-wrap items-center justify-between gap-3 mb-4">
                     <!-- Alternador de Viewport -->
-                    <div class="flex items-center gap-1 bg-[#11141A] p-1 rounded-lg border border-[#262C36]">
+                    <div class="flex items-center gap-1 bg-[#0F1115] p-1 rounded-lg border border-[#2A2F38]">
                         <button type="button" onclick="setPreviewViewport('desktop')" id="vp-btn-desktop"
                                 class="px-3 py-1.5 rounded-md text-xs font-bold bg-blue-600 text-white flex items-center gap-1.5 transition-all">
                             <i class="fa-solid fa-desktop text-[11px]"></i> Desktop
@@ -261,16 +261,16 @@
                     <!-- Ações de Visualização Externa e Edição -->
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="toggleEditorPrevia()"
-                                class="px-3 py-1.5 rounded-lg bg-[#262C36] hover:bg-[#323946] text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+                                class="px-3 py-1.5 rounded-lg bg-[#2A2F38] hover:bg-[#2A2F38] text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
                             <i class="fa-solid fa-sliders text-[11px]"></i> Ajustar Parâmetros
                         </button>
                         {% if latest_preview %}
                         <a id="preview-open-tab" href="{{ url_for('preview_document', preview_id=latest_preview.id) }}" target="_blank" rel="noopener noreferrer"
-                           class="px-3 py-1.5 rounded-lg bg-[#2A3140] hover:bg-blue-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+                           class="px-3 py-1.5 rounded-lg bg-[#2A2F38] hover:bg-blue-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Abrir em Nova Aba
                         </a>
                         <a id="preview-png-link" href="{{ url_for('preview_png', preview_id=latest_preview.id) }}" target="_blank" rel="noopener noreferrer"
-                           class="px-3 py-1.5 rounded-lg bg-[#2A3140] hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+                           class="px-3 py-1.5 rounded-lg bg-[#2A2F38] hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
                             <i class="fa-solid fa-image text-[10px]"></i> Ver PNG
                         </a>
                         {% endif %}
@@ -278,12 +278,12 @@
                 </div>
 
                 <!-- Moldura da Prévia (Device Container) -->
-                <div class="bg-[#0B0D11] p-3 rounded-2xl border border-[#212733] flex justify-center items-center min-h-[540px] overflow-hidden">
+                <div class="bg-[#0F1115] p-3 rounded-2xl border border-[#20242B] flex justify-center items-center min-h-[540px] overflow-hidden">
                     <div id="device-container" class="w-full transition-all duration-300 flex justify-center">
                         {% if latest_preview %}
                         <iframe id="preview-iframe"
                                 src="{{ url_for('preview_document', preview_id=latest_preview.id) }}"
-                                class="w-full h-[520px] rounded-xl border border-[#2A3140] bg-white shadow-2xl transition-all"
+                                class="w-full h-[520px] rounded-xl border border-[#2A2F38] bg-white shadow-2xl transition-all"
                                 sandbox="allow-same-origin allow-scripts"></iframe>
                         {% else %}
                         <div class="text-center py-16 text-slate-500">
@@ -298,8 +298,8 @@
                 </div>
 
                 <!-- Painel Retrátil de Ajuste e Regeneração de Prévia -->
-                <div id="editor-previa-panel" class="hidden mt-4 p-5 rounded-xl bg-[#1C212B] border border-[#2D3545] space-y-4">
-                    <div class="flex items-center justify-between border-b border-[#2D3545] pb-3">
+                <div id="editor-previa-panel" class="hidden mt-4 p-5 rounded-xl bg-[#13161B] border border-[#2A2F38] space-y-4">
+                    <div class="flex items-center justify-between border-b border-[#2A2F38] pb-3">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-palette text-blue-400"></i>
                             <h3 class="text-xs font-bold text-white uppercase tracking-wider">Ajustar e Gerar Nova Versão da Prévia</h3>
@@ -312,7 +312,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div>
                             <label class="block font-bold text-slate-400 uppercase text-[10px] mb-1">Composição Visual (Template):</label>
-                            <select id="edit_template" class="w-full p-2.5 rounded-xl bg-[#11141A] border border-[#2D3545] text-white font-medium outline-none">
+                            <select id="edit_template" class="w-full p-2.5 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-white font-medium outline-none">
                                 <option value="editorial" {% if latest_preview and latest_preview.config.template == 'editorial' %}selected{% endif %}>Editorial (Estética, Harmonização, Alta Elegância)</option>
                                 <option value="portfolio" {% if latest_preview and latest_preview.config.template == 'portfolio' %}selected{% endif %}>Portfólio (Marcenaria, Móveis Planejados, Ambientes)</option>
                                 <option value="care" {% if latest_preview and latest_preview.config.template == 'care' %}selected{% endif %}>Care (Clínicas, Odontologia, Saúde Acolhedora)</option>
@@ -325,20 +325,20 @@
                         <div>
                             <label class="block font-bold text-slate-400 uppercase text-[10px] mb-1">Chamada do Botão (CTA):</label>
                             <input id="edit_cta" type="text" value="{{ (latest_preview.config.cta if latest_preview else '') or 'Agendar Avaliação no WhatsApp' }}"
-                                   class="w-full p-2.5 rounded-xl bg-[#11141A] border border-[#2D3545] text-white font-medium outline-none">
+                                   class="w-full p-2.5 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-white font-medium outline-none">
                         </div>
                     </div>
 
                     <div class="text-xs">
                         <label class="block font-bold text-slate-400 uppercase text-[10px] mb-1">Headline Principal do Site:</label>
                         <input id="edit_headline" type="text" value="{{ (latest_preview.config.headline if latest_preview else lead.proposta.headline) or '' }}"
-                               class="w-full p-2.5 rounded-xl bg-[#11141A] border border-[#2D3545] text-white font-medium outline-none">
+                               class="w-full p-2.5 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-white font-medium outline-none">
                     </div>
 
                     <div class="text-xs">
                         <label class="block font-bold text-slate-400 uppercase text-[10px] mb-1">Serviços / Seções em Destaque (um por linha):</label>
                         <textarea id="edit_services" rows="3"
-                                  class="w-full p-2.5 rounded-xl bg-[#11141A] border border-[#2D3545] text-white font-medium outline-none leading-relaxed">{% if latest_preview and latest_preview.config.services %}{{ latest_preview.config.services | join('\n') }}{% elif lead.proposta.secoes %}{{ lead.proposta.secoes | join('\n') }}{% endif %}</textarea>
+                                  class="w-full p-2.5 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-white font-medium outline-none leading-relaxed">{% if latest_preview and latest_preview.config.services %}{{ latest_preview.config.services | join('\n') }}{% elif lead.proposta.secoes %}{{ lead.proposta.secoes | join('\n') }}{% endif %}</textarea>
                     </div>
 
                     <!-- Cores -->
@@ -371,7 +371,7 @@
 
                     <div class="pt-2 flex justify-end gap-2">
                         <button type="button" onclick="toggleEditorPrevia()"
-                                class="px-4 py-2 rounded-xl bg-[#262C36] hover:bg-[#323946] text-slate-300 text-xs font-semibold transition-all">
+                                class="px-4 py-2 rounded-xl bg-[#2A2F38] hover:bg-[#2A2F38] text-slate-300 text-xs font-semibold transition-all">
                             Cancelar
                         </button>
                         <button type="button" id="btn-gerar-nova-versao" onclick="gerarNovaVersaoPrevia()"
@@ -383,7 +383,7 @@
             </div>
 
             <!-- 5. Evidências & Links Reais da Auditoria -->
-            <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-md">
+            <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-md">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         <i class="fa-solid fa-magnifying-glass-chart text-sm"></i>
@@ -393,14 +393,14 @@
 
                 <div class="space-y-2 text-xs">
                     {% for ev in lead.evidencias %}
-                    <div class="p-3 rounded-xl bg-[#1C212B] border border-[#262C36] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="p-3 rounded-xl bg-[#13161B] border border-[#2A2F38] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
                             <span class="font-bold text-white mr-2">{{ ev.fonte }}:</span>
                             <span class="text-slate-300">{{ ev.detalhe }}</span>
                         </div>
                         {% if ev.url %}
                         <a href="{{ ev.url }}" target="_blank" rel="noopener noreferrer" 
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2A3140] hover:bg-blue-600 text-white text-[11px] font-semibold transition-all shrink-0">
+                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2A2F38] hover:bg-blue-600 text-white text-[11px] font-semibold transition-all shrink-0">
                             <span>Acessar Link</span>
                             <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                         </a>
@@ -416,7 +416,7 @@
         <div class="lg:col-span-5 space-y-6">
 
             <!-- Card Principal de Abordagem WhatsApp -->
-            <div class="p-6 rounded-2xl bg-[#161A22] border border-[#262C36] shadow-xl sticky top-6">
+            <div class="p-6 rounded-2xl bg-[#181B20] border border-[#2A2F38] shadow-xl sticky top-6">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
                         <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -430,7 +430,7 @@
                 </div>
 
                 <!-- Seletor de Etapas (Tabs) -->
-                <div class="grid grid-cols-2 gap-2 p-1 bg-[#11141A] rounded-xl border border-[#2D3545] mb-4">
+                <div class="grid grid-cols-2 gap-2 p-1 bg-[#0F1115] rounded-xl border border-[#2A2F38] mb-4">
                     <button type="button" onclick="setEtapaAbordagem(1)" id="tab-etapa-1"
                             class="py-2 px-3 rounded-lg text-xs font-bold transition-all flex flex-col items-center gap-0.5 {% if (lead.etapa_ativa or 1) == 1 %}bg-emerald-600 text-white shadow-md{% else %}text-slate-400 hover:text-white{% endif %}">
                         <div class="flex items-center gap-1.5">
@@ -465,7 +465,7 @@
                         <div class="space-y-1.5">
                             {% for v in lead.variacoes_etapa1 %}
                             <button type="button" onclick="aplicarVariacaoEtapa1({{ loop.index0 }})"
-                                    class="w-full text-left p-2 rounded-lg bg-[#1C212B] hover:bg-[#262C36] border border-[#2D3545] hover:border-emerald-500/50 text-[11px] text-slate-300 transition-all flex items-start gap-2">
+                                    class="w-full text-left p-2 rounded-lg bg-[#13161B] hover:bg-[#2A2F38] border border-[#2A2F38] hover:border-emerald-500/50 text-[11px] text-slate-300 transition-all flex items-start gap-2">
                                 <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-bold shrink-0 mt-0.5">Opção {{ loop.index }}</span>
                                 <span class="line-clamp-2">{{ v }}</span>
                             </button>
@@ -483,7 +483,7 @@
                             </div>
                         </div>
                         <textarea id="msg_etapa1_editor" rows="4" oninput="atualizarPreviewEtapa1()"
-                                  class="w-full p-3 rounded-xl bg-[#11141A] border border-[#2D3545] text-slate-200 text-xs leading-relaxed focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-y font-sans">{{ lead.mensagem_etapa1 or lead.mensagem_whatsapp }}</textarea>
+                                  class="w-full p-3 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-slate-200 text-xs leading-relaxed focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-y font-sans">{{ lead.mensagem_etapa1 or lead.mensagem_whatsapp }}</textarea>
                     </div>
                 </div>
 
@@ -502,7 +502,7 @@
                             <span id="char_etapa2_count" class="text-[10px] text-slate-500 font-mono">0 chars</span>
                         </div>
                         <textarea id="msg_etapa2_editor" rows="7" oninput="atualizarPreviewEtapa2()"
-                                  class="w-full p-3 rounded-xl bg-[#11141A] border border-[#2D3545] text-slate-200 text-xs leading-relaxed focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y font-sans">{{ lead.mensagem_etapa2 }}</textarea>
+                                  class="w-full p-3 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-slate-200 text-xs leading-relaxed focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y font-sans">{{ lead.mensagem_etapa2 }}</textarea>
                         <!-- Botão para inserir link da prévia -->
                         {% if latest_preview %}
                         <div class="mt-1.5 flex justify-end">
@@ -531,7 +531,7 @@
                 <!-- Botões de Ação -->
                 <div class="pt-3 space-y-2">
                     <button type="button" onclick="salvarAbordagemDuasEtapas()"
-                            class="w-full py-2.5 px-4 rounded-xl bg-[#262C36] hover:bg-[#323946] text-white text-xs font-bold transition-all flex items-center justify-center gap-2">
+                            class="w-full py-2.5 px-4 rounded-xl bg-[#2A2F38] hover:bg-[#2A2F38] text-white text-xs font-bold transition-all flex items-center justify-center gap-2">
                         <i class="fa-solid fa-floppy-disk text-xs"></i> Salvar Textos das Etapas
                     </button>
 
@@ -555,20 +555,20 @@
                 </div>
 
                 <!-- Notas do Operador -->
-                <div class="mt-6 pt-6 border-t border-[#262C36] space-y-2">
+                <div class="mt-6 pt-6 border-t border-[#2A2F38] space-y-2">
                     <div class="flex items-center justify-between text-xs">
                         <label for="operador_notes" class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Anotações do Operador:</label>
                     </div>
                     <textarea id="operador_notes" rows="3" placeholder="Insira observações sobre a conversa, data combinada, retorno ou objeções..."
-                              class="w-full p-3 rounded-xl bg-[#11141A] border border-[#2D3545] text-slate-200 text-xs leading-relaxed focus:border-blue-500 outline-none">{{ lead.notas_operador or '' }}</textarea>
+                              class="w-full p-3 rounded-xl bg-[#0F1115] border border-[#2A2F38] text-slate-200 text-xs leading-relaxed focus:border-blue-500 outline-none">{{ lead.notas_operador or '' }}</textarea>
                     <button type="button" onclick="salvarNotasOperador()" 
-                            class="w-full py-2 px-3 rounded-xl bg-[#1C212B] hover:bg-[#262C36] text-slate-300 text-xs font-semibold transition-all">
+                            class="w-full py-2 px-3 rounded-xl bg-[#13161B] hover:bg-[#2A2F38] text-slate-300 text-xs font-semibold transition-all">
                         Salvar Anotações
                     </button>
                 </div>
 
                 <!-- Histórico de Transição e Datas -->
-                <div class="mt-4 pt-4 border-t border-[#262C36] text-[11px] text-slate-400 space-y-1">
+                <div class="mt-4 pt-4 border-t border-[#2A2F38] text-[11px] text-slate-400 space-y-1">
                     <div class="flex justify-between">
                         <span>Preparado em:</span>
                         <span class="text-slate-300 font-mono">{{ lead.created_at or '-' }}</span>
@@ -901,7 +901,7 @@ function selecionarVersaoPreview(previewId, versionNum, previewUrl) {
         if (isSelected) {
             tab.className = 'preview-ver-tab px-3 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white flex items-center gap-1 transition-all';
         } else {
-            tab.className = 'preview-ver-tab px-3 py-1 rounded-lg text-xs font-semibold bg-[#1C212B] hover:bg-[#262C36] text-slate-400 hover:text-white flex items-center gap-1 transition-all';
+            tab.className = 'preview-ver-tab px-3 py-1 rounded-lg text-xs font-semibold bg-[#13161B] hover:bg-[#2A2F38] text-slate-400 hover:text-white flex items-center gap-1 transition-all';
         }
     });
 }
